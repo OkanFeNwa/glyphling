@@ -25,7 +25,7 @@ Glyphling checks the GitHub releases by itself (Settings > Info can turn that of
 - **Circle**: 512 to 2048 LED points; 24/12 hour clock and °C/°F (Settings).
 - **Font**: Glyphling Dot, our own 5x7 dot font (`tools/make_font.py`). If Nothing's 5x7 font is installed on the PC it is used instead (it cannot be redistributed).
 - Easter eggs: shake the mouse left and right over the mascot, or circle around it fast.
-- Music follows one app at a time and the circle's volume controls only that app. Choose from popular players or add your own, as a whitelist or blacklist.
+- Music follows one app at a time. Keep a list of the apps you want (running ones or any .exe) and the widget shows and controls only those; the circle's volume lowers one chosen mixer entry, never the system volume.
 - Starts with Windows (optional), single instance.
 
 ## CPU temperature

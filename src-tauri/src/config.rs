@@ -4,6 +4,13 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
+/// An app in the music list: `key` is what it is matched by (compact exe name), `name` what is shown.
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+pub struct MusicApp {
+    pub key: String,
+    pub name: String,
+}
+
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(default)]
 pub struct Config {
@@ -39,8 +46,10 @@ pub struct Config {
     pub auto_update: bool,
     /// Last version Settings was opened for (so it is announced once).
     pub update_notified: String,
-    pub music_filter: String,
-    pub music_apps: Vec<String>,
+    /// Process the volume slider acts on (e.g. "spotify"); empty = the music app being followed.
+    pub volume_target: String,
+    /// Apps the music mode listens to and controls; empty = any app.
+    pub music_list: Vec<MusicApp>,
 }
 
 impl Default for Config {
@@ -63,8 +72,8 @@ impl Default for Config {
             sensor_offered: false,
             auto_update: true,
             update_notified: String::new(),
-            music_filter: "all".into(),
-            music_apps: vec![],
+            volume_target: String::new(),
+            music_list: vec![],
         }
     }
 }
@@ -88,9 +97,6 @@ pub fn load(app: &AppHandle) -> Config {
     }
     if c.preset.as_deref().is_some_and(|p| !crate::snap::PRESETS.contains(&p)) {
         c.preset = None;
-    }
-    if !["all", "allow", "block"].contains(&c.music_filter.as_str()) {
-        c.music_filter = "all".into();
     }
     if c.grid < 8 || c.grid > 96 {
         c.grid = 24;

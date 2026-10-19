@@ -56,11 +56,8 @@
   shareColors();
   listen('config', e => applyCfg(e.payload));
   listen('themes-changed', e => { if (e.payload.from !== host) C.reloadThemes(); shareColors(); });
-  // music source: the backend follows one allowed app and controls only its volume
-  window.__hostSrc = src => invoke('set_music_filter', {
-    mode: src.mode === 'white' ? 'allow' : src.mode === 'black' ? 'block' : 'all',
-    apps: src.mode === 'all' ? [] : src.picked,
-  });
+  // the prototype's chip selector is replaced by a real list (see the Settings block below)
+  window.__hostSrc = () => {};
   if (host === 'settings') {
     const poll = () => invoke('music_now').then(n => { if (n !== window.__nowApp) { window.__nowApp = n; window.__srcRefresh && window.__srcRefresh(); } }).catch(() => {});
     poll(); setInterval(poll, 2000);
@@ -205,6 +202,58 @@
       sw.addEventListener('click', () => invoke('set_autostart', { on: sw.getAttribute('aria-checked') !== 'true' }).then(on => sw.setAttribute('aria-checked', on)));
     }
     // cover colors: theme or neutral white
+    // music apps: a real list; the music mode listens to and controls only these (empty = any app)
+    const modeRow = $('srcMode') && $('srcMode').closest('.srow'), chipRow = $('srcList') && $('srcList').closest('.srow');
+    if (modeRow && chipRow) {
+      modeRow.hidden = true; chipRow.hidden = true;
+      chipRow.insertAdjacentHTML('afterend', `<div class="srow src-row"><div><b>App musicali</b><small id="mlNote"></small>
+        <div class="applist" id="mlList"></div>
+        <small class="ml-h">In esecuzione ora</small><div class="chiplist" id="mlRun"></div>
+        <button class="ghost" id="mlPick">Scegli un programma…</button></div></div>`);
+      let list = [], running = [];
+      const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const pretty = n => { n = String(n).replace(/\.exe$/i, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
+      const save = () => { invoke('set_music_list', { list }); draw(); };
+      const add = (key, name) => { if (key && !list.some(a => a.key === key)) { list.push({ key, name }); save(); } };
+      const draw = () => {
+        $('mlNote').textContent = list.length ? 'Il widget mostra e controlla solo queste app.' : 'Lista vuota: il widget ascolta qualsiasi app. Aggiungi la tua per limitarlo.';
+        $('mlList').innerHTML = list.map(a => `<div class="approw"><b>${esc(a.name)}</b><small>${esc(a.key)}</small><button class="ghost rm" data-k="${esc(a.key)}" aria-label="Rimuovi ${esc(a.name)}">×</button></div>`).join('');
+        const rest = running.filter(r => !list.some(a => a.key === r[0]));
+        $('mlRun').innerHTML = rest.length ? rest.map(([k, n]) => `<button class="ghost" data-k="${esc(k)}" data-n="${esc(n)}">+ ${esc(n)}</button>`).join('') : '<small>Nessuna app in riproduzione.</small>';
+      };
+      const poll = () => Promise.all([invoke('music_sessions'), invoke('audio_apps')]).then(([m, a]) => {
+        const out = [];
+        for (const [k, n] of [...(m || []), ...(a || [])]) if (k && !out.some(o => o[0] === k)) out.push([k, pretty(n)]);
+        running = out; draw();
+      }).catch(() => {});
+      invoke('get_config').then(c => { list = c.music_list || []; draw(); });
+      poll(); setInterval(poll, 3000);
+      $('mlList').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) { list = list.filter(a => a.key !== b.dataset.k); save(); } });
+      $('mlRun').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) add(b.dataset.k, b.dataset.n); });
+      $('mlPick').addEventListener('click', () => invoke('pick_music_exe').then(a => { if (a) add(a.key, pretty(a.name)); }).catch(() => {}));
+    }
+    // volume target: which mixer entry the circle's volume lowers
+    const nowRow = $('srcNow') && $('srcNow').closest('.srow');
+    if (nowRow) {
+      nowRow.insertAdjacentHTML('afterend', `<div class="srow src-row"><div><b>App del volume</b><small id="volNote"></small><div class="chiplist" id="volList"></div></div></div>`);
+      let target = '', apps = [];
+      const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const draw = () => {
+        const list = [...apps];
+        if (target && !list.some(a => a[0] === target)) list.push([target, target + ' (non attiva)']);
+        $('volList').innerHTML = `<button class="ghost" data-k="" aria-pressed="${target === ''}">Automatico</button>`
+          + list.map(([k, n]) => `<button class="ghost" data-k="${esc(k)}" aria-pressed="${k === target}">${esc(n)}</button>`).join('');
+        $('volNote').textContent = target ? 'Il cursore del volume abbassa solo questa app nel mixer di Windows.'
+          : 'Automatico: abbassa l\'app musicale in ascolto. Scegline una per decidere tu quale voce del mixer regolare.';
+      };
+      const poll = () => invoke('audio_apps').then(a => { apps = a || []; draw(); }).catch(() => {});
+      invoke('get_config').then(c => { target = c.volume_target || ''; draw(); });
+      poll(); setInterval(poll, 3000);
+      $('volList').addEventListener('click', e => {
+        const b = e.target.closest('button[data-k]'); if (!b) return;
+        target = b.dataset.k; draw(); invoke('set_volume_target', { target });
+      });
+    }
     // CPU temperature: offers the optional sensor (LibreHardwareMonitor), only with consent
     const genPage = document.querySelector('.spage[data-p="gen"]');
     const dk = $('dkPick') && $('dkPick').closest('.sgroup');
@@ -329,14 +378,24 @@
             cells.push({ x, y, l: 0.2126 * r + 0.7152 * gg + 0.0722 * b, s: mx ? (mx - mn) / mx * mx : 0 });
           }
           const inRing = p => { const d = Math.hypot(p.x - c, p.y - c); return d <= c + 0.3 * k && d >= 1.6 * k; };
-          const sats = cells.filter(inRing).map(p => p.s).sort((a, b) => b - a);
+          const ringCells = cells.filter(inRing);
+          const sats = ringCells.map(p => p.s).sort((a, b) => b - a);
+          // stretch the brightness over the cover's own range, so bright or flat covers do not
+          // end up all white (or all dark) in the theme's single color
+          const ls = ringCells.map(p => p.l).sort((a, b) => a - b);
+          // histogram equalization: each brightness level gets a similar share of the dots
+          const ranks = new Map();
+          // a little positional jitter, so flat areas dither instead of forming bands
+          const key = p => p.l + (((p.x * 73 + p.y * 151) % 97) / 97 - 0.5) * 0.02;
+          [...ringCells].sort((a, b) => key(a) - key(b)).forEach((p, i, arr) => ranks.set(p, i / Math.max(1, arr.length - 1)));
           const cut = Math.max(0.35, sats[Math.floor(sats.length * 0.04)] || 1);
           const out = new Float32Array(n * n), rgb = new Uint8Array(n * n * 3);
           for (const p of cells) {
             if (!inRing(p)) continue;
             const o = (p.y * n + p.x) * 4;
             rgb[(p.y * n + p.x) * 3] = px[o]; rgb[(p.y * n + p.x) * 3 + 1] = px[o + 1]; rgb[(p.y * n + p.x) * 3 + 2] = px[o + 2];
-            out[p.y * n + p.x] = p.s >= cut ? -1 : p.l > 0.75 ? 1 : p.l > 0.5 ? 0.7 : p.l > 0.25 ? 0.35 : 0;
+            const q = ranks.get(p);
+            out[p.y * n + p.x] = p.s >= cut ? -1 : q > 0.78 ? 1 : q > 0.56 ? 0.7 : q > 0.34 ? 0.42 : q > 0.15 ? 0.2 : 0;
           }
           rgbs[n] = rgb;
           return (cache[n] = out);

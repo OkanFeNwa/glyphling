@@ -1,6 +1,6 @@
 [package]
 name = "glyphling"
-version = "0.9.2"
+version = "0.9.3"
 description = "Glyphling: a dot-matrix desktop companion"
 edition = "2021"
 
@@ -24,6 +24,7 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-autostart = "2"
 
 [target.'cfg(windows)'.dependencies]
+rfd = { version = "0.15", default-features = false }
 nvml-wrapper = "0.11"
 windows = { version = "0.58", features = [
   "Foundation",

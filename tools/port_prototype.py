@@ -198,35 +198,33 @@ sub("      for (let y = 0, i = 0; y < NH; y++) for (let x = 0; x < NH; x++, i++)
 sub("      swapText($('upNext'), `a seguire: ${nx.title}`, 90);", "      swapText($('upNext'), tr.live ? '' : `a seguire: ${nx.title}`, 90);")
 sub("      $('upNext').textContent = `a seguire: ${nx.title}`;\n      trackShown = true;", "      $('upNext').textContent = tr.live ? '' : `a seguire: ${nx.title}`;\n      trackShown = true;")
 
-# 5f. cover switch OFF = the cover keeps its own colors (real covers carry an RGB map per cell)
+# 5f. cover switch OFF = the cover keeps its own colors: real covers carry an RGB map per cell,
+# fed into the prototype's per-LED color buffer (hcol/hcolOn)
 sub("  function drawCoverLed() {\n    const cur = coverBuf(coverSeed), old = trk.t > 0 ? coverBuf(trk.from) : null;\n",
-    "  let cvm = new Uint8Array(1), cvr = new Uint8Array(3);   // cover LEDs and their own colors\n"
     "  function coverRgb(seed) {\n"
     "    const rc = typeof seed === 'string' && window.__covers && window.__covers[seed];\n"
     "    return rc && rc.rgb ? rc.rgb(NH) : null;\n"
     "  }\n"
     "  function drawCoverLed() {\n"
     "    const cur = coverBuf(coverSeed), old = trk.t > 0 ? coverBuf(trk.from) : null;\n"
-    "    const curR = coverRgb(coverSeed), oldR = old ? coverRgb(trk.from) : null;\n"
-    "    if (cvm.length !== NH * NH) { cvm = new Uint8Array(NH * NH); cvr = new Uint8Array(NH * NH * 3); } else cvm.fill(0);\n")
-sub("      let src = null;\n" if False else "      let src = cur;\n      if (old) {", "      let src = cur, srcR = curR;\n      if (old) {")
-sub("        if (a > sweep) src = old;\n", "        if (a > sweep) { src = old; srcR = oldR; }\n")
-sub("      const v = src[sy * NH + sx];\n      if (v === -1) hset(i, 1, true); else if (v > 0) hset(i, v);\n",
+    "    const curR = units.cover ? null : coverRgb(coverSeed), oldR = old && !units.cover ? coverRgb(trk.from) : null;\n")
+sub("      const v = src[sy * NH + sx];\n      if (v === 0) continue;\n",
     "      const v = src[sy * NH + sx];\n"
+    "      const srcR = src === cur ? curR : oldR;\n"
     "      if (srcR) {\n"
     "        const j = (sy * NH + sx) * 3;\n"
-    "        if (srcR[j] | srcR[j + 1] | srcR[j + 2]) { cvm[i] = 1; cvr[i * 3] = srcR[j]; cvr[i * 3 + 1] = srcR[j + 1]; cvr[i * 3 + 2] = srcR[j + 2]; hset(i, 1); continue; }\n"
+    "        if (srcR[j] | srcR[j + 1] | srcR[j + 2]) { hset(i, 1); hcol[i * 3] = srcR[j]; hcol[i * 3 + 1] = srcR[j + 1]; hcol[i * 3 + 2] = srcR[j + 2]; hcolOn[i] = 1; continue; }\n"
     "      }\n"
-    "      if (v === -1) hset(i, 1, true); else if (v > 0) hset(i, v);\n")
-sub("      let glow = null;\n      if (v > 0.02 && orr[i]) {\n",
-    "      let glow = null;\n"
-    "      if (plain && cvm[i] === 1 && mode === 'music' && v > 0.02) {\n"
-    "        const cr = cvr[i * 3], cg = cvr[i * 3 + 1], cb = cvr[i * 3 + 2];\n"
-    "        ctx.fillStyle = `rgb(${Math.round(r0 + (cr - r0) * v)},${Math.round(g0 + (cg - g0) * v)},${Math.round(b0 + (cb - b0) * v)})`;\n"
-    "        glow = `rgba(${cr},${cg},${cb},${v * 0.45})`;\n"
-    "        if (!soft) { ctx.shadowColor = glow; ctx.shadowBlur = cell * 0.8 * v; }\n"
-    "      } else if (v > 0.02 && orr[i]) {\n")
-sub("Se spento la copertina del brano resta bianca con l'accento rosso originale, qualunque tema usi.", "Se spento la copertina mantiene i suoi colori originali, qualunque tema usi.")
+    "      if (v === 0) continue;\n")
+
+# 5h. smoother at 2048 points: the glow is drawn small and scaled up (no full-size blur filter
+# every frame), and the canvas is repainted at 30 fps at that size
+sub("if (glowCv.width !== W) { glowCv.width = W; glowCv.height = W; }", "const GW = Math.ceil(W * 0.25); if (glowCv.width !== GW) { glowCv.width = GW; glowCv.height = GW; }")
+sub("gctx.fillRect(X, Y, s, s);", "gctx.fillRect(X * 0.25, Y * 0.25, s * 0.25, s * 0.25);")
+sub("      ctx.filter = `blur(${(cell * 1.3).toFixed(1)}px)`;\n      ctx.globalAlpha = 0.6;\n      ctx.drawImage(glowCv, 0, 0);\n",
+    "      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';\n      ctx.globalAlpha = 0.8;\n      ctx.drawImage(glowCv, 0, 0, W, W);\n")
+sub("    compose();\n    draw();\n", "    compose();\n    if (NH < 51 || (frameNo++ & 1) === 0) draw();\n")
+sub("  function frame(nowMs) {\n", "  let frameNo = 0;\n  function frame(nowMs) {\n")
 
 # 5e. format and resolution are shared with the other window
 sub("    setRes(+b.dataset.r); try { localStorage.setItem('companion-res', resPts); } catch (e) {}\n",

@@ -33,7 +33,13 @@ pub struct Filter {
 }
 
 static FILTER: std::sync::Mutex<Option<Filter>> = std::sync::Mutex::new(None);
+/// Process (compact exe name) the volume slider acts on; empty = the app being followed.
+static TARGET: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 static LAST: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+pub fn set_target(t: &str) {
+    *TARGET.lock().unwrap() = compact(t);
+}
 
 pub fn set_filter(mode: &str, apps: &[String]) {
     *FILTER.lock().unwrap() = Some(Filter { mode: mode.into(), apps: apps.to_vec() });
@@ -90,7 +96,7 @@ mod imp {
     };
     use windows::Storage::Streams::{DataReader, IRandomAccessStreamReference};
     use windows::Win32::Media::Audio::{
-        eConsole, eRender, AudioSessionStateActive, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
+        eConsole, eRender, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
         MMDeviceEnumerator,
     };
     use windows::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
@@ -227,7 +233,8 @@ mod imp {
         r.unwrap_or(false)
     }
 
-    fn exe_stem(pid: u32) -> Option<String> {
+    /// File name of the process ("Spotify.exe").
+    fn exe_name(pid: u32) -> Option<String> {
         unsafe {
             let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
             let mut buf = [0u16; 520];
@@ -236,47 +243,67 @@ mod imp {
             let _ = CloseHandle(h);
             r.ok()?;
             let path = String::from_utf16_lossy(&buf[..n as usize]);
-            let name = path.rsplit(['\\', '/']).next()?.to_string();
-            Some(super::compact(name.trim_end_matches(".exe").trim_end_matches(".EXE")))
+            path.rsplit(['\\', '/']).next().map(String::from)
         }
     }
 
-    /// Audio sessions (volume controls) of the app being followed. Browsers may have several.
-    /// When no process name matches the media session (apps whose exe differs from their
-    /// media id), the sessions that are playing right now are used instead.
-    fn app_volumes(source: &str) -> Vec<ISimpleAudioVolume> {
-        let mut named = vec![];
-        let mut active = vec![];
-        let id = super::compact(source);
-        if id.is_empty() {
-            return named;
-        }
+    fn exe_stem(pid: u32) -> Option<String> {
+        exe_name(pid).map(|n| super::compact(n.trim_end_matches(".exe").trim_end_matches(".EXE")))
+    }
+
+    fn sessions_of_default_device() -> Vec<(u32, windows::Win32::Media::Audio::IAudioSessionControl)> {
+        let mut out = vec![];
         com_init();
         unsafe {
-            let Ok(en) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return named };
-            let Ok(dev) = en.GetDefaultAudioEndpoint(eRender, eConsole) else { return named };
-            let Ok(mgr) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None) else { return named };
-            let Ok(list) = mgr.GetSessionEnumerator() else { return named };
+            let Ok(en) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return out };
+            let Ok(dev) = en.GetDefaultAudioEndpoint(eRender, eConsole) else { return out };
+            let Ok(mgr) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None) else { return out };
+            let Ok(list) = mgr.GetSessionEnumerator() else { return out };
             for i in 0..list.GetCount().unwrap_or(0) {
                 let Ok(c) = list.GetSession(i) else { continue };
                 let Ok(c2) = c.cast::<IAudioSessionControl2>() else { continue };
                 let pid = c2.GetProcessId().unwrap_or(0);
                 // pid 0 is the system sounds session; never touch it or ourselves
-                if pid == 0 || pid == std::process::id() {
-                    continue;
-                }
-                let Ok(v) = c.cast::<ISimpleAudioVolume>() else { continue };
-                if c.GetState().map(|st| st == AudioSessionStateActive).unwrap_or(false) {
-                    active.push(v.clone());
-                }
-                if let Some(stem) = exe_stem(pid) {
-                    if stem.len() >= 3 && id.contains(&stem) {
-                        named.push(v);
-                    }
+                if pid != 0 && pid != std::process::id() {
+                    out.push((pid, c));
                 }
             }
         }
-        if named.is_empty() { active } else { named }
+        out
+    }
+
+    /// Apps with an audio session in the Windows mixer: (key, file name).
+    pub fn audio_apps() -> Vec<(String, String)> {
+        let mut out: Vec<(String, String)> = vec![];
+        for (pid, _) in sessions_of_default_device() {
+            if let Some(n) = exe_name(pid) {
+                let k = super::compact(n.trim_end_matches(".exe").trim_end_matches(".EXE"));
+                if !out.iter().any(|(x, _)| *x == k) {
+                    out.push((k, n));
+                }
+            }
+        }
+        out
+    }
+
+    /// Audio sessions (volume controls) the slider acts on: the process chosen in Settings,
+    /// or else the processes whose name matches the followed media app (browsers have several).
+    /// Nothing else is ever touched, never the system volume.
+    fn app_volumes(source: &str) -> Vec<ISimpleAudioVolume> {
+        let target = super::TARGET.lock().unwrap().clone();
+        let id = super::compact(source);
+        if target.is_empty() && id.is_empty() {
+            return vec![];
+        }
+        sessions_of_default_device()
+            .into_iter()
+            .filter(|(pid, _)| match exe_stem(*pid) {
+                Some(stem) if !target.is_empty() => stem == target,
+                Some(stem) => stem.len() >= 3 && id.contains(&stem),
+                None => false,
+            })
+            .filter_map(|(_, c)| c.cast::<ISimpleAudioVolume>().ok())
+            .collect()
     }
 
     /// Volume of the followed app only; None when it has no audio session yet.
@@ -314,9 +341,12 @@ mod imp {
     pub fn sessions() -> Vec<(String, String)> {
         vec![]
     }
+    pub fn audio_apps() -> Vec<(String, String)> {
+        vec![]
+    }
 }
 
-pub use imp::{com_init, control, sessions};
+pub use imp::{audio_apps, com_init, control, sessions};
 
 /// Readable name of the app being followed (empty when none).
 pub fn now_app() -> String {

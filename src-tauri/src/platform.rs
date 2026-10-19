@@ -57,15 +57,27 @@ mod imp {
         }
     }
 
-    /// Removes the non-client area for good: the window proc ignores WM_NCCALCSIZE (no frame
-    /// space), and WM_NCACTIVATE never repaints it, so focus changes cannot bring a title bar back.
+    /// Removes the non-client area for good. The window becomes a plain popup (no caption, frame
+    /// or system menu) and its window procedure ignores WM_NCCALCSIZE and never paints or
+    /// activates the non-client area, so a focus change cannot bring a title bar back.
+    /// Subclassing must happen on the thread that owns the window, hence the hop.
     pub fn no_frame(w: &tauri::WebviewWindow) {
+        let w2 = w.clone();
+        let _ = w.run_on_main_thread(move || no_frame_here(&w2));
+    }
+
+    fn no_frame_here(w: &tauri::WebviewWindow) {
         use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
         use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
-        use windows_sys::Win32::UI::WindowsAndMessaging::{WM_NCACTIVATE, WM_NCCALCSIZE};
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_EXSTYLE, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+            SWP_NOZORDER, WM_NCACTIVATE, WM_NCCALCSIZE, WM_NCPAINT, WS_CAPTION, WS_EX_CLIENTEDGE, WS_EX_DLGMODALFRAME, WS_EX_STATICEDGE,
+            WS_EX_WINDOWEDGE, WS_MAXIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
+        };
         unsafe extern "system" fn proc(h: *mut std::ffi::c_void, msg: u32, wp: usize, lp: isize, _id: usize, _d: usize) -> isize {
             match msg {
                 WM_NCCALCSIZE if wp != 0 => 0,
+                WM_NCPAINT => 0,
                 WM_NCACTIVATE => DefSubclassProc(h, msg, wp, -1),
                 _ => DefSubclassProc(h, msg, wp, lp),
             }
@@ -77,8 +89,13 @@ mod imp {
             let off: i32 = 1;
             DwmSetWindowAttribute(h, 2, &off as *const i32 as *const _, 4);
             SetWindowSubclass(h, Some(proc), 1, 0);
+            let style = GetWindowLongPtrW(h, GWL_STYLE);
+            let clean = (style & !((WS_CAPTION | WS_THICKFRAME | WS_SYSMENU | WS_MAXIMIZEBOX) as isize)) | WS_POPUP as isize;
+            SetWindowLongPtrW(h, GWL_STYLE, clean);
+            let ex = GetWindowLongPtrW(h, GWL_EXSTYLE);
+            SetWindowLongPtrW(h, GWL_EXSTYLE, ex & !((WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_CLIENTEDGE | WS_EX_STATICEDGE) as isize));
+            SetWindowPos(h, std::ptr::null_mut(), 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
         }
-        strip_frame(w);
     }
 
     /// Clips the window to the shape (union of rounded rectangles, logical pixels): outside it

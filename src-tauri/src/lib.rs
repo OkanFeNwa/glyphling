@@ -189,18 +189,41 @@ fn set_tutorial_done(app: AppHandle) {
 }
 
 /// Side the panel opens on: right, left or auto.
-/// Which apps may be the music source (see `media::Filter`).
+/// The apps the music mode listens to and controls (empty = any app).
 #[tauri::command]
-fn set_music_filter(app: AppHandle, mode: String, apps: Vec<String>) {
-    if !["all", "allow", "block"].contains(&mode.as_str()) {
-        return;
+fn set_music_list(app: AppHandle, list: Vec<config::MusicApp>) {
+    let list: Vec<config::MusicApp> = list
+        .into_iter()
+        .map(|a| config::MusicApp { key: media::compact(&a.key), name: a.name.chars().take(40).collect() })
+        .filter(|a| a.key.len() >= 2)
+        .take(32)
+        .collect();
+    apply_music_list(&list);
+    update(&app, |c| c.music_list = list);
+}
+
+fn apply_music_list(list: &[config::MusicApp]) {
+    let keys: Vec<String> = list.iter().map(|a| a.key.clone()).collect();
+    media::set_filter(if keys.is_empty() { "all" } else { "allow" }, &keys);
+}
+
+/// Lets the user pick a program (.exe) to add to the music list.
+#[tauri::command]
+async fn pick_music_exe(window: WebviewWindow) -> Option<config::MusicApp> {
+    #[cfg(not(windows))]
+    {
+        let _ = window;
+        return None;
     }
-    let apps: Vec<String> = apps.iter().map(|a| media::compact(a)).filter(|a| a.len() >= 3).take(64).collect();
-    media::set_filter(&mode, &apps);
-    update(&app, |c| {
-        c.music_filter = mode;
-        c.music_apps = apps;
-    });
+    #[cfg(windows)]
+    tauri::async_runtime::spawn_blocking(move || {
+        let f = rfd::FileDialog::new().set_title("Scegli il programma").add_filter("Programma", &["exe"]).set_parent(&window).pick_file()?;
+        let stem = f.file_stem()?.to_string_lossy().to_string();
+        Some(config::MusicApp { key: media::compact(&stem), name: stem })
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 /// Newer version found so far, if any.
@@ -284,6 +307,25 @@ fn sensor_offer(app: AppHandle) -> &'static str {
         open_settings(&app, Some("gen".into()));
     }
     "done"
+}
+
+/// Process the volume slider acts on; empty = the followed music app.
+#[tauri::command]
+fn set_volume_target(app: AppHandle, target: String) {
+    let t = media::compact(&target);
+    media::set_target(&t);
+    update(&app, |c| c.volume_target = t);
+}
+
+/// Apps that have an audio session in the Windows mixer: (key, file name).
+#[tauri::command]
+async fn audio_apps() -> Vec<(String, String)> {
+    tauri::async_runtime::spawn_blocking(|| {
+        media::com_init();
+        media::audio_apps()
+    })
+    .await
+    .unwrap_or_default()
 }
 
 /// Name of the app the music mode is following right now.
@@ -493,7 +535,8 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             let cfg = config::load(&handle);
-            media::set_filter(&cfg.music_filter, &cfg.music_apps);
+            apply_music_list(&cfg.music_list);
+            media::set_target(&cfg.volume_target);
             app.manage(AppState {
                 cfg: Mutex::new(cfg.clone()),
                 shape: Mutex::new(hit::Shape::default()),
@@ -517,6 +560,7 @@ pub fn run() {
                 .focused(false)
                 .visible(false)
                 .build()?;
+            platform::no_frame(&widget);
             snap::layout(app.handle(), 0);
             apply_level(&widget, &cfg.level);
             if cfg.visible {
@@ -534,6 +578,7 @@ pub fn run() {
                 .focused(false)
                 .visible(false)
                 .build()?;
+            platform::no_frame(&grid);
             #[cfg(windows)]
             grid.set_ignore_cursor_events(true)?;
 
@@ -550,6 +595,7 @@ pub fn run() {
                 .visible(false)
                 .inner_size(300.0, 600.0)
                 .build()?;
+            platform::no_frame(&menu);
             let mh = handle.clone();
             menu.on_window_event(move |ev| {
                 if let tauri::WindowEvent::Focused(false) = ev {
@@ -592,9 +638,12 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_config,
             set_panel_dir,
-            set_music_filter,
+            set_music_list,
+            pick_music_exe,
             music_sessions,
             music_now,
+            set_volume_target,
+            audio_apps,
             sensor_state,
             start_sensor,
             install_sensor,

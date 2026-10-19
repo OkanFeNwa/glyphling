@@ -92,3 +92,12 @@ html.h-widget .panel { will-change: clip-path, opacity; }
 
 /* no blur behind windows, so the event editor needs a solid background to stay readable over the calendar */
 html.h-widget .evpop { background: rgba(26,26,26,.97) !important; }
+
+/* music apps list in Settings */
+.applist { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.approw { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); }
+.approw b { font-weight: 600; font-size: 12px; }
+.approw small { flex: 1; opacity: .55; }
+.approw .rm { width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 16px; line-height: 1; }
+.ml-h { display: block; margin-top: 10px; }
+#mlPick { margin-top: 10px; }
