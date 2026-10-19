@@ -10,3 +10,4 @@ src-tauri/gen/
 Thumbs.db
 .vscode/
 .idea/
+__pycache__/
