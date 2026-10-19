@@ -83,7 +83,8 @@ pub fn update(app: &AppHandle, f: impl FnOnce(&mut Config)) {
     tray::sync(app, &after);
     let _ = app.emit("config", &after);
     if (before.mode == "idle") != (after.mode == "idle") {
-        snap::follow_state(app);
+        // the circle slides while the panel opens (0.6 s in the page)
+        snap::layout(app, 40);
     }
 }
 
@@ -164,24 +165,10 @@ fn set_snap(app: AppHandle, on: bool) {
     update(&app, |c| c.snap = on);
 }
 
-/// Two positions (circle alone, circle + panel) on or off.
+/// Quick position: tl, tc, tr, ml, c, mr, bl, bc, br.
 #[tauri::command]
-fn set_two_pos(app: AppHandle, on: bool) {
-    let sf = app.get_webview_window("widget").and_then(|w| w.scale_factor().ok()).unwrap_or(1.0);
-    let pos = app.get_webview_window("widget").and_then(|w| w.outer_position().ok());
-    update(&app, |c| {
-        c.two_pos = on;
-        // the current place becomes the position of both states until the user moves it
-        if let Some(p) = pos {
-            let center = ((p.x as f64 + snap::cx_off(c.left) * sf).round() as i32, (p.y as f64 + (PAD_Y + D / 2.0) * sf).round() as i32);
-            if c.mode == "idle" {
-                c.home = Some(center);
-            } else {
-                c.home = c.home.or(Some(center));
-                c.home_open = Some(center);
-            }
-        }
-    });
+fn set_preset(app: AppHandle, id: String) {
+    snap::set_preset(&app, &id);
 }
 
 /// Marks the first-run tutorial as shown, so it never opens by itself again.
@@ -197,7 +184,7 @@ fn set_panel_dir(app: AppHandle, dir: String) {
         return;
     }
     update(&app, |c| c.panel_dir = dir);
-    snap::sync_side(&app);
+    snap::layout(&app, 10);
 }
 
 #[tauri::command]
@@ -263,7 +250,7 @@ fn start_drag(app: AppHandle, window: WebviewWindow, color: Option<String>) -> R
 
 #[tauri::command]
 fn reset_position(app: AppHandle) {
-    snap::reset(&app);
+    snap::set_preset(&app, "c");
 }
 
 #[tauri::command]
@@ -403,7 +390,7 @@ pub fn run() {
                 .focused(false)
                 .visible(false)
                 .build()?;
-            snap::restore(&widget, &cfg);
+            snap::layout(app.handle(), 0);
             apply_level(&widget, &cfg.level);
             if cfg.visible {
                 widget.show()?;
@@ -458,7 +445,6 @@ pub fn run() {
                 }
             });
             tray::create(&handle)?;
-            snap::sync_side(&handle);
             hit::spawn(handle.clone());
             system::spawn(handle.clone());
             media::spawn(handle.clone());
@@ -477,7 +463,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_config,
             set_panel_dir,
-            set_two_pos,
+            set_preset,
             tutorial,
             set_tutorial_done,
             list_disks,

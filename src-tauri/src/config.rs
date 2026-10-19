@@ -24,11 +24,10 @@ pub struct Config {
     pub panel_dir: String,
     /// Current side: true if the panel opens to the left (the circle sits on the right of the window).
     pub left: bool,
-    /// Two positions: one for the circle alone and one for circle + panel.
-    pub two_pos: bool,
-    /// Saved circle centers (physical pixels) for the closed and the open state.
+    /// Where the circle's center sits (physical pixels), when no quick position is chosen.
     pub home: Option<(i32, i32)>,
-    pub home_open: Option<(i32, i32)>,
+    /// Quick position: tl, tc, tr, ml, c, mr, bl, bc, br (recomputed from the screen).
+    pub preset: Option<String>,
     /// The first-run tutorial was already shown (saved here so updates keep it).
     pub tutorial_done: bool,
 }
@@ -46,9 +45,8 @@ impl Default for Config {
             y: None,
             panel_dir: "auto".into(),
             left: false,
-            two_pos: false,
             home: None,
-            home_open: None,
+            preset: None,
             tutorial_done: false,
         }
     }
@@ -70,6 +68,9 @@ pub fn load(app: &AppHandle) -> Config {
     c.move_enabled = false;
     if !["right", "left", "auto"].contains(&c.panel_dir.as_str()) {
         c.panel_dir = "auto".into();
+    }
+    if c.preset.as_deref().is_some_and(|p| !crate::snap::PRESETS.contains(&p)) {
+        c.preset = None;
     }
     if c.grid < 8 || c.grid > 96 {
         c.grid = 24;

@@ -60,10 +60,8 @@ pub fn spawn(app: AppHandle) {
     std::thread::spawn(move || {
         let mut ignoring: Option<bool> = None;
         let mut last = (i32::MIN, i32::MIN);
-        let mut tick = 0u32;
         loop {
             std::thread::sleep(Duration::from_millis(16));
-            tick = tick.wrapping_add(1);
             let Some(w) = app.get_webview_window("widget") else { continue };
             let state = app.state::<AppState>();
             if state.dragging.load(Ordering::Relaxed) || !w.is_visible().unwrap_or(false) {
@@ -85,8 +83,8 @@ pub fn spawn(app: AppHandle) {
                 let _ = w.set_ignore_cursor_events(!inside);
                 ignoring = Some(!inside);
             }
-            // 15 times a second is enough for the eyes
-            if tick % 4 == 0 && (mx, my) != last {
+            // every frame: besides the eyes, the page's easter eggs measure the mouse speed
+            if (mx, my) != last {
                 last = (mx, my);
                 let idle = state.cfg.lock().unwrap().mode == "idle";
                 if idle && !inside {

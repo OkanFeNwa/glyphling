@@ -36,7 +36,8 @@ sub("  function saveThemes() {\n",
     "  function saveThemes() {\n    if (window.__hostEvent) queueMicrotask(() => window.__hostEvent('themes'));\n")
 
 # 4. moving: in the app the window is dragged by the native Windows handler
-sub("  function applyPos() {", "  function applyPos() { if (window.__host) return;")
+# the circle's place and the panel side are decided by the backend, which knows the screen
+sub("  function layout() {\n", "  function layout() {\n    if (window.__host) return;\n")
 sub("    if (!moving) return;\n    e.preventDefault(); e.stopPropagation();\n",
     "    if (!moving) return;\n    e.preventDefault(); e.stopPropagation();\n    if (window.__hostDrag) { window.__hostDrag(e); return; }\n")
 sub("  function setMoving(v) {\n    moving = v;\n",
@@ -157,8 +158,6 @@ API = """
 """
 sub("  requestAnimationFrame(frame);\n})();\n</script>", API + "  requestAnimationFrame(frame);\n})();\n</script>")
 
-# 5b. two positions: in the app the backend moves the window between the saved places
-sub("  function syncPos() {\n", "  function syncPos() {\n    if (window.__host) return;\n")
 
 # 5c. tutorial: only in the widget window, which first grows to cover the screen;
 # the tray icon is the real one in the taskbar
@@ -173,10 +172,6 @@ sub("  if (!tutSeen) setTimeout(tutOpen, 1400);", "  if (!tutSeen && !window.__h
 sub("el: () => $('trayIc')", "el: () => (window.__tutTray ? window.__tutTray() : $('trayIc'))", 2)
 
 # 6. app name: Glyphling (visible text only, internal keys stay lowercase)
-# in the app the panel side is decided by the backend, which knows the screen
-html, n = re.subn(r"(  function applyDir\([a-z]*\) \{\n)", r"\1    if (window.__host) return;\n", html, count=1)
-if not n:
-    sys.exit("hook not found: function applyDir")
 html = html.replace("Companion", "Glyphling")
 html = html.replace(" Meteo e brani in questo prototipo sono finti.", "")
 

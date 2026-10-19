@@ -31,6 +31,7 @@
     if (volTimer) return;
     volTimer = setTimeout(() => { volTimer = 0; invoke('set_volume', { v: volNext }); }, 60);
   }
+  const PRESET_NAMES = { tl: 'In alto a sinistra', tc: 'In alto al centro', tr: 'In alto a destra', ml: 'Al centro a sinistra', c: 'Al centro dello schermo', mr: 'Al centro a destra', bl: 'In basso a sinistra', bc: 'In basso al centro', br: 'In basso a destra' };
   function applyCfg(c) {
     if (C.getMode() !== c.mode) C.setMode(c.mode);
     if (C.isMoving() !== !!c.move_enabled) C.setMoving(!!c.move_enabled);
@@ -38,7 +39,8 @@
     const wEl = $('widget');
     if (wEl && wEl.classList.contains('left') !== !!c.left) wEl.classList.toggle('left', !!c.left);
     document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === (c.panel_dir || 'auto')));
-    if ($('swTwo')) $('swTwo').setAttribute('aria-checked', !!c.two_pos);
+    document.querySelectorAll('#presetGrid button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === c.preset));
+    if ($('presetName')) $('presetName').textContent = c.preset ? PRESET_NAMES[c.preset] : 'Posizione libera';
     if (host === 'widget') sendShape();
   }
   invoke('get_config').then(applyCfg);
@@ -63,11 +65,14 @@
     // the final shape (at the end of the animation): circle with the dial and, if open, the panel
     // --pw wide from the circle's edge, attached to the correct side
     const BEZEL = 11, CORNER = 30;
+    let openUntil = 0;
     const shapeGeom = () => {
       const r = $('ring').getBoundingClientRect(), w = $('widget');
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2, half = r.height / 2;
       const pw = (parseFloat(getComputedStyle(w).getPropertyValue('--pw')) || 560) - r.width / 2;
-      const left = w.classList.contains('left'), open = C.getMode() !== 'idle';
+      // the panel keeps its area until the closing animation (0.34 s) is over
+      if (C.getMode() !== 'idle') openUntil = performance.now() + 380;
+      const left = w.classList.contains('left'), open = performance.now() < openUntil;
       return { cx, cy, half, rb: r.width / 2 + BEZEL, left, panel: open ? { x: left ? cx - pw : cx, y: r.top, w: pw, h: r.height } : null };
     };
     document.body.insertAdjacentHTML('beforeend', '<svg id="moveOutline" aria-hidden="true"><path/></svg>');
@@ -111,7 +116,12 @@
     // right click on the circle goes back to the mascot (handled by the prototype); the menu stays on the tray icon
     addEventListener('contextmenu', e => e.preventDefault());
     // the mascot follows the mouse across the whole screen
-    listen('cursor', e => C.look(e.payload.x, e.payload.y));
+    // outside its shape the widget lets clicks through, so the backend sends the mouse
+    // position: the eyes follow it and the page's easter eggs (shaking, circling) see it
+    listen('cursor', e => {
+      C.look(e.payload.x, e.payload.y);
+      dispatchEvent(new PointerEvent('pointermove', { clientX: e.payload.x, clientY: e.payload.y }));
+    });
     listen('action', e => {
       if (e.payload === 'sleep') C.toggleSleep();
       else if (e.payload === 'seconds') C.toggleSec();
@@ -162,10 +172,6 @@
   // ---------- Settings window ----------
   if (host === 'settings') {
     $('posReset').addEventListener('click', e => { e.stopImmediatePropagation(); invoke('reset_position'); }, true);
-    $('posReset').textContent = 'Ripristina';
-    const resetRow = $('posReset').closest('.srow');
-    if (resetRow) resetRow.querySelector('b').textContent = 'Riporta alla posizione iniziale';
-    if (resetRow) resetRow.querySelector('small').textContent = "In basso a destra sul monitor principale, con spazio per il pannello.";
     // start with Windows
     const posGroup = $('posReset').closest('.sgroup');
     if (posGroup) {
@@ -175,10 +181,11 @@
       invoke('get_autostart').then(on => sw.setAttribute('aria-checked', on));
       sw.addEventListener('click', () => invoke('set_autostart', { on: sw.getAttribute('aria-checked') !== 'true' }).then(on => sw.setAttribute('aria-checked', on)));
     }
-    // two positions: saved and applied by the backend
-    $('swTwo').addEventListener('click', e => {
+    // quick positions: applied by the backend, which knows the screen
+    $('presetGrid').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
       e.stopImmediatePropagation();
-      invoke('set_two_pos', { on: $('swTwo').getAttribute('aria-checked') !== 'true' });
+      invoke('set_preset', { id: b.dataset.p });
     }, true);
     // the tutorial runs in the widget window
     $('tutAgain').addEventListener('click', e => {

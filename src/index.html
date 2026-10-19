@@ -678,12 +678,33 @@ svg.lu { display: block; flex: none; }
 .tut-card .ghost.pri { color: #fff; background: var(--red); border-color: var(--red); }
 .tut-card .ghost.pri:hover { filter: brightness(1.15); background: var(--red); }
 .tut-body { animation: fadeUp .3s cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; gap: 8px; }
+
+/* ---------- v0.17: apertura del riquadro, preset, easter egg ---------- */
+.scaler { transition: translate .6s cubic-bezier(.16,1,.3,1); }
+.panel, .widget.open .panel { width: calc(var(--pw) - var(--d) / 2); }
+.panel { clip-path: inset(0 100% 0 0 round 0 30px 30px 0); opacity: 0; transition: clip-path .34s cubic-bezier(.55,0,.85,.35), opacity .2s .14s; }
+.widget.open .panel { clip-path: inset(0 0 0 0 round 0 30px 30px 0); opacity: 1; transition: clip-path .62s cubic-bezier(.16,1,.3,1) .04s, opacity .18s; }
+.widget.left .panel { clip-path: inset(0 0 0 100% round 30px 0 0 30px); }
+.widget.left.open .panel { clip-path: inset(0 0 0 0 round 30px 0 0 30px); }
+.view { transform: translateX(-18px); filter: blur(5px); transition: opacity .16s, transform .2s, filter .2s, visibility 0s .2s; }
+.widget.left .view { transform: translateX(18px); }
+.widget.open .view.on, .widget.left.open .view.on { opacity: 1; transform: none; filter: none; transition: opacity .32s .2s, transform .55s .16s cubic-bezier(.16,1,.3,1), filter .4s .18s, visibility 0s; }
+.pgrid { display: grid; grid-template-columns: repeat(3, 26px); gap: 4px; padding: 5px; border-radius: 12px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.2); flex: none; }
+.pgrid button { appearance: none; width: 26px; height: 18px; border-radius: 5px; border: 1px solid transparent; background: rgba(255,255,255,.05); cursor: pointer; display: grid; padding: 0; transition: background .12s, border-color .12s, transform .12s; }
+.pgrid button:nth-child(3n+1) { justify-items: start; } .pgrid button:nth-child(3n+2) { justify-items: center; } .pgrid button:nth-child(3n) { justify-items: end; }
+.pgrid button:nth-child(-n+3) { align-items: start; } .pgrid button:nth-child(n+4):nth-child(-n+6) { align-items: center; } .pgrid button:nth-child(n+7) { align-items: end; }
+.pgrid button i { width: 6px; height: 6px; margin: 2px; border-radius: 50%; background: var(--mute); }
+.pgrid button:hover { background: rgba(255,255,255,.14); }
+.pgrid button:active { transform: scale(.9); }
+.pgrid button[aria-pressed="true"] { border-color: var(--red); background: color-mix(in srgb, var(--red) 18%, transparent); }
+.pgrid button[aria-pressed="true"] i { background: var(--red); }
+#presetName { display: block; margin-top: 4px; color: var(--ink); }
 </style>
 
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
 <header>
   <h1>Glyphling</h1>
-  <span class="rec"><i></i>prototipo · v0.16</span>
+  <span class="rec"><i></i>prototipo · v0.17</span>
 </header>
 
 <div class="stage" id="stage">
@@ -828,8 +849,8 @@ svg.lu { display: block; flex: none; }
   <div class="srow"><div><b>Apertura del riquadro</b><small>Da che lato si apre il riquadro. Automatica sceglie il lato con più spazio, in base a dove sta il widget.</small></div><span class="seg3" id="dirSeg"><button data-d="right" aria-pressed="false">Destra</button><button data-d="left" aria-pressed="false">Sinistra</button><button data-d="auto" aria-pressed="true">Auto</button></span></div>
   <div class="srow"><div><b>Sposta il widget</b><small>Trascinalo dove vuoi sul desktop. Lo trovi anche nel menù dell'icona.</small></div><button class="sw-t" id="swMove" role="switch" aria-checked="false" aria-label="Sposta il widget"></button></div>
   <div class="srow"><div><b>Aggancia alla griglia</b><small>Si allinea a una griglia da 24 px. Tieni premuto <kbd>Alt</kbd> mentre trascini per muoverlo libero.</small></div><button class="sw-t" id="swSnap" role="switch" aria-checked="true" aria-label="Aggancia alla griglia"></button></div>
-  <div class="srow"><div><b>Due posizioni</b><small>Una posizione per il solo cerchio e una per cerchio + riquadro. Quando si apre il riquadro il widget si sposta da solo.</small></div><button class="sw-t" id="swTwo" role="switch" aria-checked="false" aria-label="Due posizioni"></button></div>
-  <div class="srow"><div><b>Riporta al centro</b><small>Rimette il widget nella posizione iniziale.</small></div><button class="ghost" id="posReset">Centra</button></div>
+  <div class="srow"><div><b>Posizioni rapide</b><small>Angoli, metà dei lati e centro, sempre attaccato ai bordi. Col riquadro aperto le posizioni centrali centrano l'insieme cerchio + riquadro. <span id="presetName"></span></small></div><span class="pgrid" id="presetGrid"></span></div>
+  <div class="srow"><div><b>Riporta al centro</b><small>Mette il cerchio al centro dello schermo.</small></div><button class="ghost" id="posReset">Centra</button></div>
 </div>
 </div>
 <div class="spage" data-p="col" hidden>
@@ -852,7 +873,7 @@ svg.lu { display: block; flex: none; }
   <div class="sgroup about">
     <canvas id="aboutCv" width="224" height="224" aria-hidden="true"></canvas>
     <div><h3>Glyphling</h3><p>Una piccola mascotte a LED che vive sul desktop. Orologio, calendario, musica, timer, meteo e stato del PC in un cerchio.</p>
-      <div class="ver"><span>Versione <b>0.16 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div>
+      <div class="ver"><span>Versione <b>0.17 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div>
       <div class="ver"><button class="ghost" id="tutAgain">Rivedi il tutorial</button></div></div>
   </div>
   <div class="kv">
@@ -864,7 +885,8 @@ svg.lu { display: block; flex: none; }
   <div class="sgroup">
     <h3>Novità</h3>
     <ul class="news">
-      <li><span><b>0.16</b> · tutorial al primo avvio, ghiera piatta, due posizioni (solo cerchio e con riquadro).</span></li>
+      <li><span><b>0.17</b> · il cerchio è il centro del widget, comportamento ai bordi, posizioni rapide, nuove animazioni del riquadro e due sorprese.</span></li>
+      <li><span><b>0.16</b> · tutorial al primo avvio, ghiera piatta.</span></li>
       <li><span><b>0.15</b> · icone vettoriali vere al posto delle bitmap a pixel.</span></li>
       <li><span><b>0.14</b> · impostazioni con barra laterale, pulsanti più reattivi, cerchio che resta fermo, riquadro specchiato a sinistra.</span></li>
       <li><span><b>0.13</b> · modalità scelte ruotando la ghiera, clic destro per tornare alla mascotte, lato di apertura del riquadro.</span></li>
@@ -890,7 +912,7 @@ svg.lu { display: block; flex: none; }
 
 <div class="gridov" aria-hidden="true"></div>
 <div class="tut" id="tut" hidden role="dialog" aria-label="Tutorial"><div class="tut-hole" id="tutHole"></div><div class="tut-card glass" id="tutCard"></div></div>
-<div class="movebar glass-s" id="movebar" hidden><span><b>Spostamento attivo</b> · trascina il widget · <span id="mbSnap">Alt per muoverlo libero</span></span><span class="seg3 mb-seg" id="mbState" hidden><button data-s="idle" aria-pressed="true">Solo ghiera</button><button data-s="open" aria-pressed="false">Ghiera + riquadro</button></span><button class="ghost" id="moveDone">Fatto</button></div>
+<div class="movebar glass-s" id="movebar" hidden><span><b>Spostamento attivo</b> · trascina il widget · <span id="mbSnap">Alt per muoverlo libero</span></span><button class="ghost" id="moveDone">Fatto</button></div>
 
 <div class="tip glass-s" id="tip">Clic destro sull'icona per le impostazioni</div>
 <div class="tmenu glass" id="tmenu" hidden role="menu" aria-label="Glyphling"></div>
@@ -1906,6 +1928,80 @@ svg.lu { display: block; flex: none; }
     if (mode !== 'idle') setMode('idle'); else eye.happy = 1.2;
   });
 
+
+  // ---------- easter egg: scuotila e vomita, girale intorno e le gira la testa ----------
+  const egg = { kind: null, t: 0, cool: 0, last: null, rev: [], ang: 0, angAcc: 0, angT: 0, dir: 0 };
+  window.addEventListener('pointermove', e => {
+    const now = performance.now(), l = egg.last;
+    egg.last = { x: e.clientX, y: e.clientY, t: now };
+    if (!l || mode !== 'idle' || asleep || egg.kind || egg.cool > 0 || moving) return;
+    const dt = Math.max(1, now - l.t), vx = (e.clientX - l.x) / dt;
+    // scossone: tante inversioni rapide a destra e sinistra
+    if (Math.abs(vx) > 1.4) {
+      const sg = Math.sign(vx);
+      if (egg.dir && sg !== egg.dir) egg.rev.push(now);
+      egg.dir = sg;
+    }
+    egg.rev = egg.rev.filter(t => now - t < 1300);
+    if (egg.rev.length >= 6) { startEgg('vomit'); return; }
+    // giri intorno al cerchio
+    const r = ring.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const d = Math.hypot(e.clientX - cx, e.clientY - cy);
+    const a = Math.atan2(e.clientY - cy, e.clientX - cx);
+    if (d > r.width * 0.35 && d < 420) {
+      let da = a - egg.ang; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+      const w = Math.abs(da) / dt * 1000;            // rad/s
+      if (w > 5 && Math.sign(da) === Math.sign(egg.angAcc || da) && now - egg.angT < 250) egg.angAcc += da;
+      else if (now - egg.angT > 250 || Math.sign(da) !== Math.sign(egg.angAcc)) egg.angAcc = w > 5 ? da : 0;
+      egg.angT = now;
+      if (Math.abs(egg.angAcc) > Math.PI * 4) { startEgg('dizzy'); return; }
+    } else egg.angAcc = 0;
+    egg.ang = a;
+  });
+  function startEgg(k) { egg.kind = k; egg.t = 0; egg.rev = []; egg.angAcc = 0; egg.drops = []; idleFor = 0; }
+  function eggTick(dt) {
+    if (egg.cool > 0) egg.cool -= dt;
+    if (!egg.kind) return;
+    egg.t += dt;
+    if (mode !== 'idle' || egg.t > (egg.kind === 'vomit' ? 3.6 : 4)) { egg.kind = null; egg.cool = 2.5; eye.happy = 0; }
+  }
+  const X_EYE = ['10001', '01010', '00100', '01010', '10001'];
+  function drawEgg(t) {
+    const k = egg.kind, e = egg.t;
+    if (k === 'vomit') {
+      // occhi stretti a >  <, bocca spalancata e un fiotto che cade fuori dal cerchio
+      const sh = e < 0.6 ? Math.round(Math.sin(e * 40)) : 0;
+      glyph(['100', '010', '001', '010', '100'], C - 5 + sh, 4, 1);
+      glyph(['001', '010', '100', '010', '001'], C + 3 + sh, 4, 1);
+      const open = e < 0.4 ? e / 0.4 : 1;
+      const mw = 3, mh = Math.max(1, Math.round(2 * open));
+      for (let y = 0; y < mh; y++) for (let x = -mw; x <= mw; x++) if (Math.abs(x) < mw || y > 0) set(C + x + sh, 11 + y, 0.9);
+      if (e > 0.45 && e < 3) {
+        if (!egg.drops) egg.drops = [];
+        if (Math.random() < 0.9) egg.drops.push({ x: C + (Math.random() * 4 - 2), y: 13, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 2, red: Math.random() < 0.25 });
+      }
+      for (const d of egg.drops || []) { d.vy += 0.35; d.x += d.vx * 0.06; d.y += d.vy * 0.06; set(Math.round(d.x), Math.round(d.y), d.red ? 1 : 0.8, d.red); }
+      egg.drops = (egg.drops || []).filter(d => d.y < N + 1);
+      // gocce che restano a terra
+      for (let x = C - 4; x <= C + 4; x++) if (e > 1.2 && Math.abs(x - C) <= Math.min(4, (e - 1.2) * 4)) set(x, N - 3, 0.5);
+    } else {
+      // spirali al posto degli occhi, testa che ondeggia, stelline che girano sopra
+      const wob = Math.round(Math.sin(e * 5) * 1.4);
+      for (const side of [-1, 1]) {
+        const cx = C + side * 4 + wob, cy = C - 1;
+        for (let i = 0; i < 22; i++) {
+          const a = i * 0.55 + e * 9 * side, rr = i * 0.12;
+          set(Math.round(cx + Math.cos(a) * rr), Math.round(cy + Math.sin(a) * rr), 1 - i / 30);
+        }
+      }
+      for (let x = -2; x <= 2; x++) set(C + x + wob, C + 5 + (Math.abs(x) === 1 ? 1 : 0), 0.6);
+      for (let i = 0; i < 3; i++) {
+        const a = e * 4 + i * (Math.PI * 2 / 3);
+        set(Math.round(C + Math.cos(a) * 5.5), Math.round(3 + Math.sin(a) * 1.4), 1, i === 0);
+      }
+    }
+  }
+
   // ---------- il cerchio come comando ----------
   const ring = $('ring');
   function ringAngle(e) {
@@ -2345,7 +2441,8 @@ svg.lu { display: block; flex: none; }
 
     clear();
     pickTick(real);
-    if (scene === 'idle') { if (mpk.on && mode === 'idle') drawPick(t); else drawEyes(t); }
+    eggTick(real);
+    if (scene === 'idle') { if (mpk.on && mode === 'idle') drawPick(t); else if (egg.kind) drawEgg(t); else drawEyes(t); }
     else if (scene === 'clock') drawClock(now);
     else if (scene === 'calendar') drawCalendar(t);
     else if (scene === 'music') { if (volShow > 0) drawVolume(); else if (shownDisc) drawCoverLed(); else drawBands(); }
@@ -2384,7 +2481,7 @@ svg.lu { display: block; flex: none; }
   }
   function buildMenu() {
     const sleepItem = mode === 'idle' ? `<button role="menuitem" data-a="sleep"><span class="ck"></span>${asleep ? 'Sveglia la mascotte' : 'Fai dormire la mascotte'}</button>` : '';
-    $('tmenu').innerHTML = `<div class="mh"><b>Glyphling</b>v0.16</div>`
+    $('tmenu').innerHTML = `<div class="mh"><b>Glyphling</b>v0.17</div>`
       + `${sleepItem}<button role="menuitemcheckbox" aria-checked="${moving}" data-a="move"><span class="ck"></span>Sposta il widget</button><button role="menuitem" data-a="show"><span class="ck"></span>${widgetAway ? 'Mostra il widget' : 'Nascondi il widget'}</button>`
       + `<button role="menuitem" data-a="settings"><span class="ck"></span>Impostazioni…</button><button role="menuitem" data-a="info"><span class="ck"></span>Info su Glyphling</button><hr>`
       + `<button role="menuitem" disabled><span class="ck"></span>Esci</button>`;
@@ -2453,68 +2550,89 @@ svg.lu { display: block; flex: none; }
     if (window.__hostEvent) queueMicrotask(() => window.__hostEvent('info'));
     miniPreview($('aboutCv'), TH);
     $('infoStart').textContent = `oggi alle ${String(started.getHours()).padStart(2, '0')}:${String(started.getMinutes()).padStart(2, '0')}`;
-    $('infoPos').textContent = pos2.x || pos2.y ? `${pos2.x > 0 ? '+' : ''}${pos2.x}, ${pos2.y > 0 ? '+' : ''}${pos2.y} px dal centro` : 'al centro';
+    $('infoPos').textContent = preset ? PRESET_NAMES[preset] : 'libera';
     const at = allThemes().find(t => t.id === ts.active);
     $('infoTheme').textContent = at ? at.name : 'Nothing';
   }
   $('infoUpd').addEventListener('click', () => { $('infoUpd').innerHTML = 'Aggiornamenti <b>…</b>'; setTimeout(() => { $('infoUpd').innerHTML = 'Aggiornamenti <b>sei aggiornato</b>'; }, 900); });
   $('infoUpd').style.cursor = 'pointer';
 
-  // ---------- spostamento del widget ----------
-  const GRID = 24;
-  let moving = false, snap = true, pos2 = { x: 0, y: 0 };
+  // ---------- posizione: il cerchio è l'unico punto di riferimento ----------
+  // pos2 è dove sta il cerchio. Il riquadro si apre di lato; se non ha spazio il cerchio scivola via dal bordo
+  // solo finché il riquadro è aperto, poi torna al suo posto.
+  const GRID = 24, EDGE = 24;
+  let moving = false, snap = true, pos2 = { x: 0, y: 0 }, preset = null, slide = 0;
   try { const sv = JSON.parse(localStorage.getItem('companion-pos') || 'null'); if (sv && isFinite(sv.x) && isFinite(sv.y)) pos2 = sv; } catch (e) {}
   try { if (localStorage.getItem('companion-snap') === '0') snap = false; } catch (e) {}
-  function applyPos() { if (window.__host) return; $('scaler').style.translate = `${pos2.x}px ${pos2.y}px`; }
-  // tutta la superficie cliccabile resta nello schermo: cerchio e, se aperto, anche il riquadro
-  function clampPos(p, open, left) {
-    const w = $('widget'), r = w.getBoundingClientRect(), cur = pos2;
-    if (open === undefined) open = w.classList.contains('open');
-    if (left === undefined) left = w.classList.contains('left');
-    const ext = open ? 474 * (r.width / 172) : 0;
-    const baseL = r.left - cur.x, baseT = r.top - cur.y;
-    const minX = 16 - baseL + (open && left ? ext : 0);
-    const maxX = innerWidth - 16 - r.width - baseL - (open && !left ? ext : 0);
-    return { x: Math.round(Math.max(minX, Math.min(maxX, p.x))), y: Math.round(Math.max(16 - baseT, Math.min(innerHeight - 64 - r.height - baseT, p.y))) };
+  try { const pr = localStorage.getItem('companion-preset'); if (pr) preset = pr; } catch (e) {}
+  let panelDir = 'auto';
+  try { const d = localStorage.getItem('companion-dir'); if (['left', 'right', 'auto'].includes(d)) panelDir = d; } catch (e) {}
+  const PRESETS_POS = ['tl', 'tc', 'tr', 'ml', 'c', 'mr', 'bl', 'bc', 'br'];
+  const PRESET_NAMES = { tl: 'In alto a sinistra', tc: 'In alto al centro', tr: 'In alto a destra', ml: 'Al centro a sinistra', c: 'Al centro dello schermo', mr: 'Al centro a destra', bl: 'In basso a sinistra', bc: 'In basso al centro', br: 'In basso a destra' };
+  // geometria del cerchio quando la traslazione è zero
+  // calcolata dal layout, non dal rettangolo animato, così vale anche a metà di una transizione
+  function base() {
+    const st = $('stage'), sr = st.getBoundingClientRect(), cs = getComputedStyle(st), sc0 = $('scaler');
+    const m = /scale\(([\d.]+)\)/.exec(sc0.style.transform || ''), sc = m ? parseFloat(m[1]) : 1;
+    const l = sr.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth || 0);
+    const t = sr.top + (st.clientHeight - sc0.offsetHeight) / 2 + sc0.offsetHeight / 2 * (1 - sc);
+    const w = 172 * sc;
+    return { l, t, w, ext: 388 * sc, total: 560 * sc };   // il riquadro parte dal centro del cerchio: 560 px in tutto, 388 oltre il cerchio
   }
-  let twoPos = false, posOpen = null;
-  try { twoPos = localStorage.getItem('companion-twopos') === '1'; const o = JSON.parse(localStorage.getItem('companion-pos-open') || 'null'); if (o && isFinite(o.x) && isFinite(o.y)) posOpen = o; } catch (e) {}
-  let posIdle = null;
-  const posKey = () => twoPos && mode !== 'idle' ? 'open' : 'idle';
-  function savePos() {
-    try {
-      if (posKey() === 'open') { posOpen = { ...pos2 }; localStorage.setItem('companion-pos-open', JSON.stringify(pos2)); }
-      else { posIdle = { ...pos2 }; localStorage.setItem('companion-pos', JSON.stringify(pos2)); }
-    } catch (e) {}
+  const bottomLimit = () => innerHeight - 48 - EDGE;          // sopra la barra delle applicazioni
+  // il cerchio resta tutto nello schermo (la sua hitbox, bordo compreso)
+  function clampAnchor(p) {
+    const b = base();
+    return { x: Math.round(Math.max(EDGE - b.l, Math.min(innerWidth - EDGE - b.w - b.l, p.x))), y: Math.round(Math.max(EDGE - b.t, Math.min(bottomLimit() - b.w - b.t, p.y))) };
   }
-  // al cambio di stato il widget va alla posizione di quello stato, sempre dentro lo schermo
-  function syncPos() {
-    if (window.__host) return;
-    if (posIdle === null) posIdle = { ...pos2 };
-    const target = posKey() === 'open' ? (posOpen || posIdle) : posIdle;
-    applyDir();
-    if (panelDir === 'auto') {
-      const r = $('ring').getBoundingClientRect();
-      $('widget').classList.toggle('left', r.left + r.width / 2 + (target.x - pos2.x) > innerWidth / 2);
+  function presetAnchor(id) {
+    const b = base(), col = id === 'c' ? 'c' : id[1], row = id === 'c' ? 'm' : id[0];
+    const L = col === 'l' ? EDGE : col === 'r' ? innerWidth - EDGE - b.w : innerWidth / 2 - b.w / 2;
+    const T = row === 't' ? EDGE : row === 'b' ? bottomLimit() - b.w : (bottomLimit() + EDGE) / 2 - b.w / 2;
+    return { x: Math.round(L - b.l), y: Math.round(T - b.t) };
+  }
+  // decide il lato e lo scivolamento per lo stato aperto
+  function openLayout(anchor) {
+    const b = base(), cl = b.l + anchor.x, cr = cl + b.w;
+    const roomR = innerWidth - EDGE - cr, roomL = cl - EDGE;
+    let left;
+    if (panelDir === 'left') left = true;
+    else if (panelDir === 'right') left = false;
+    else {
+      const centerLeft = cl + b.w / 2 > innerWidth / 2;
+      left = centerLeft ? roomL >= b.ext || roomR < b.ext : !(roomR >= b.ext || roomL < b.ext);
     }
-    pos2 = clampPos(target, mode !== 'idle'); applyPos();
-    $('mbState').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === (mode === 'idle' ? 'idle' : 'open')));
+    let dx = 0;
+    const hc = preset && (preset === 'c' || preset[1] === 'c');
+    if (hc) {
+      // preset al centro: al centro va l'insieme cerchio + riquadro
+      const want = innerWidth / 2 - b.total / 2;
+      dx = left ? (want + b.ext) - cl : want - cl;
+    } else if (left && roomL < b.ext) dx = b.ext - roomL;        // a sinistra senza spazio: il cerchio scivola a destra
+    else if (!left && roomR < b.ext) dx = roomR - b.ext;         // a destra senza spazio: il cerchio scivola a sinistra
+    return { left, dx: Math.round(dx) };
   }
-  window.__syncPos = syncPos;
-  $('swTwo').addEventListener('click', () => {
-    twoPos = !twoPos; $('swTwo').setAttribute('aria-checked', twoPos);
-    try { localStorage.setItem('companion-twopos', twoPos ? '1' : '0'); } catch (e) {}
-    if (twoPos && !posOpen) posOpen = { ...(posIdle || pos2) };
-    $('mbState').hidden = !twoPos;
-    syncPos();
-  });
-  $('swTwo').setAttribute('aria-checked', twoPos);
-  $('mbState').hidden = !twoPos;
-  let lastOpenMode = 'clock';
-  $('mbState').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.s === 'idle') setMode('idle'); else setMode(window.__lastOpen || lastOpenMode);
-  });
+  function layout() {
+    if (window.__host) return;
+    const open = mode !== 'idle' && !$('widget').classList.contains('closing');
+    if (preset) pos2 = presetAnchor(preset);
+    pos2 = clampAnchor(pos2);
+    let x = pos2.x;
+    if (open) { const o = openLayout(pos2); $('widget').classList.toggle('left', o.left); slide = o.dx; x += o.dx; }
+    else slide = 0;
+    $('scaler').style.translate = `${x}px ${pos2.y}px`;
+    document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === panelDir));
+    document.querySelectorAll('#presetGrid button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === preset));
+    $('presetName').textContent = preset ? PRESET_NAMES[preset] : 'Posizione libera';
+  }
+  const applyPos = layout, applyDir = layout;
+  window.__syncPos = layout;
+  function savePos() {
+    try { localStorage.setItem('companion-pos', JSON.stringify(pos2)); localStorage.setItem('companion-preset', preset || ''); } catch (e) {}
+  }
+  function setPreset(id) { preset = id; layout(); savePos(); }
+  $('presetGrid').innerHTML = PRESETS_POS.map(id => `<button data-p="${id}" aria-label="${PRESET_NAMES[id]}" title="${PRESET_NAMES[id]}"><i></i></button>`).join('');
+  $('presetGrid').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setPreset(b.dataset.p); });
   function setMoving(v) {
     if (window.__hostEvent && v !== moving) queueMicrotask(() => window.__hostEvent('move', v));
     moving = v;
@@ -2532,7 +2650,7 @@ svg.lu { display: block; flex: none; }
   $('swMove').addEventListener('click', () => setMoving(!moving));
   $('swSnap').addEventListener('click', () => setSnap(!snap));
   $('moveDone').addEventListener('click', () => setMoving(false));
-  $('posReset').addEventListener('click', () => { pos2 = { x: 0, y: 0 }; applyPos(); savePos(); setTimeout(() => applyDir(true), 380); });
+  $('posReset').addEventListener('click', () => setPreset('c'));
   let mv = null;
   $('widget').addEventListener('pointerdown', e => {
     if (!moving) return;
@@ -2549,13 +2667,9 @@ svg.lu { display: block; flex: none; }
     document.body.classList.toggle('free', free);
     let p = { x: mv.o.x + e.clientX - mv.x, y: mv.o.y + e.clientY - mv.y };
     if (!free) p = { x: Math.round(p.x / GRID) * GRID, y: Math.round(p.y / GRID) * GRID };
-    if (panelDir === 'auto') {      // in automatico il lato cambia mentre trascini, così il riquadro trova sempre spazio
-      const r = $('ring').getBoundingClientRect();
-      $('widget').classList.toggle('left', r.left + r.width / 2 + (p.x - pos2.x) > innerWidth / 2);
-    }
-    pos2 = clampPos(p); applyPos();
+    preset = null; pos2 = p; layout();
   }, true);
-  const endMv = e => { if (!mv) return; e.stopPropagation(); mv = null; $('scaler').classList.remove('dragging'); document.body.classList.remove('free'); savePos(); setTimeout(applyDir, 380); };
+  const endMv = e => { if (!mv) return; e.stopPropagation(); mv = null; $('scaler').classList.remove('dragging'); document.body.classList.remove('free'); savePos(); };
   $('widget').addEventListener('pointerup', endMv, true);
   $('widget').addEventListener('pointercancel', endMv, true);
   document.addEventListener('keydown', e => {
@@ -2565,38 +2679,16 @@ svg.lu { display: block; flex: none; }
     if (!k) return;
     e.preventDefault();
     const st = snap && !e.altKey ? GRID : 1;
-    pos2 = clampPos({ x: pos2.x + k[0] * st, y: pos2.y + k[1] * st }); applyPos(); savePos(); setTimeout(applyDir, 380);
+    preset = null; pos2 = { x: pos2.x + k[0] * st, y: pos2.y + k[1] * st }; layout(); savePos();
   }, true);
-  setSnap(snap); applyPos();
-
-  // ---------- direzione del riquadro ----------
-  let panelDir = 'auto';
-  try { const d = localStorage.getItem('companion-dir'); if (['left', 'right', 'auto'].includes(d)) panelDir = d; } catch (e) {}
-  function applyDir(nudge) {
-    if (window.__host) return;
-    let left = panelDir === 'left';
-    if (panelDir === 'auto') {
-      const r = $('ring').getBoundingClientRect();
-      left = r.left + r.width / 2 > innerWidth / 2;
-    }
-    $('widget').classList.toggle('left', left);
-    // con un lato scelto a mano, se il riquadro non ci starebbe sposta il widget quanto basta
-    if (panelDir !== 'auto' && nudge) {
-      const r = $('ring').getBoundingClientRect(), need = 474 + 12;
-      let dx = 0;
-      if (left && r.left < need) dx = need - r.left;
-      if (!left && innerWidth - r.right < need) dx = innerWidth - r.right - need;
-      if (dx) { pos2 = clampPos({ x: pos2.x + dx, y: pos2.y }); applyPos(); savePos(); }
-    }
-    document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === panelDir));
-    if ($('widget').classList.contains('open')) { const c = clampPos(pos2); if (c.x !== pos2.x || c.y !== pos2.y) { pos2 = c; applyPos(); } }
-  }
+  setSnap(snap);
   $('dirSeg').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     panelDir = b.dataset.d; try { localStorage.setItem('companion-dir', panelDir); } catch (e) {}
-    applyDir(true);
+    layout();
   });
-  window.addEventListener('resize', () => applyDir());
+  window.addEventListener('resize', () => layout());
+  requestAnimationFrame(layout);
 
   // ---------- tutorial al primo avvio ----------
   const TUT = [
@@ -2605,7 +2697,7 @@ svg.lu { display: block; flex: none; }
     { t: 'Il riquadro', el: () => $('panel'), demo: 'music', p: 'Ogni modalità apre un riquadro con i suoi comandi. La ghiera continua a lavorare: qui per esempio <b>girarla cambia il volume</b>, e lo fa anche la rotellina.' },
     { t: 'Torna a casa', el: () => $('ring'), demo: 'home', p: 'Da qualsiasi modalità, il <b>clic destro sul cerchio</b> ti riporta alla mascotte. Anche <b>Esc</b> funziona.' },
     { t: 'L\'icona', el: () => (window.__tutTray ? window.__tutTray() : $('trayIc')), p: 'Nell\'area di notifica trovi l\'icona di Glyphling. <b>Clic destro</b> per il menù: spostare il widget, nasconderlo, aprire le impostazioni.' },
-    { t: 'Fatto su misura', el: () => (window.__tutTray ? window.__tutTray() : $('trayIc')), p: 'Nelle <b>impostazioni</b> scegli i colori, i dischi da mostrare, il lato in cui si apre il riquadro e, se vuoi, <b>due posizioni</b>: una col solo cerchio e una col riquadro aperto.' },
+    { t: 'Fatto su misura', el: () => (window.__tutTray ? window.__tutTray() : $('trayIc')), p: 'Nelle <b>impostazioni</b> scegli i colori, i dischi da mostrare, il lato in cui si apre il riquadro e le <b>posizioni rapide</b>: angoli, metà dei lati e centro dello schermo.' },
     { t: 'Tutto pronto', el: () => $('ring'), p: 'Puoi rivedere questo tutorial quando vuoi da <b>Impostazioni › Info</b>.' },
   ];
   let tutI = 0, tutDemo = null;
