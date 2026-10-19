@@ -26,6 +26,7 @@
     get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
+  // cover LEDs in the theme colors (default) or neutral white
   let volTimer = 0, volNext = null;
   function sendVolume(v) {
     volNext = v;
@@ -39,6 +40,7 @@
     if (C.isSnap() !== !!c.snap) C.setSnap(!!c.snap);
     const wEl = $('widget');
     if (wEl && wEl.classList.contains('left') !== !!c.left) wEl.classList.toggle('left', !!c.left);
+    if (wEl) wEl.classList.toggle('lbl-below', !!c.below);
     document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === (c.panel_dir || 'auto')));
     document.querySelectorAll('#presetGrid button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === c.preset));
     if ($('presetName')) $('presetName').textContent = c.preset ? PRESET_NAMES[c.preset] : 'Posizione libera';
@@ -54,10 +56,28 @@
   shareColors();
   listen('config', e => applyCfg(e.payload));
   listen('themes-changed', e => { if (e.payload.from !== host) C.reloadThemes(); shareColors(); });
+  // music source: the backend follows one allowed app and controls only its volume
+  window.__hostSrc = src => invoke('set_music_filter', {
+    mode: src.mode === 'white' ? 'allow' : src.mode === 'black' ? 'block' : 'all',
+    apps: src.mode === 'all' ? [] : src.picked,
+  });
+  if (host === 'settings') {
+    const poll = () => invoke('music_now').then(n => { if (n !== window.__nowApp) { window.__nowApp = n; window.__srcRefresh && window.__srcRefresh(); } }).catch(() => {});
+    poll(); setInterval(poll, 2000);
+  }
   listen('fmt-changed', e => { if (e.payload.from !== host) C.reloadFmt(); });
 
   // ---------- widget ----------
   if (host === 'widget') {
+    // the first time no temperature source exists, Settings opens once on the sensor offer
+    let offered = false;
+    listen('pc', e => {
+      const t = e.payload.tc_source;
+      if (offered || t === 'hwinfo' || t === 'lhm') return;
+      offered = true;
+      const ask = () => invoke('sensor_offer').then(r => { if (r === 'wait') setTimeout(ask, 60000); }).catch(() => {});
+      setTimeout(ask, 25000);
+    });
     // dragging with the native Windows handler; the backend computes the snapping on release
     window.__hostDrag = () => {
       const color = getComputedStyle(document.documentElement).getPropertyValue('--red').trim();
@@ -182,6 +202,57 @@
       const sw = $('swAuto');
       invoke('get_autostart').then(on => sw.setAttribute('aria-checked', on));
       sw.addEventListener('click', () => invoke('set_autostart', { on: sw.getAttribute('aria-checked') !== 'true' }).then(on => sw.setAttribute('aria-checked', on)));
+    }
+    // cover colors: theme or neutral white
+    // CPU temperature: offers the optional sensor (LibreHardwareMonitor), only with consent
+    const genPage = document.querySelector('.spage[data-p="gen"]');
+    const dk = $('dkPick') && $('dkPick').closest('.sgroup');
+    if (genPage && dk) {
+      dk.insertAdjacentHTML('afterend', `<div class="sgroup" id="tempGroup"><h3>Temperatura CPU</h3>
+        <div class="srow"><div><b id="tempTitle">Sensore non trovato</b><small id="tempNote"></small></div><button class="ghost" id="tempBtn">Installa il sensore</button></div></div>`);
+      let src = null, busy = false, err = '';
+      const ui = () => {
+        const ok = src === 'hwinfo' || src === 'lhm';
+        $('tempTitle').textContent = ok ? `Temperatura letta da ${src === 'hwinfo' ? 'HWiNFO' : 'LibreHardwareMonitor'}` : 'Sensore non trovato';
+        $('tempNote').textContent = err || (busy ? 'Installazione in corso: Windows chiederà il permesso di amministratore una volta.'
+          : ok ? 'Funziona da solo, non serve fare altro.' : 'Per leggere i gradi serve LibreHardwareMonitor (gratuito, open source). Glyphling lo scarica dal sito ufficiale e lo avvia con Windows. Puoi anche attivare la memoria condivisa di HWiNFO.');
+        $('tempBtn').hidden = ok; $('tempBtn').disabled = busy;
+        $('tempBtn').textContent = busy ? 'Installazione...' : 'Installa il sensore';
+      };
+      listen('pc', e => { const s = e.payload.tc_source || null; if (s !== src) { src = s; ui(); } });
+      $('tempBtn').addEventListener('click', () => {
+        busy = true; err = ''; ui();
+        invoke('install_sensor').then(() => { busy = false; ui(); }).catch(m => { busy = false; err = String(m); ui(); });
+      });
+      ui();
+    }
+    // updates: checked from GitHub; installs over the current copy
+    const tutBtn = $('tutAgain');
+    if (tutBtn) {
+      tutBtn.closest('.ver').insertAdjacentHTML('afterend', `<div class="ver upd-row"><button class="ghost" id="updBtn">Cerca aggiornamenti</button><span id="updNote"></span></div>
+        <div class="srow"><div><b>Cerca aggiornamenti da solo</b><small>Controlla ogni qualche ora e ti avvisa una volta quando esce una versione nuova. Non installa nulla senza il tuo ok.</small></div><button class="sw-t" id="swUpd" role="switch" aria-checked="true" aria-label="Cerca aggiornamenti da solo"></button></div>`);
+      let found = null, busy = false, msg = '';
+      const upd = () => {
+        const n = $('updNote');
+        n.textContent = msg || (found ? `Disponibile la ${found.version}` : '');
+        $('updBtn').disabled = busy;
+        $('updBtn').textContent = found ? (busy ? 'Aggiorno...' : `Aggiorna alla ${found.version}`) : (busy ? 'Controllo...' : 'Cerca aggiornamenti');
+        const u = $('infoUpd'); if (u) u.innerHTML = found ? `Aggiornamenti <b>${found.version} disponibile</b>` : 'Aggiornamenti <b>nessuno</b>';
+      };
+      invoke('update_state').then(u => { found = u; upd(); });
+      invoke('get_config').then(c => $('swUpd').setAttribute('aria-checked', c.auto_update !== false));
+      listen('update', e => { found = e.payload; upd(); });
+      $('swUpd').addEventListener('click', () => {
+        const on = $('swUpd').getAttribute('aria-checked') !== 'true';
+        $('swUpd').setAttribute('aria-checked', on);
+        invoke('set_auto_update', { on });
+      });
+      $('updBtn').addEventListener('click', () => {
+        busy = true; msg = ''; upd();
+        const p = found ? invoke('install_update') : invoke('check_update').then(u => { found = u; if (!u) msg = 'Sei già all\'ultima versione.'; });
+        p.catch(m => { msg = String(m); }).finally(() => { busy = false; upd(); });
+      });
+      upd();
     }
     // quick positions: applied by the backend, which knows the screen
     $('presetGrid').addEventListener('click', e => {

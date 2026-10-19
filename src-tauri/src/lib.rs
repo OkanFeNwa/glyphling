@@ -9,6 +9,8 @@
 mod config;
 mod hit;
 pub mod media;
+mod sensor;
+mod updater;
 mod platform;
 mod snap;
 mod spectrum;
@@ -42,6 +44,7 @@ pub struct AppState {
     /// While the first-run tutorial runs, the widget window covers the whole monitor;
     /// this is where it was before (physical pixels).
     pub tutorial: Mutex<Option<PhysicalPosition<i32>>>,
+    pub update: Mutex<Option<updater::Update>>,
 }
 
 pub fn in_tutorial(app: &AppHandle) -> bool {
@@ -134,6 +137,14 @@ pub fn open_settings(app: &AppHandle, page: Option<String>) {
         if let Ok(w) = built {
             // rounded corners like the page's glass
             platform::set_region(&w, &[hit::Part { x: 0.0, y: 0.0, w: 840.0, h: 740.0, r: 30.0 }]);
+            platform::strip_frame(&w);
+            // Windows can bring the frame back when the focus changes
+            let wc = w.clone();
+            w.on_window_event(move |e| {
+                if matches!(e, WindowEvent::Focused(_) | WindowEvent::Moved(_) | WindowEvent::ThemeChanged(_)) {
+                    platform::strip_frame(&wc);
+                }
+            });
         }
     });
 }
@@ -178,6 +189,91 @@ fn set_tutorial_done(app: AppHandle) {
 }
 
 /// Side the panel opens on: right, left or auto.
+/// Which apps may be the music source (see `media::Filter`).
+#[tauri::command]
+fn set_music_filter(app: AppHandle, mode: String, apps: Vec<String>) {
+    if !["all", "allow", "block"].contains(&mode.as_str()) {
+        return;
+    }
+    let apps: Vec<String> = apps.iter().map(|a| media::compact(a)).filter(|a| a.len() >= 3).take(64).collect();
+    media::set_filter(&mode, &apps);
+    update(&app, |c| {
+        c.music_filter = mode;
+        c.music_apps = apps;
+    });
+}
+
+/// Newer version found so far, if any.
+#[tauri::command]
+fn update_state(state: tauri::State<AppState>) -> Option<updater::Update> {
+    state.update.lock().unwrap().clone()
+}
+
+/// Manual check from Settings.
+#[tauri::command]
+async fn check_update(app: AppHandle) -> Result<Option<updater::Update>, String> {
+    tauri::async_runtime::spawn_blocking(move || updater::check(&app, false)).await.map_err(|e| e.to_string())?
+}
+
+/// Downloads the new setup and runs it; the app closes.
+#[tauri::command]
+async fn install_update(app: AppHandle) -> Result<(), String> {
+    let u = app.state::<AppState>().update.lock().unwrap().clone().ok_or("nessun aggiornamento")?;
+    tauri::async_runtime::spawn_blocking(move || updater::install(&app, &u)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn set_auto_update(app: AppHandle, on: bool) {
+    update(&app, |c| c.auto_update = on);
+}
+
+/// Whether the optional CPU temperature sensor is already installed.
+#[tauri::command]
+fn sensor_installed(app: AppHandle) -> bool {
+    sensor::installed(&app)
+}
+
+/// Downloads and starts LibreHardwareMonitor (the user already agreed in Settings).
+#[tauri::command]
+async fn install_sensor(app: AppHandle) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || sensor::install(&app)).await.map_err(|e| e.to_string())?
+}
+
+/// The first time the temperature is unavailable, Settings opens once on the offer.
+/// Returns "wait" while the tutorial is running, so the page asks again later.
+#[tauri::command]
+fn sensor_offer(app: AppHandle) -> &'static str {
+    if in_tutorial(&app) {
+        return "wait";
+    }
+    let mut first = false;
+    update(&app, |c| {
+        first = !c.sensor_offered;
+        c.sensor_offered = true;
+    });
+    if first {
+        open_settings(&app, Some("gen".into()));
+    }
+    "done"
+}
+
+/// Name of the app the music mode is following right now.
+#[tauri::command]
+fn music_now() -> String {
+    media::now_app()
+}
+
+/// Apps that have a media session right now (for adding a custom app): (key, name).
+#[tauri::command]
+async fn music_sessions() -> Vec<(String, String)> {
+    tauri::async_runtime::spawn_blocking(|| {
+        media::com_init();
+        media::sessions()
+    })
+    .await
+    .unwrap_or_default()
+}
+
 #[tauri::command]
 fn set_panel_dir(app: AppHandle, dir: String) {
     if !["right", "left", "auto"].contains(&dir.as_str()) {
@@ -368,6 +464,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             let cfg = config::load(&handle);
+            media::set_filter(&cfg.music_filter, &cfg.music_apps);
             app.manage(AppState {
                 cfg: Mutex::new(cfg.clone()),
                 shape: Mutex::new(hit::Shape::default()),
@@ -376,6 +473,7 @@ pub fn run() {
                 settings_page: Mutex::new(None),
                 menu: Mutex::new(None),
                 tutorial: Mutex::new(None),
+                update: Mutex::new(None),
             });
 
             let widget = WebviewWindowBuilder::new(app, "widget", WebviewUrl::App("index.html".into()))
@@ -448,6 +546,7 @@ pub fn run() {
             hit::spawn(handle.clone());
             system::spawn(handle.clone());
             media::spawn(handle.clone());
+            updater::spawn(handle.clone());
             spectrum::spawn(handle);
             Ok(())
         })
@@ -463,6 +562,16 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_config,
             set_panel_dir,
+            set_music_filter,
+            music_sessions,
+            music_now,
+            sensor_installed,
+            install_sensor,
+            sensor_offer,
+            update_state,
+            check_update,
+            install_update,
+            set_auto_update,
             set_preset,
             tutorial,
             set_tutorial_done,

@@ -21,6 +21,44 @@ pub struct Media {
     /// True when the cover changed (even if it disappeared); otherwise `cover` is not sent.
     pub cover_changed: bool,
     pub volume: Option<f32>,
+    /// Id of the app being followed (matches the keys of the source filter).
+    pub source: String,
+}
+
+/// Which apps may be the music source: "all", "allow" (only the listed ones) or "block" (all but the listed).
+#[derive(Clone, Default)]
+pub struct Filter {
+    pub mode: String,
+    pub apps: Vec<String>,
+}
+
+static FILTER: std::sync::Mutex<Option<Filter>> = std::sync::Mutex::new(None);
+static LAST: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+
+pub fn set_filter(mode: &str, apps: &[String]) {
+    *FILTER.lock().unwrap() = Some(Filter { mode: mode.into(), apps: apps.to_vec() });
+}
+
+/// Lowercase letters and digits only, so "Microsoft.ZuneMusic" and "zunemusic" compare.
+pub fn compact(s: &str) -> String {
+    s.chars().filter(|c| c.is_alphanumeric()).flat_map(|c| c.to_lowercase()).collect()
+}
+
+/// Key that identifies an app in the filter, from its media-session id.
+pub fn key_of(id: &str) -> String {
+    let s = id.rsplit('!').next().unwrap_or(id);
+    compact(s.trim_end_matches(".exe").trim_end_matches(".EXE"))
+}
+
+fn eligible(id: &str) -> bool {
+    let f = FILTER.lock().unwrap().clone().unwrap_or_default();
+    let id = compact(id);
+    let listed = f.apps.iter().any(|k| !k.is_empty() && id.contains(k.as_str()));
+    match f.mode.as_str() {
+        "allow" => listed,
+        "block" => !listed,
+        _ => true,
+    }
 }
 
 /// Readable name from the app identifier ("Spotify.exe", "SpotifyAB.SpotifyMusic_...!Spotify").
@@ -51,8 +89,13 @@ mod imp {
         GlobalSystemMediaTransportControlsSessionPlaybackStatus as Status,
     };
     use windows::Storage::Streams::{DataReader, IRandomAccessStreamReference};
-    use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
-    use windows::Win32::Media::Audio::{eConsole, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
+    use windows::Win32::Media::Audio::{
+        eConsole, eRender, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
+        MMDeviceEnumerator,
+    };
+    use windows::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::core::PWSTR;
     use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_MULTITHREADED};
 
     pub fn com_init() {
@@ -65,8 +108,46 @@ mod imp {
         Mgr::RequestAsync().ok()?.get().ok()
     }
 
+    fn id_of(s: &Session) -> String {
+        s.SourceAppUserModelId().map(|h| h.to_string()).unwrap_or_default()
+    }
+
+    fn is_playing(s: &Session) -> bool {
+        s.GetPlaybackInfo().and_then(|i| i.PlaybackStatus()).map(|st| st == Status::Playing).unwrap_or(false)
+    }
+
+    /// The one app being followed: the previous one while it still plays, else any playing
+    /// allowed app, else the system's current session if allowed, else the first allowed one.
+    pub fn pick(mgr: &Mgr) -> Option<Session> {
+        let all: Vec<Session> = mgr.GetSessions().ok()?.into_iter().filter(|s| super::eligible(&id_of(s))).collect();
+        let last = super::LAST.lock().unwrap().clone();
+        let chosen = all
+            .iter()
+            .find(|s| id_of(s) == last && is_playing(s))
+            .or_else(|| all.iter().find(|s| is_playing(s)))
+            .or_else(|| mgr.GetCurrentSession().ok().and_then(|c| all.iter().find(|s| id_of(s) == id_of(&c))))
+            .or_else(|| all.first())
+            .cloned();
+        if let Some(c) = &chosen {
+            *super::LAST.lock().unwrap() = id_of(c);
+        }
+        chosen
+    }
+
     fn session() -> Option<Session> {
-        manager()?.GetCurrentSession().ok()
+        pick(&manager()?)
+    }
+
+    /// Apps with a media session right now: (key, readable name).
+    pub fn sessions() -> Vec<(String, String)> {
+        let Some(m) = manager() else { return vec![] };
+        let Ok(list) = m.GetSessions() else { return vec![] };
+        list.into_iter()
+            .map(|s| {
+                let id = id_of(&s);
+                (super::key_of(&id), super::app_name(&id))
+            })
+            .collect()
     }
 
     /// Current time in 100 ns ticks since 1601, like WinRT times.
@@ -92,9 +173,10 @@ mod imp {
 
     /// Current state. The cover is read only if the track changed compared to `prev`.
     pub fn read(mgr: &Mgr, prev: &Media) -> Media {
-        let Ok(s) = mgr.GetCurrentSession() else { return Media { volume: prev.volume, ..Default::default() } };
+        let Some(s) = pick(mgr) else { return Media { volume: prev.volume, ..Default::default() } };
         let mut m = Media { active: true, volume: prev.volume, ..Default::default() };
-        m.app = s.SourceAppUserModelId().map(|h| super::app_name(&h.to_string())).unwrap_or_default();
+        m.source = id_of(&s);
+        m.app = super::app_name(&m.source);
         let props = s.TryGetMediaPropertiesAsync().ok().and_then(|op| op.get().ok());
         if let Some(p) = &props {
             m.title = p.Title().map(|h| h.to_string()).unwrap_or_default();
@@ -145,23 +227,57 @@ mod imp {
         r.unwrap_or(false)
     }
 
-    fn endpoint() -> windows::core::Result<IAudioEndpointVolume> {
-        com_init();
+    fn exe_stem(pid: u32) -> Option<String> {
         unsafe {
-            let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
-            let dev = en.GetDefaultAudioEndpoint(eRender, eConsole)?;
-            dev.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None)
+            let h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+            let mut buf = [0u16; 520];
+            let mut n = buf.len() as u32;
+            let r = QueryFullProcessImageNameW(h, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &mut n);
+            let _ = CloseHandle(h);
+            r.ok()?;
+            let path = String::from_utf16_lossy(&buf[..n as usize]);
+            let name = path.rsplit(['\\', '/']).next()?.to_string();
+            Some(super::compact(name.trim_end_matches(".exe").trim_end_matches(".EXE")))
         }
     }
 
-    pub fn volume() -> Option<f32> {
-        unsafe { endpoint().ok()?.GetMasterVolumeLevelScalar().ok() }
+    /// Audio sessions (volume controls) of the app being followed. Browsers may have several.
+    fn app_volumes(source: &str) -> Vec<ISimpleAudioVolume> {
+        let mut out = vec![];
+        let id = super::compact(source);
+        if id.is_empty() {
+            return out;
+        }
+        com_init();
+        unsafe {
+            let Ok(en) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return out };
+            let Ok(dev) = en.GetDefaultAudioEndpoint(eRender, eConsole) else { return out };
+            let Ok(mgr) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None) else { return out };
+            let Ok(list) = mgr.GetSessionEnumerator() else { return out };
+            for i in 0..list.GetCount().unwrap_or(0) {
+                let Ok(c) = list.GetSession(i) else { continue };
+                let Ok(c2) = c.cast::<IAudioSessionControl2>() else { continue };
+                let Ok(pid) = c2.GetProcessId() else { continue };
+                let Some(stem) = exe_stem(pid) else { continue };
+                if stem.len() >= 3 && id.contains(&stem) {
+                    if let Ok(v) = c.cast::<ISimpleAudioVolume>() {
+                        out.push(v);
+                    }
+                }
+            }
+        }
+        out
     }
 
-    pub fn set_volume(v: f32) {
-        if let Ok(ep) = endpoint() {
+    /// Volume of the followed app only; None when it has no audio session yet.
+    pub fn volume(source: &str) -> Option<f32> {
+        app_volumes(source).iter().filter_map(|v| unsafe { v.GetMasterVolume().ok() }).reduce(f32::max)
+    }
+
+    pub fn set_volume(source: &str, v: f32) {
+        for c in app_volumes(source) {
             unsafe {
-                let _ = ep.SetMasterVolumeLevelScalar(v.clamp(0.0, 1.0), std::ptr::null());
+                let _ = c.SetMasterVolume(v.clamp(0.0, 1.0), std::ptr::null());
             }
         }
     }
@@ -181,13 +297,28 @@ mod imp {
     pub fn control(_: &str, _: f64) -> bool {
         false
     }
-    pub fn volume() -> Option<f32> {
+    pub fn volume(_: &str) -> Option<f32> {
         None
     }
-    pub fn set_volume(_: f32) {}
+    pub fn set_volume(_: &str, _: f32) {}
+    pub fn sessions() -> Vec<(String, String)> {
+        vec![]
+    }
 }
 
-pub use imp::{com_init, control, set_volume};
+pub use imp::{com_init, control, sessions};
+
+/// Readable name of the app being followed (empty when none).
+pub fn now_app() -> String {
+    let id = LAST.lock().unwrap().clone();
+    if id.is_empty() { String::new() } else { app_name(&id) }
+}
+
+/// Sets the volume of the app being followed (never the system volume).
+pub fn set_volume(v: f32) {
+    let src = LAST.lock().unwrap().clone();
+    imp::set_volume(&src, v);
+}
 
 pub fn spawn(app: AppHandle) {
     std::thread::spawn(move || {
@@ -210,7 +341,7 @@ pub fn spawn(app: AppHandle) {
             let Some(m) = &mgr else { continue };
             let mut now = imp::read(m, &last);
             if music && (tick % 3 == 0 || last.volume.is_none()) {
-                now.volume = imp::volume();
+                now.volume = imp::volume(&now.source);
             }
             let st = app.state::<AppState>();
             st.playing.store(now.playing, std::sync::atomic::Ordering::Relaxed);

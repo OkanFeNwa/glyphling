@@ -225,7 +225,15 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
   addEventListener('contextmenu', e => e.preventDefault());
   addEventListener('keydown', e => { if (e.key === 'Enter' && !$('go').disabled) $('go').click(); if (e.key === 'Escape' && phase !== 'work') $('x').click(); });
 
-  invoke('get_state').then(s => { st = s; setup(); });
+  invoke('get_state').then(async s => {
+    st = s; setup();
+    // started by the app's update check: the user already agreed there
+    if (st.auto && st.has_payload && st.mode !== 'uninstall') {
+      toggles.launch = true;
+      await run();
+      if (phase === 'done') $('go').click();
+    }
+  });
 })();
 </script>
 </body>

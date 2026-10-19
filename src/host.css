@@ -80,3 +80,12 @@ html.tut-host { overflow: hidden !important; }
 html.tut-host body { overflow: visible !important; }
 #tutTray { position: fixed; pointer-events: none; border-radius: 6px; }
 html.h-widget #mbState { display: none !important; }
+
+/* the prototype centers its stage with a percentage padding; the window's layout is exact */
+html.h-widget .stage { padding: 0 !important; }
+
+/* dial label: under the circle when the widget is near the top of the screen, so the circle can sit close to the edge */
+
+/* smooth panel opening: no blur filters while the window is resizing/moving */
+html.h-widget .view, html.h-widget .stage.away .widget { filter: none !important; }
+html.h-widget .panel { will-change: clip-path, opacity; }

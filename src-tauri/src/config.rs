@@ -24,12 +24,23 @@ pub struct Config {
     pub panel_dir: String,
     /// Current side: true if the panel opens to the left (the circle sits on the right of the window).
     pub left: bool,
+    /// The dial label sits under the circle (the circle is in the top half of the screen).
+    pub below: bool,
     /// Where the circle's center sits (physical pixels), when no quick position is chosen.
     pub home: Option<(i32, i32)>,
     /// Quick position: tl, tc, tr, ml, c, mr, bl, bc, br (recomputed from the screen).
     pub preset: Option<String>,
     /// The first-run tutorial was already shown (saved here so updates keep it).
     pub tutorial_done: bool,
+    /// Music source filter: all, allow (only the listed apps) or block (all but the listed).
+    /// The CPU temperature sensor was already offered once.
+    pub sensor_offered: bool,
+    /// Look for new versions by itself.
+    pub auto_update: bool,
+    /// Last version Settings was opened for (so it is announced once).
+    pub update_notified: String,
+    pub music_filter: String,
+    pub music_apps: Vec<String>,
 }
 
 impl Default for Config {
@@ -45,9 +56,15 @@ impl Default for Config {
             y: None,
             panel_dir: "auto".into(),
             left: false,
+            below: false,
             home: None,
             preset: None,
             tutorial_done: false,
+            sensor_offered: false,
+            auto_update: true,
+            update_notified: String::new(),
+            music_filter: "all".into(),
+            music_apps: vec![],
         }
     }
 }
@@ -71,6 +88,9 @@ pub fn load(app: &AppHandle) -> Config {
     }
     if c.preset.as_deref().is_some_and(|p| !crate::snap::PRESETS.contains(&p)) {
         c.preset = None;
+    }
+    if !["all", "allow", "block"].contains(&c.music_filter.as_str()) {
+        c.music_filter = "all".into();
     }
     if c.grid < 8 || c.grid > 96 {
         c.grid = 24;

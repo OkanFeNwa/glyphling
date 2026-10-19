@@ -611,6 +611,9 @@ body.moving.free .gridov { opacity: .12; }
 /* ---------- scelta modalità dalla ghiera ---------- */
 .pick-lbl { position: absolute; z-index: 4; top: -46px; left: calc(var(--d) / 2); translate: -50% 0; padding: 6px 12px; border-radius: 999px; font-family: var(--dot); font-weight: 900; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); white-space: nowrap; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .25s cubic-bezier(.2,.8,.2,1); }
 .pick-lbl.on { opacity: 1; transform: none; }
+/* con il widget in alto l'etichetta passa sotto il cerchio, così la hitbox in alto resta libera */
+.widget.lbl-below .pick-lbl { top: calc(var(--d) + 10px); transform: translateY(-4px); }
+.widget.lbl-below .pick-lbl.on { transform: none; }
 .pick-lbl small { font-family: var(--mono); font-weight: 400; font-size: 9px; color: var(--mute); margin-left: 8px; letter-spacing: .12em; }
 .seg3 { display: inline-flex; gap: 2px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 2px; flex: none; }
 .seg3 button { appearance: none; border: 0; background: transparent; color: var(--mute); font: 700 9px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; padding: 7px 11px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; }
@@ -678,6 +681,17 @@ svg.lu { display: block; flex: none; }
 .tut-card .ghost.pri { color: #fff; background: var(--red); border-color: var(--red); }
 .tut-card .ghost.pri:hover { filter: brightness(1.15); background: var(--red); }
 .tut-body { animation: fadeUp .3s cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; gap: 8px; }
+
+.src-row { align-items: flex-start; }
+.chiplist { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.chiplist .ghost { display: inline-flex; align-items: center; gap: 6px; }
+.chiplist .ghost.off { opacity: .5; }
+.chiplist .rm { opacity: .6; font-size: 12px; line-height: 1; padding: 0 2px; }
+.chiplist .rm:hover { opacity: 1; }
+.srcadd { display: flex; gap: 8px; }
+.srcadd input { flex: 1; min-width: 0; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 7px 12px; color: var(--ink); font: 400 11px/1 var(--mono); }
+.srcadd input::placeholder { color: var(--mute); }
+.srcadd input:focus { outline: 0; border-color: rgba(255,255,255,.32); }
 
 /* ---------- v0.18: dischi come selettore, formato a 12 ore ---------- */
 .dchips { position: relative; gap: 0; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 2px; }
@@ -857,7 +871,15 @@ svg.lu { display: block; flex: none; }
 </div>
 <div class="sgroup">
   <h3>Cerchio</h3>
+  <div class="srow"><div><b>Colori del tema sulla copertina</b><small>Se spento la copertina del brano resta bianca con l'accento rosso originale, qualunque tema usi.</small></div><button class="sw-t" id="swCov" role="switch" aria-checked="true" aria-label="Colori del tema sulla copertina"></button></div>
   <div class="srow"><div><b>Risoluzione</b><small>Quanti punti accende il cerchio. Con più punti ghiere, lancette, visualizer e copertine diventano più fini; occhi e cifre sono ridisegnati a tratto per ogni risoluzione.</small></div><span class="seg3" id="resSeg"><button data-r="512">512</button><button data-r="1024">1024</button><button data-r="2048">2048</button></span></div>
+</div>
+<div class="sgroup">
+  <h3>Musica</h3>
+  <div class="srow"><div><b>App da ascoltare</b><small>Il widget ascolta una sola app alla volta, quella che sta riproducendo, e il volume regola soltanto lei. Scegli come filtrare le app.</small></div><span class="seg3" id="srcMode"><button data-s="all">Tutte</button><button data-s="white">Solo queste</button><button data-s="black">Escludi queste</button></span></div>
+  <div class="srow src-row"><div><b>App</b><small id="srcNote"></small><div class="chiplist" id="srcList"></div>
+    <form class="srcadd" id="srcAdd" autocomplete="off"><input id="srcName" maxlength="24" placeholder="Altra app, ad esempio MusicBee" aria-label="Nome dell'app da aggiungere"><button class="ghost" type="submit">Aggiungi</button></form></div></div>
+  <div class="srow"><div><b>In ascolto ora</b><small id="srcNow"></small></div></div>
 </div>
 <div class="sgroup">
   <h3>Formato</h3>
@@ -971,7 +993,7 @@ svg.lu { display: block; flex: none; }
   const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const p2 = n => String(n).padStart(2, '0');
   // formato: ore 24/12 e gradi C/F, scelti nelle impostazioni
-  const units = { h12: false, f: false };
+  const units = { h12: false, f: false, cover: true };   // cover: la copertina usa i colori del tema
   try { Object.assign(units, JSON.parse(localStorage.getItem('companion-units') || '{}')); } catch (e) {}
   const tC = c => Math.round(units.f ? c * 9 / 5 + 32 : c);
   const hm = (h, m) => units.h12 ? `${h % 12 || 12}:${p2(m)} ${h < 12 ? 'AM' : 'PM'}` : `${p2(h)}:${p2(m)}`;
@@ -1115,6 +1137,7 @@ svg.lu { display: block; flex: none; }
         if ((Math.hypot(qx, qy) - r) * KH <= 0.2) hset(y * NH + x, v);
       }
   }
+  let plainCover = false;   // vero mentre si vede la copertina e l'opzione dei colori del tema è spenta
   const glowCv = document.createElement('canvas'), gctx = glowCv.getContext('2d');
 
   function draw() {
@@ -1123,7 +1146,8 @@ svg.lu { display: block; flex: none; }
     const soft = n > N;
     ctx.clearRect(0, 0, W, W);
     if (soft) { if (glowCv.width !== W) { glowCv.width = W; glowCv.height = W; } gctx.clearRect(0, 0, W, W); }
-    const [r0, g0, b0] = TH.offRgb, [r1, g1, b1] = TH.pixRgb, [r2, g2, b2] = TH.redRgb;
+    const plain = plainCover;
+    const [r0, g0, b0] = TH.offRgb, [r1, g1, b1] = plain ? [242, 242, 242] : TH.pixRgb, [r2, g2, b2] = plain ? [215, 25, 33] : TH.redRgb;
     for (let y = 0, i = 0; y < n; y++) for (let x = 0; x < n; x++, i++) {
       if (!hin[i]) continue;
       const v = Math.max(0, Math.min(1, ob[i]));
@@ -2144,13 +2168,13 @@ svg.lu { display: block; flex: none; }
     if (!l || mode !== 'idle' || asleep || egg.kind || egg.cool > 0 || moving) return;
     const dt = Math.max(1, now - l.t), vx = (e.clientX - l.x) / dt;
     // scossone: tante inversioni rapide a destra e sinistra
-    if (Math.abs(vx) > 1.4) {
+    if (Math.abs(vx) > 2.2) {
       const sg = Math.sign(vx);
       if (egg.dir && sg !== egg.dir) egg.rev.push(now);
       egg.dir = sg;
     }
-    egg.rev = egg.rev.filter(t => now - t < 1300);
-    if (egg.rev.length >= 6) { startEgg('vomit'); return; }
+    egg.rev = egg.rev.filter(t => now - t < 1400);
+    if (egg.rev.length >= 10) { startEgg('vomit'); return; }
     // giri intorno al cerchio
     const r = ring.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     const d = Math.hypot(e.clientX - cx, e.clientY - cy);
@@ -2165,12 +2189,12 @@ svg.lu { display: block; flex: none; }
     } else egg.angAcc = 0;
     egg.ang = a;
   });
-  function startEgg(k) { egg.kind = k; egg.t = 0; egg.rev = []; egg.angAcc = 0; egg.drops = []; idleFor = 0; }
+  function startEgg(k) { egg.kind = k; egg.kind0 = k; egg.t = 0; egg.rev = []; egg.angAcc = 0; egg.drops = []; idleFor = 0; }
   function eggTick(dt) {
     if (egg.cool > 0) egg.cool -= dt;
     if (!egg.kind) return;
     egg.t += dt;
-    if (mode !== 'idle' || egg.t > (egg.kind === 'vomit' ? 2.3 : 3.6)) { egg.kind = null; egg.cool = 2.5; eye.happy = 0; eye.rec = mode === 'idle' ? 1 : 0; eye.tx = 0; eye.ty = 1; eye.nextLook = 1.6; }
+    if (mode !== 'idle' || egg.t > (egg.kind === 'vomit' ? 2.3 : 3.6)) { egg.kind = null; egg.cool = egg.kind0 === 'vomit' ? 25 : 2.5; eye.happy = 0; eye.rec = mode === 'idle' ? 1 : 0; eye.tx = 0; eye.ty = 1; eye.nextLook = 1.6; }
   }
   const X_EYE = ['10001', '01010', '00100', '01010', '10001'];
   function drawEgg(t) {
@@ -2684,6 +2708,7 @@ svg.lu { display: block; flex: none; }
     else if (scene === 'timer') drawTimer(t);
     else if (scene === 'weather') drawWeather(t, dt);
     else if (scene === 'disks') drawDisk();
+    plainCover = !units.cover && scene === 'music' && shownDisc && !(volShow > 0);
     compose();
     draw();
 
@@ -2795,7 +2820,7 @@ svg.lu { display: block; flex: none; }
   // ---------- posizione: il cerchio è l'unico punto di riferimento ----------
   // pos2 è dove sta il cerchio. Il riquadro si apre di lato; se non ha spazio il cerchio scivola via dal bordo
   // solo finché il riquadro è aperto, poi torna al suo posto.
-  const GRID = 24, EDGE = 24;
+  const GRID = 24, EDGE = 24, EDGE_T = 8;   // in alto basta un margine piccolo: l'etichetta passa sotto il cerchio
   let moving = false, snap = true, pos2 = { x: 0, y: 0 }, preset = null, slide = 0;
   try { const sv = JSON.parse(localStorage.getItem('companion-pos') || 'null'); if (sv && isFinite(sv.x) && isFinite(sv.y)) pos2 = sv; } catch (e) {}
   try { if (localStorage.getItem('companion-snap') === '0') snap = false; } catch (e) {}
@@ -2818,12 +2843,12 @@ svg.lu { display: block; flex: none; }
   // il cerchio resta tutto nello schermo (la sua hitbox, bordo compreso)
   function clampAnchor(p) {
     const b = base();
-    return { x: Math.round(Math.max(EDGE - b.l, Math.min(innerWidth - EDGE - b.w - b.l, p.x))), y: Math.round(Math.max(EDGE - b.t, Math.min(bottomLimit() - b.w - b.t, p.y))) };
+    return { x: Math.round(Math.max(EDGE - b.l, Math.min(innerWidth - EDGE - b.w - b.l, p.x))), y: Math.round(Math.max(EDGE_T - b.t, Math.min(bottomLimit() - b.w - b.t, p.y))) };
   }
   function presetAnchor(id) {
     const b = base(), col = id === 'c' ? 'c' : id[1], row = id === 'c' ? 'm' : id[0];
     const L = col === 'l' ? EDGE : col === 'r' ? innerWidth - EDGE - b.w : innerWidth / 2 - b.w / 2;
-    const T = row === 't' ? EDGE : row === 'b' ? bottomLimit() - b.w : (bottomLimit() + EDGE) / 2 - b.w / 2;
+    const T = row === 't' ? EDGE_T : row === 'b' ? bottomLimit() - b.w : (bottomLimit() + EDGE_T) / 2 - b.w / 2;
     return { x: Math.round(L - b.l), y: Math.round(T - b.t) };
   }
   // decide il lato e lo scivolamento per lo stato aperto
@@ -2856,6 +2881,7 @@ svg.lu { display: block; flex: none; }
     if (open) { const o = openLayout(pos2); $('widget').classList.toggle('left', o.left); slide = o.dx; x += o.dx; }
     else slide = 0;
     $('scaler').style.translate = `${x}px ${pos2.y}px`;
+    $('widget').classList.toggle('lbl-below', base().t + pos2.y + base().w / 2 < bottomLimit() / 2);
     document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === panelDir));
     document.querySelectorAll('#presetGrid button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === preset));
     $('presetName').textContent = preset ? PRESET_NAMES[preset] : 'Posizione libera';
@@ -2923,7 +2949,48 @@ svg.lu { display: block; flex: none; }
     document.querySelectorAll('#hSeg button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.h === '12') === units.h12));
     document.querySelectorAll('#tSeg button').forEach(b => b.setAttribute('aria-pressed', (b.dataset.t === 'f') === units.f));
     document.body.classList.toggle('h12', units.h12);
+    $('swCov').setAttribute('aria-checked', units.cover);
   }
+  // ---------- sorgente musicale ----------
+  const KNOWN_APPS = ['Spotify', 'YouTube Music', 'Apple Music', 'Amazon Music', 'Deezer', 'Tidal', 'VLC', 'foobar2000', 'iTunes', 'Winamp'];
+  const RUNNING = ['Spotify', 'YouTube Music', 'VLC'];     // finto: nell'app vera sono le sessioni multimediali di Windows
+  const src = { mode: 'all', picked: ['Spotify'], custom: [] };
+  try { Object.assign(src, JSON.parse(localStorage.getItem('companion-src') || '{}')); } catch (e) {}
+  const allowed = a => src.mode === 'all' || (src.mode === 'white') === src.picked.includes(a);
+  function srcUi() {
+    document.querySelectorAll('#srcMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === src.mode));
+    const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const dis = src.mode === 'all';
+    $('srcList').innerHTML = KNOWN_APPS.map(a => `<button class="ghost${dis ? ' off' : ''}" data-a="${esc(a)}" aria-pressed="${src.picked.includes(a)}" ${dis ? 'disabled' : ''}>${esc(a)}</button>`).join('')
+      + src.custom.map(a => `<button class="ghost${dis ? ' off' : ''}" data-a="${esc(a)}" aria-pressed="${src.picked.includes(a)}" ${dis ? 'disabled' : ''}>${esc(a)}<span class="rm" data-rm="${esc(a)}" role="button" aria-label="Rimuovi ${esc(a)}" title="Rimuovi">×</span></button>`).join('');
+    $('srcNote').textContent = dis ? 'Con "Tutte" non serve scegliere: vale la prima app che sta riproducendo.'
+      : src.mode === 'white' ? 'Solo le app evidenziate vengono ascoltate.' : 'Le app evidenziate vengono ignorate, tutte le altre sono ascoltate.';
+    const now = window.__host ? (window.__nowApp || '') : RUNNING.find(allowed);
+    $('srcNow').textContent = now ? `${now}. Il volume del cerchio regola solo questa app.` : 'Nessuna app permessa sta riproducendo.';
+    if (window.__hostSrc) window.__hostSrc(src);
+    $('volTxt').title = now ? `Volume di ${now}` : 'Nessuna app in ascolto';
+  }
+  function srcSave() { try { localStorage.setItem('companion-src', JSON.stringify(src)); } catch (e) {} srcUi(); }
+  $('srcMode').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { src.mode = b.dataset.s; srcSave(); } });
+  $('srcList').addEventListener('click', e => {
+    const rm = e.target.closest('[data-rm]');
+    if (rm) { const a = rm.dataset.rm; src.custom = src.custom.filter(x => x !== a); src.picked = src.picked.filter(x => x !== a); srcSave(); return; }
+    const b = e.target.closest('button[data-a]'); if (!b || b.disabled) return;
+    const a = b.dataset.a;
+    src.picked = src.picked.includes(a) ? src.picked.filter(x => x !== a) : [...src.picked, a];
+    srcSave();
+  });
+  $('srcAdd').addEventListener('submit', e => {
+    e.preventDefault();
+    const v = $('srcName').value.trim().slice(0, 24); if (!v) return;
+    if (![...KNOWN_APPS, ...src.custom].some(x => x.toLowerCase() === v.toLowerCase())) src.custom.push(v);
+    const name = [...KNOWN_APPS, ...src.custom].find(x => x.toLowerCase() === v.toLowerCase());
+    if (!src.picked.includes(name)) src.picked.push(name);
+    $('srcName').value = ''; srcSave();
+  });
+  window.__srcRefresh = srcUi;
+  srcUi();
+  $('swCov').addEventListener('click', () => { units.cover = !units.cover; saveUnits(); });
   function saveUnits() {
     try { localStorage.setItem('companion-units', JSON.stringify(units)); } catch (e) {}
     if (window.__hostEvent) window.__hostEvent('fmt');
@@ -3055,6 +3122,7 @@ svg.lu { display: block; flex: none; }
         if (key !== pc.dkKey) {
           pc.dkKey = key;
           DISKS.splice(0, DISKS.length, ...s.disks.map(d => ({ lt: d.lt, name: d.name, used: Math.round(d.used), size: Math.round(d.size) })));
+          dkKey = '';   // the list of buttons is rebuilt only when this changes: names are new now
           const lts = DISKS.map(d => d.lt);
           dkShown = dkShown.filter(l => lts.includes(l));
           if (!dkShown.length) dkShown = lts.slice(0, 4);

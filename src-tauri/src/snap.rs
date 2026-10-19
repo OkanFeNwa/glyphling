@@ -16,6 +16,8 @@ use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewWindow};
 
 /// Margin from the work area edges, in logical pixels.
 const EDGE: f64 = 24.0;
+/// The mode label sits below the circle near the top, so the top margin can be small.
+const EDGE_T: f64 = 8.0;
 /// Radius of the circle's hit area (circle plus bezel).
 const R: f64 = D / 2.0 + 11.0;
 /// How far the panel reaches past the circle's edge, and the width of circle + panel.
@@ -112,14 +114,15 @@ fn preset_anchor(id: &str, a: Area) -> (f64, f64) {
     let (e, r) = (EDGE * a.sf, R * a.sf);
     let (col, row) = if id == "c" { ('c', 'm') } else { (id.chars().nth(1).unwrap_or('c'), id.chars().next().unwrap_or('m')) };
     let x = match col { 'l' => a.l + e + r, 'r' => a.r - e - r, _ => (a.l + a.r) / 2.0 };
-    let y = match row { 't' => a.t + e + r, 'b' => a.b - e - r, _ => (a.t + a.b) / 2.0 };
+    let y = match row { 't' => a.t + EDGE_T * a.sf + r, 'b' => a.b - e - r, _ => (a.t + a.b) / 2.0 };
     (x, y)
 }
 
 /// The circle's whole hit area stays on screen.
 fn clamp_anchor((x, y): (f64, f64), a: Area) -> (f64, f64) {
     let m = (EDGE + R) * a.sf;
-    (x.clamp(a.l + m, (a.r - m).max(a.l + m)), y.clamp(a.t + m, (a.b - m).max(a.t + m)))
+    let mt = (EDGE_T + R) * a.sf;
+    (x.clamp(a.l + m, (a.r - m).max(a.l + m)), y.clamp(a.t + mt, (a.b - m).max(a.t + mt)))
 }
 
 /// Where the circle lives, from the settings: quick position, saved place, or the
@@ -184,8 +187,11 @@ pub fn layout(app: &AppHandle, steps: i32) {
     let (left, dx) = if cfg.mode != "idle" { open_layout(ax, &cfg, area) } else { (cfg.left, 0.0) };
     let to = PhysicalPosition::new((ax + dx - cx_off(left) * sf).round() as i32, (ay - OFF_Y * sf).round() as i32);
     let side_changed = left != cfg.left;
+    // the label goes to the side of the circle that has room: under it when the circle is high
+    let below = ay < (area.t + area.b) / 2.0;
     crate::update(app, |c| {
         c.left = left;
+        c.below = below;
         c.x = Some(to.x);
         c.y = Some(to.y);
         if c.preset.is_none() {
@@ -222,13 +228,19 @@ fn glide(w: &WebviewWindow, to: PhysicalPosition<i32>, steps: i32) {
     if from == to {
         return;
     }
-    for i in 1..=steps {
-        let t = i as f64 / steps as f64;
+    // Time-based so a slow frame skips ahead instead of stretching the move.
+    let total = Duration::from_millis(steps.max(1) as u64 * 15);
+    let start = std::time::Instant::now();
+    loop {
+        let t = (start.elapsed().as_secs_f64() / total.as_secs_f64()).min(1.0);
         let k = 1.0 - (1.0 - t).powi(3);
         let x = from.x as f64 + (to.x - from.x) as f64 * k;
         let y = from.y as f64 + (to.y - from.y) as f64 * k;
         let _ = w.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
-        std::thread::sleep(Duration::from_millis(15));
+        if t >= 1.0 {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(8));
     }
 }
 

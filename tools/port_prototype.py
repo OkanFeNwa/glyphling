@@ -101,6 +101,7 @@ API = """
         if (key !== pc.dkKey) {
           pc.dkKey = key;
           DISKS.splice(0, DISKS.length, ...s.disks.map(d => ({ lt: d.lt, name: d.name, used: Math.round(d.used), size: Math.round(d.size) })));
+          dkKey = '';   // the list of buttons is rebuilt only when this changes: names are new now
           const lts = DISKS.map(d => d.lt);
           dkShown = dkShown.filter(l => lts.includes(l));
           if (!dkShown.length) dkShown = lts.slice(0, 4);
@@ -199,6 +200,11 @@ sub("  function tutClose() {\n", "  function tutClose() {\n    if (window.__host
 # in the app the first-run check is done by the host with a flag saved by the backend
 sub("  if (!tutSeen) setTimeout(tutOpen, 1400);", "  if (!tutSeen && !window.__host) setTimeout(tutOpen, 1400);")
 sub("el: () => $('trayIc')", "el: () => (window.__tutTray ? window.__tutTray() : $('trayIc'))", 2)
+
+# 5g. music source: the filter is applied by the backend, which knows the real media sessions
+sub("    const now = RUNNING.find(allowed);\n", "    const now = window.__host ? (window.__nowApp || '') : RUNNING.find(allowed);\n")
+sub("    $('volTxt').title = now ?", "    if (window.__hostSrc) window.__hostSrc(src);\n    $('volTxt').title = now ?")
+sub("  srcUi();\n  $('swCov')", "  window.__srcRefresh = srcUi;\n  srcUi();\n  $('swCov')")
 
 # 6. app name: Glyphling (visible text only, internal keys stay lowercase)
 html = html.replace("Companion", "Glyphling")

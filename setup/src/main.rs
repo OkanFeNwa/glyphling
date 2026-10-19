@@ -61,6 +61,8 @@ struct State {
     installed: Option<String>,
     dir: String,
     has_payload: bool,
+    /// Started by the app's auto-update (`--update`): installs and relaunches without asking.
+    auto: bool,
 }
 
 #[derive(Serialize, Clone)]
@@ -156,6 +158,10 @@ mod win {
     }
 
     /// Closes the running app (its windows only hide on close, so it is ended by name).
+    pub fn remove_sensor_task() {
+        let _ = std::process::Command::new("schtasks").args(["/Delete", "/TN", "Glyphling-Sensor", "/F"]).creation_flags(NO_WINDOW).status();
+    }
+
     pub fn stop_app() {
         let _ = std::process::Command::new("taskkill").args(["/F", "/IM", EXE]).creation_flags(NO_WINDOW).status();
     }
@@ -179,6 +185,24 @@ mod win {
     pub fn delete_later(dir: &Path) {
         let cmd = format!("ping -n 3 127.0.0.1 >nul & rmdir /s /q \"{}\"", dir.display());
         let _ = std::process::Command::new("cmd").args(["/C", &cmd]).creation_flags(NO_WINDOW).spawn();
+    }
+
+    /// Removes the caption and frame styles: some PCs keep them on a frameless window and
+    /// show a standard title bar over the page, especially when it loses focus.
+    pub fn strip_frame(w: &tauri::WebviewWindow) {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CAPTION, WS_THICKFRAME,
+        };
+        let Ok(h) = w.hwnd() else { return };
+        let h = h.0 as _;
+        unsafe {
+            let style = GetWindowLongPtrW(h, GWL_STYLE);
+            let clean = style & !((WS_CAPTION | WS_THICKFRAME) as isize);
+            if clean != style {
+                SetWindowLongPtrW(h, GWL_STYLE, clean);
+                SetWindowPos(h, std::ptr::null_mut(), 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+        }
     }
 
     /// Asks Windows 11 for its own antialiased rounded corners (Windows 10 keeps square ones).
@@ -218,11 +242,13 @@ mod win {
     pub fn install_webview2() -> bool {
         false
     }
+    pub fn remove_sensor_task() {}
     pub fn stop_app() {}
     pub fn shortcut(_: &Path, _: &Path) {}
     pub fn launch(_: &Path) {}
     pub fn delete_later(_: &Path) {}
     pub fn round(_: &tauri::WebviewWindow) {}
+    pub fn strip_frame(_: &tauri::WebviewWindow) {}
 }
 
 // ---------- payload ----------
@@ -276,6 +302,7 @@ fn get_state() -> State {
         installed: win::installed_version(),
         dir: install_dir().display().to_string(),
         has_payload: !PAYLOAD.is_empty(),
+        auto: std::env::args().any(|a| a == "--update"),
     }
 }
 
@@ -373,6 +400,11 @@ async fn uninstall(app: AppHandle, remove_data: bool) -> Result<(), String> {
         for l in [start_menu_link(), desktop_link()].into_iter().flatten() {
             let _ = std::fs::remove_file(l);
         }
+        // the optional CPU temperature sensor (best effort: its task and files are Glyphling's own)
+        win::remove_sensor_task();
+        if let Some(base) = std::env::var_os("LOCALAPPDATA") {
+            let _ = std::fs::remove_dir_all(PathBuf::from(base).join(IDENTIFIER).join("sensors"));
+        }
         progress(&app, "Tolgo l'app dal registro", 0.55);
         win::remove_uninstall_entry();
         if remove_data {
@@ -435,6 +467,13 @@ fn main() {
                 .build()?;
             // on some PCs the window first came up with a Windows title bar and the page
             // smaller than the window: drop the frame again and resize so the page fills it
+            win::strip_frame(&w);
+            let wc = w.clone();
+            w.on_window_event(move |e| {
+                if matches!(e, tauri::WindowEvent::Focused(_)) {
+                    win::strip_frame(&wc);
+                }
+            });
             let _ = w.set_decorations(false);
             let _ = w.set_size(tauri::LogicalSize::new(WIN_W, WIN_H));
             let _ = w.center();

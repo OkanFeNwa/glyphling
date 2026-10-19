@@ -8,6 +8,8 @@ The full design document lives in the project's shared files, not in this reposi
 
 Installers are published on the [Releases](../../releases) page. Download `Glyphling-Setup-x.y.z.exe` and run it. The same file installs, updates in place (settings, themes and position are kept) and, as `uninstall.exe` in the install folder, removes the app. The setup is not signed yet, so Windows SmartScreen may warn on first launch ("More info" → "Run anyway").
 
+Glyphling checks the GitHub releases by itself (Settings > Info can turn that off), tells you when a new version exists and, only when you agree, downloads the setup and installs it in place.
+
 ## What it does (0.9)
 
 - **Widget**: transparent, frameless, clipped to its real shape (circle plus panel), with a dark glass look. Windows' own blur behind the window is not used: on some PCs it turned the transparent parts black. The panel opens to the right, to the left or automatically, and its layout mirrors when it opens to the left. Turn the dial (or the mouse wheel) to pick a mode, right click the circle to go back to the mascot.
@@ -23,6 +25,7 @@ Installers are published on the [Releases](../../releases) page. Download `Glyph
 - **Circle**: 512 to 2048 LED points; 24/12 hour clock and °C/°F (Settings).
 - **Font**: Glyphling Dot, our own 5x7 dot font (`tools/make_font.py`). If Nothing's 5x7 font is installed on the PC it is used instead (it cannot be redistributed).
 - Easter eggs: shake the mouse left and right over the mascot, or circle around it fast.
+- Music follows one app at a time and the circle's volume controls only that app. Choose from popular players or add your own, as a whitelist or blacklist.
 - Starts with Windows (optional), single instance.
 
 ## CPU temperature
@@ -35,7 +38,9 @@ So Glyphling reads the temperature from the first source that has it:
 2. **LibreHardwareMonitor** (open source, [GitHub](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)). Enable *Options > Remote Web Server* (port 8085) and keep it running.
 3. **Windows thermal zone**, with no extra program and no admin rights. This is the ACPI thermal zone exposed by the firmware through Windows performance counters. On most laptops it follows the CPU closely; on many desktops it is a motherboard sensor or a fixed placeholder (27.85 °C is ignored), so Settings marks it as approximate.
 
-Settings > Data shows the current reading and its source. NVIDIA GPU temperature needs nothing extra (NVML ships with the driver).
+If no source is found, Settings offers to install LibreHardwareMonitor for you. It is downloaded from its official releases into the app's data folder and started at logon through a scheduled task with highest privileges (Windows asks for administrator consent once); the uninstaller removes the task and the files on a best-effort basis. Nothing is installed without pressing that button.
+
+Settings shows the current reading and its source. NVIDIA GPU temperature needs nothing extra (NVML ships with the driver).
 
 ## Repository layout
 

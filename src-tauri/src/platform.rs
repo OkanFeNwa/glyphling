@@ -38,6 +38,25 @@ mod imp {
         unsafe { SetWindowLongPtrW(h.0 as _, GWLP_HWNDPARENT, owner as isize) };
     }
 
+    /// Removes the caption and frame styles for good. A frameless window keeps them on some
+    /// PCs, and Windows then paints a standard title bar over the page when the window is
+    /// not focused. Called again whenever the focus changes.
+    pub fn strip_frame(w: &tauri::WebviewWindow) {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{
+            GetWindowLongPtrW, SetWindowPos, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CAPTION, WS_THICKFRAME,
+        };
+        let Ok(h) = w.hwnd() else { return };
+        let h = h.0 as _;
+        unsafe {
+            let style = GetWindowLongPtrW(h, GWL_STYLE);
+            let clean = style & !((WS_CAPTION | WS_THICKFRAME) as isize);
+            if clean != style {
+                SetWindowLongPtrW(h, GWL_STYLE, clean);
+                SetWindowPos(h, std::ptr::null_mut(), 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+            }
+        }
+    }
+
     /// Clips the window to the shape (union of rounded rectangles, logical pixels): outside it
     /// clicks pass through and the background blur stays inside the shape.
     pub fn set_region(w: &tauri::WebviewWindow, parts: &[crate::hit::Part]) {
@@ -117,6 +136,7 @@ mod imp {
         let _ = w.show();
     }
     pub fn set_desktop_owner(_: &tauri::WebviewWindow, _: bool) {}
+    pub fn strip_frame(_: &tauri::WebviewWindow) {}
     pub fn set_region(_: &tauri::WebviewWindow, _: &[crate::hit::Part]) {}
     pub fn ensure_shown(_: &tauri::WebviewWindow) -> bool {
         false
