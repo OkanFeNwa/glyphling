@@ -1,10 +1,10 @@
-//! Icona nell'area di notifica e il suo menu (usato anche col clic destro sul widget).
+//! Icona nell'area di notifica e il suo menu in vetro (una piccola finestra, src/menu.html).
 
 use crate::{config::Config, AppState};
 use tauri::image::Image;
-use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
+use serde::Serialize;
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Manager, WebviewWindow, Wry};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
 
 pub const MODES: [(&str, &str); 7] = [
     ("idle", "Mascotte"),
@@ -21,72 +21,65 @@ pub const LEVELS: [(&str, &str); 3] = [
     ("normal", "Normale"),
 ];
 
-pub struct MenuHandles {
-    pub menu: Menu<Wry>,
-    show: CheckMenuItem<Wry>,
-    modes: Vec<(&'static str, CheckMenuItem<Wry>)>,
-    levels: Vec<(&'static str, CheckMenuItem<Wry>)>,
-    mv: CheckMenuItem<Wry>,
-    snap: CheckMenuItem<Wry>,
-}
-
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
-    let c = app.state::<AppState>().cfg.lock().unwrap().clone();
-    let show = CheckMenuItem::with_id(app, "show", "Mostra il widget", true, c.visible, None::<&str>)?;
-    let modes: Vec<_> = MODES
-        .iter()
-        .map(|(id, name)| Ok((*id, CheckMenuItem::with_id(app, format!("mode:{id}"), *name, true, c.mode == *id, None::<&str>)?)))
-        .collect::<tauri::Result<_>>()?;
-    let levels: Vec<_> = LEVELS
-        .iter()
-        .map(|(id, name)| Ok((*id, CheckMenuItem::with_id(app, format!("level:{id}"), *name, true, c.level == *id, None::<&str>)?)))
-        .collect::<tauri::Result<_>>()?;
-    let mode_refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = modes.iter().map(|(_, i)| i as _).collect();
-    let level_refs: Vec<&dyn tauri::menu::IsMenuItem<Wry>> = levels.iter().map(|(_, i)| i as _).collect();
-    let mode_sub = Submenu::with_items(app, "Modalità", true, &mode_refs)?;
-    let level_sub = Submenu::with_items(app, "Livello", true, &level_refs)?;
-    let mv = CheckMenuItem::with_id(app, "move", "Sposta il widget", true, c.move_enabled, None::<&str>)?;
-    let snap = CheckMenuItem::with_id(app, "snap", "Aggancio alla griglia", true, c.snap, None::<&str>)?;
-    let sleep = MenuItem::with_id(app, "sleep", "Fai dormire / sveglia la mascotte", true, None::<&str>)?;
-    let settings = MenuItem::with_id(app, "settings", "Impostazioni…", true, None::<&str>)?;
-    let info = MenuItem::with_id(app, "info", "Info su Glyphling", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Esci", true, None::<&str>)?;
-    let menu = Menu::with_items(
-        app,
-        &[
-            &show,
-            &mode_sub,
-            &level_sub,
-            &PredefinedMenuItem::separator(app)?,
-            &mv,
-            &snap,
-            &sleep,
-            &PredefinedMenuItem::separator(app)?,
-            &settings,
-            &info,
-            &PredefinedMenuItem::separator(app)?,
-            &quit,
-        ],
-    )?;
-
+    // niente menu di sistema: al clic destro si apre il menu in vetro (finestra "menu")
     TrayIconBuilder::with_id("main")
         .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
         .tooltip("Glyphling")
-        .menu(&menu)
         .show_menu_on_left_click(false)
-        .on_menu_event(|app, ev| handle(app, ev.id().as_ref()))
         .on_tray_icon_event(|tray, ev| {
-            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = ev {
-                crate::update(tray.app_handle(), |c| c.visible = !c.visible);
+            if let TrayIconEvent::Click { button, button_state: MouseButtonState::Up, position, .. } = ev {
+                match button {
+                    MouseButton::Left => crate::update(tray.app_handle(), |c| c.visible = !c.visible),
+                    MouseButton::Right => show_menu(tray.app_handle(), position.x, position.y),
+                    _ => {}
+                }
             }
         })
         .build(app)?;
-
-    *app.state::<AppState>().menu.lock().unwrap() = Some(MenuHandles { menu, show, modes, levels, mv, snap });
     Ok(())
 }
 
-fn handle(app: &AppHandle, id: &str) {
+#[derive(Serialize, Clone)]
+struct MenuOpen {
+    cfg: Config,
+    version: String,
+}
+
+/// Apre il menu con l'angolo in basso a destra vicino al punto (pixel fisici). La pagina
+/// disegna le voci, misura il menu e chiama `place_menu` per dimensione e posizione.
+pub fn show_menu(app: &AppHandle, x: f64, y: f64) {
+    *app.state::<AppState>().menu.lock().unwrap() = Some((x, y));
+    let cfg = app.state::<AppState>().cfg.lock().unwrap().clone();
+    let version = app.package_info().version.to_string();
+    let _ = app.emit_to("menu", "menu-open", MenuOpen { cfg, version });
+}
+
+pub fn place_menu(app: &AppHandle, w: f64, h: f64) {
+    let Some(win) = app.get_webview_window("menu") else { return };
+    let Some((ax, ay)) = *app.state::<AppState>().menu.lock().unwrap() else { return };
+    let mon = app.monitor_from_point(ax, ay).ok().flatten().or_else(|| app.primary_monitor().ok().flatten());
+    let Some(mon) = mon else { return };
+    let sf = mon.scale_factor();
+    let (pw, ph) = (w * sf, h * sf);
+    let wa = mon.work_area();
+    let (l, t) = (wa.position.x as f64, wa.position.y as f64);
+    let (r, b) = (l + wa.size.width as f64, t + wa.size.height as f64);
+    let x = (ax - pw + 8.0 * sf).clamp(l, (r - pw).max(l));
+    let y = (ay - ph).clamp(t, (b - ph).max(t));
+    let _ = win.set_size(PhysicalSize::new(pw.round() as u32, ph.round() as u32));
+    let _ = win.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
+    let _ = win.show();
+    let _ = win.set_focus();
+}
+
+pub fn hide_menu(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("menu") {
+        let _ = w.hide();
+    }
+}
+
+pub fn handle(app: &AppHandle, id: &str) {
     if let Some(m) = id.strip_prefix("mode:") {
         let m = m.to_string();
         crate::update(app, |c| {
@@ -111,31 +104,7 @@ fn handle(app: &AppHandle, id: &str) {
             _ => {}
         }
     }
-    // le voci a spunta si invertono da sole al clic: le riallineo allo stato vero
-    let c = app.state::<AppState>().cfg.lock().unwrap().clone();
-    sync(app, &c);
 }
 
-/// Allinea le spunte del menu alle impostazioni.
-pub fn sync(app: &AppHandle, c: &Config) {
-    let state = app.state::<AppState>();
-    let guard = state.menu.lock().unwrap();
-    let Some(h) = guard.as_ref() else { return };
-    let _ = h.show.set_checked(c.visible);
-    let _ = h.mv.set_checked(c.move_enabled);
-    let _ = h.snap.set_checked(c.snap);
-    for (id, item) in &h.modes {
-        let _ = item.set_checked(c.mode == *id);
-    }
-    for (id, item) in &h.levels {
-        let _ = item.set_checked(c.level == *id);
-    }
-}
-
-pub fn popup(app: &AppHandle, w: &WebviewWindow) {
-    // copia del menu fuori dal lock: il menu a comparsa blocca finché non si chiude
-    let menu = app.state::<AppState>().menu.lock().unwrap().as_ref().map(|h| h.menu.clone());
-    if let Some(menu) = menu {
-        let _ = w.popup_menu(&menu);
-    }
-}
+/// Il menu si ridisegna ogni volta che si apre: non c'è niente da riallineare.
+pub fn sync(_app: &AppHandle, _c: &Config) {}

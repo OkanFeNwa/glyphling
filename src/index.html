@@ -598,12 +598,28 @@ body.moving.free .gridov { opacity: .12; }
 .news li::before { content: ""; width: 5px; height: 5px; margin-top: 6px; background: var(--red); flex: none; }
 .news li b { color: var(--ink); font-weight: 400; }
 @media (max-width: 560px) { .about { grid-template-columns: 1fr; justify-items: start; } .kv { grid-template-columns: 1fr; } .swin-top { flex-wrap: wrap; } }
+
+/* ---------- pannello verso sinistra ---------- */
+.widget.left .ring { left: auto; right: 0; }
+.widget.left .panel { left: auto; right: calc(var(--d) / 2); border-radius: 30px 0 0 30px; border-right: 0; border-left: 1px solid rgba(255,255,255,.14); }
+.widget.left .view { left: 18px; transform: translateX(12px); }
+.widget.left.open .view.on { transform: none; }
+.widget.left .glow { left: auto; right: 200px; }
+.widget.left .halo { left: auto; right: 40px; }
+.widget.left .pick-lbl { left: auto; right: calc(var(--d) / 2); translate: 50% 0; }
+/* ---------- scelta modalità dalla ghiera ---------- */
+.pick-lbl { position: absolute; z-index: 4; top: -46px; left: calc(var(--d) / 2); translate: -50% 0; padding: 6px 12px; border-radius: 999px; font-family: var(--dot); font-weight: 900; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); white-space: nowrap; pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity .2s, transform .25s cubic-bezier(.2,.8,.2,1); }
+.pick-lbl.on { opacity: 1; transform: none; }
+.pick-lbl small { font-family: var(--mono); font-weight: 400; font-size: 9px; color: var(--mute); margin-left: 8px; letter-spacing: .12em; }
+.seg3 { display: inline-flex; gap: 2px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 2px; flex: none; }
+.seg3 button { appearance: none; border: 0; background: transparent; color: var(--mute); font: 700 9px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; padding: 7px 11px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; }
+.seg3 button[aria-pressed="true"] { background: rgba(255,255,255,.12); color: var(--ink); }
 </style>
 
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
 <header>
   <h1>Glyphling</h1>
-  <span class="rec"><i></i>prototipo · v0.12</span>
+  <span class="rec"><i></i>prototipo · v0.13</span>
 </header>
 
 <div class="stage" id="stage">
@@ -710,6 +726,7 @@ body.moving.free .gridov { opacity: .12; }
       <div class="ring" id="ring" tabindex="0" role="img" aria-label="Mascotte">
         <canvas id="led"></canvas>
       </div>
+      <div class="pick-lbl glass-s" id="pickLbl" aria-live="polite"></div>
     </div>
   </div>
 </div>
@@ -743,6 +760,7 @@ body.moving.free .gridov { opacity: .12; }
 </div>
 <div class="sgroup">
   <h3>Posizione</h3>
+  <div class="srow"><div><b>Apertura del riquadro</b><small>Da che lato si apre il riquadro. Automatica sceglie il lato con più spazio, in base a dove sta il widget.</small></div><span class="seg3" id="dirSeg"><button data-d="right" aria-pressed="false">Destra</button><button data-d="left" aria-pressed="false">Sinistra</button><button data-d="auto" aria-pressed="true">Auto</button></span></div>
   <div class="srow"><div><b>Sposta il widget</b><small>Trascinalo dove vuoi sul desktop. Lo trovi anche nel menù dell'icona.</small></div><button class="sw-t" id="swMove" role="switch" aria-checked="false" aria-label="Sposta il widget"></button></div>
   <div class="srow"><div><b>Aggancia alla griglia</b><small>Si allinea a una griglia da 24 px. Tieni premuto <kbd>Alt</kbd> mentre trascini per muoverlo libero.</small></div><button class="sw-t" id="swSnap" role="switch" aria-checked="true" aria-label="Aggancia alla griglia"></button></div>
   <div class="srow"><div><b>Riporta al centro</b><small>Rimette il widget nella posizione iniziale.</small></div><button class="ghost" id="posReset">Centra</button></div>
@@ -768,7 +786,7 @@ body.moving.free .gridov { opacity: .12; }
   <div class="sgroup about">
     <canvas id="aboutCv" width="224" height="224" aria-hidden="true"></canvas>
     <div><h3>Glyphling</h3><p>Una piccola mascotte a LED che vive sul desktop. Orologio, calendario, musica, timer, meteo e stato del PC in un cerchio.</p>
-      <div class="ver"><span>Versione <b>0.12 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div></div>
+      <div class="ver"><span>Versione <b>0.13 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div></div>
   </div>
   <div class="kv">
     <div>Sistema<b id="infoOs">Windows 11 · x64</b></div>
@@ -779,6 +797,7 @@ body.moving.free .gridov { opacity: .12; }
   <div class="sgroup">
     <h3>Novità</h3>
     <ul class="news">
+      <li><span><b>0.13</b> · modalità scelte ruotando la ghiera, clic destro per tornare alla mascotte, lato di apertura del riquadro.</span></li>
       <li><span><b>0.12</b> · timer classico, volume dal numero, orari meteo con AM e PM.</span></li>
       <li><span><b>0.11</b> · impostazioni ripulite, nuovi interruttori, ora dell'orologio sempre dentro il riquadro.</span></li>
       <li><span><b>0.10</b> · spostamento con aggancio alla griglia e questa schermata.</span></li>
@@ -1690,7 +1709,7 @@ body.moving.free .gridov { opacity: .12; }
   const HINTS = {
     idle: () => asleep
       ? 'La mascotte <b>dorme</b>. Muovi il mouse, premi un tasto o Sveglia per svegliarla.'
-      : `La mascotte segue il <b>puntatore</b> e sbatte le palpebre; <b>clicca il cerchio</b> per farla sorridere. Se non tocchi nulla per ${SLEEP_AFTER} secondi le palpebre calano piano e <b>si addormenta</b>.`,
+      : `La mascotte segue il <b>puntatore</b> e sbatte le palpebre; <b>clicca il cerchio</b> per farla sorridere. <b>Ruota la ghiera</b> per scegliere una modalità; da qualunque modalità il <b>clic destro</b> sul cerchio torna qui. Se non tocchi nulla per ${SLEEP_AFTER} secondi le palpebre calano piano e <b>si addormenta</b>.`,
     clock: () => `Orologio a due lancette con l'ora del tuo dispositivo. Attiva la <b>lancetta dei secondi</b> col pulsante o cliccando il cerchio. Luna, alba e tramonto sono calcolati per Milano.`,
     calendar: () => `La ghiera è il mese: <b>trascinala in senso orario o antiorario</b> per scorrere i giorni (anche rotellina e frecce). I tratti accesi sono i giorni con impegni. Gli impegni qui sono finti; nell'app vera arrivano da Google Calendar.`,
     music: () => '<b>Trascina in cerchio</b> o usa la rotellina sul cerchio per il <b>volume</b>: diventa un anello con la percentuale. Un clic mostra la copertina, disegnata con gli stessi LED, che gira.',
@@ -1755,6 +1774,57 @@ body.moving.free .gridov { opacity: .12; }
     if (mode !== 'music') { shownDisc = showDisc; discFlip = 1; }
   }
 
+
+  // ---------- scelta della modalità ruotando la ghiera (solo dalla mascotte) ----------
+  const PICK = [
+    ['idle', 'Mascotte', ['000000000','000000000','001000100','001000100','001000100','000000000','010000010','001111100','000000000']],
+    ['clock', 'Orologio', ['001111100','010000010','100010001','100010001','100011111','100000001','100000001','010000010','001111100']],
+    ['calendar', 'Calendario', ['111111111','100000001','111111111','101010101','111111111','101010101','111111111','101010101','111111111']],
+    ['music', 'Musica', ['000011111','000011111','000010001','000010001','000010001','011110001','111110011','111100111','011000110']],
+    ['timer', 'Timer', ['111111111','010000010','001000100','000101000','000010000','000101000','001010100','010111010','111111111']],
+    ['weather', 'Meteo', ['100010001','010000010','001111100','001111100','111111111','001111100','001111100','010000010','100010001']],
+    ['disks', 'Sistema', ['010101010','111111111','010000010','110111011','010111010','110111011','010000010','111111111','010101010']],
+  ];
+  const mpk = { on: 0, i: 0, commit: 0 };
+  function pickStep(d) {
+    if (!mpk.on) mpk.i = 0;
+    mpk.i = (mpk.i + d + PICK.length) % PICK.length;
+    mpk.on = 2.2; mpk.commit = 0;
+    const [, name] = PICK[mpk.i];
+    $('pickLbl').innerHTML = `${name}<small>${mpk.i + 1}/${PICK.length}</small>`;
+    $('pickLbl').classList.add('on');
+    if (asleep) wake();
+  }
+  function pickCommit(delay) { if (mpk.on) mpk.commit = delay; }
+  function pickDone() {
+    const m = PICK[mpk.i][0];
+    mpk.on = 0; mpk.commit = 0; $('pickLbl').classList.remove('on');
+    if (m !== 'idle') setMode(m); else eye.happy = 1.2;
+  }
+  function pickTick(dt) {
+    if (!mpk.on) return;
+    if (mpk.commit > 0) { mpk.commit -= dt; if (mpk.commit <= 0) { pickDone(); return; } }
+    else if (!(drag && drag.moved)) { mpk.on -= dt; if (mpk.on <= 0) { mpk.on = 0; $('pickLbl').classList.remove('on'); } }
+  }
+  function drawPick(t) {
+    const n = PICK.length;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const d = Math.hypot(x - C, y - C);
+      if (d <= C - 0.9 || d > C + 0.5) continue;
+      let a = Math.atan2(x - C, -(y - C)) / (Math.PI * 2); if (a < 0) a += 1;
+      const seg = Math.floor(((a + 0.5 / n) % 1) * n), edge = Math.abs(((a + 0.5 / n) * n) % 1 - 0.5) > 0.42;
+      if (edge) continue;
+      if (seg === mpk.i) set(x, y, 1, true); else set(x, y, 0.22);
+    }
+    const g = PICK[mpk.i][2];
+    g.forEach((row, yy) => [...row].forEach((b, xx) => { if (b === '1') set(5 + xx, 5 + yy, 1); }));
+  }
+  $('ring').addEventListener('contextmenu', e => {
+    e.preventDefault();
+    mpk.on = 0; $('pickLbl').classList.remove('on');
+    if (mode !== 'idle') setMode('idle'); else eye.happy = 1.2;
+  });
+
   // ---------- il cerchio come comando ----------
   const ring = $('ring');
   function ringAngle(e) {
@@ -1777,6 +1847,12 @@ body.moving.free .gridov { opacity: .12; }
     let da = a - drag.a; if (da > 0.5) da -= 1; if (da < -0.5) da += 1;
     drag.a = a;
     if (mode === 'music') { setVol(vol + da); return; }
+    if (mode === 'idle') {
+      drag.acc = (drag.acc || 0) + da * 10;
+      while (drag.acc >= 1) { drag.acc -= 1; pickStep(1); }
+      while (drag.acc <= -1) { drag.acc += 1; pickStep(-1); }
+      return;
+    }
     const per = mode === 'weather' ? wxList().length : mode === 'calendar' ? 31 : mode === 'disks' ? dkShown.length : mode === 'timer' && tmTab === 'cd' && !cd.run ? 30 : 0;
     if (!per) return;
     drag.acc = (drag.acc || 0) + da * per;
@@ -1787,7 +1863,9 @@ body.moving.free .gridov { opacity: .12; }
   ring.addEventListener('pointerup', e => {
     ring.classList.remove('press');
     const d = drag; drag = null;
+    if (d && d.moved && mode === 'idle' && mpk.on) { pickCommit(0.55); return; }
     if (!d || d.moved) return;
+    if (mode === 'idle' && mpk.on) { pickDone(); return; }
     const r = ring.getBoundingClientRect();
     poke(e.clientX < r.left + r.width / 2 ? -1 : 1);
   });
@@ -1795,6 +1873,7 @@ body.moving.free .gridov { opacity: .12; }
   ring.addEventListener('wheel', e => {
     const d = e.deltaY < 0 ? 1 : -1;
     if (mode === 'music') setVol(vol + d * 0.04);
+    else if (mode === 'idle') { pickStep(-d); pickCommit(1.1); }
     else if (mode === 'weather') wxStep(-d);
     else if (mode === 'calendar') calStep(-d);
     else if (mode === 'disks') dkCycle(-d);
@@ -1803,11 +1882,13 @@ body.moving.free .gridov { opacity: .12; }
     e.preventDefault();
   }, { passive: false });
   ring.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); poke(1); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (mode === 'idle' && mpk.on) pickDone(); else poke(1); return; }
+    if (e.key === 'Escape' && mode !== 'idle') { e.preventDefault(); setMode('idle'); return; }
     const d = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 0;
     if (!d) return;
     e.preventDefault();
     if (mode === 'music') setVol(vol + d * 0.05);
+    else if (mode === 'idle') pickStep(d);
     else if (mode === 'weather') wxStep(d);
     else if (mode === 'calendar') calStep(d);
     else if (mode === 'disks') dkCycle(d);
@@ -2182,7 +2263,8 @@ body.moving.free .gridov { opacity: .12; }
     updatePc(real);
 
     clear();
-    if (scene === 'idle') drawEyes(t);
+    pickTick(real);
+    if (scene === 'idle') { if (mpk.on && mode === 'idle') drawPick(t); else drawEyes(t); }
     else if (scene === 'clock') drawClock(now);
     else if (scene === 'calendar') drawCalendar(t);
     else if (scene === 'music') { if (volShow > 0) drawVolume(); else if (shownDisc) drawCoverLed(); else drawBands(); }
@@ -2221,7 +2303,7 @@ body.moving.free .gridov { opacity: .12; }
   }
   function buildMenu() {
     const sleepItem = mode === 'idle' ? `<button role="menuitem" data-a="sleep"><span class="ck"></span>${asleep ? 'Sveglia la mascotte' : 'Fai dormire la mascotte'}</button>` : '';
-    $('tmenu').innerHTML = `<div class="mh"><b>Glyphling</b>v0.12</div>`
+    $('tmenu').innerHTML = `<div class="mh"><b>Glyphling</b>v0.13</div>`
       + MENU_MODES.map(([m, n]) => `<button role="menuitemradio" aria-checked="${m === mode}" data-m="${m}"><span class="ck"></span>${n}</button>`).join('')
       + `<hr>${sleepItem}<button role="menuitemcheckbox" aria-checked="${moving}" data-a="move"><span class="ck"></span>Sposta il widget</button><button role="menuitem" data-a="show"><span class="ck"></span>${widgetAway ? 'Mostra il widget' : 'Nascondi il widget'}</button>`
       + `<button role="menuitem" data-a="settings"><span class="ck"></span>Impostazioni…</button><button role="menuitem" data-a="info"><span class="ck"></span>Info su Glyphling</button><hr>`
@@ -2326,7 +2408,7 @@ body.moving.free .gridov { opacity: .12; }
   $('swMove').addEventListener('click', () => setMoving(!moving));
   $('swSnap').addEventListener('click', () => setSnap(!snap));
   $('moveDone').addEventListener('click', () => setMoving(false));
-  $('posReset').addEventListener('click', () => { pos2 = { x: 0, y: 0 }; applyPos(); savePos(); });
+  $('posReset').addEventListener('click', () => { pos2 = { x: 0, y: 0 }; applyPos(); savePos(); setTimeout(applyDir, 380); });
   let mv = null;
   $('widget').addEventListener('pointerdown', e => {
     if (!moving) return;
@@ -2345,7 +2427,7 @@ body.moving.free .gridov { opacity: .12; }
     if (!free) p = { x: Math.round(p.x / GRID) * GRID, y: Math.round(p.y / GRID) * GRID };
     pos2 = clampPos(p); applyPos();
   }, true);
-  const endMv = e => { if (!mv) return; e.stopPropagation(); mv = null; $('scaler').classList.remove('dragging'); document.body.classList.remove('free'); savePos(); };
+  const endMv = e => { if (!mv) return; e.stopPropagation(); mv = null; $('scaler').classList.remove('dragging'); document.body.classList.remove('free'); savePos(); setTimeout(applyDir, 380); };
   $('widget').addEventListener('pointerup', endMv, true);
   $('widget').addEventListener('pointercancel', endMv, true);
   document.addEventListener('keydown', e => {
@@ -2355,9 +2437,30 @@ body.moving.free .gridov { opacity: .12; }
     if (!k) return;
     e.preventDefault();
     const st = snap && !e.altKey ? GRID : 1;
-    pos2 = clampPos({ x: pos2.x + k[0] * st, y: pos2.y + k[1] * st }); applyPos(); savePos();
+    pos2 = clampPos({ x: pos2.x + k[0] * st, y: pos2.y + k[1] * st }); applyPos(); savePos(); setTimeout(applyDir, 380);
   }, true);
   setSnap(snap); applyPos();
+
+  // ---------- direzione del riquadro ----------
+  let panelDir = 'auto';
+  try { const d = localStorage.getItem('companion-dir'); if (['left', 'right', 'auto'].includes(d)) panelDir = d; } catch (e) {}
+  function applyDir() {
+    if (window.__host) return;
+    let left = panelDir === 'left';
+    if (panelDir === 'auto') {
+      const r = $('ring').getBoundingClientRect();
+      left = r.left + r.width / 2 > innerWidth / 2;
+    }
+    $('widget').classList.toggle('left', left);
+    document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === panelDir));
+  }
+  $('dirSeg').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    panelDir = b.dataset.d; try { localStorage.setItem('companion-dir', panelDir); } catch (e) {}
+    applyDir();
+  });
+  window.addEventListener('resize', applyDir);
+  applyDir();
   tbClock(); setInterval(tbClock, 5000);
   placeTip();
   window.addEventListener('resize', () => { placeTip(); closeMenu(); });

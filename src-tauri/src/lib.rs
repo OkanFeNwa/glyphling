@@ -23,11 +23,12 @@ use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindo
 
 /// Geometria del widget in pixel logici (deve corrispondere a src/host.css e al prototipo).
 pub const PAD_X: f64 = 40.0;
-pub const PAD_Y: f64 = 34.0;
+pub const PAD_Y: f64 = 60.0; // spazio sopra il cerchio per l'etichetta della ghiera
 pub const D: f64 = 172.0;
-pub const OPEN_W: f64 = 646.0;
-const WIN_W: f64 = 730.0;
-const WIN_H: f64 = 262.0;
+/// Larghezza del widget aperto dal bordo sinistro del cerchio alla fine del riquadro (--pw).
+pub const OPEN_W: f64 = 560.0;
+pub const WIN_W: f64 = 730.0;
+const WIN_H: f64 = 288.0;
 
 pub struct AppState {
     pub cfg: Mutex<Config>,
@@ -36,7 +37,8 @@ pub struct AppState {
     /// Qualcosa sta suonando (dal thread della musica, serve al visualizer).
     pub playing: AtomicBool,
     pub settings_page: Mutex<Option<String>>,
-    pub menu: Mutex<Option<tray::MenuHandles>>,
+    /// Punto (pixel fisici) a cui si aggancia il menu dell'icona.
+    pub menu: Mutex<Option<(f64, f64)>>,
 }
 
 /// Applica una modifica alle impostazioni; se cambia qualcosa la salva, la applica
@@ -58,7 +60,14 @@ pub fn update(app: &AppHandle, f: impl FnOnce(&mut Config)) {
     config::save(app, &after);
     if let Some(w) = app.get_webview_window("widget") {
         if before.visible != after.visible {
-            let _ = if after.visible { w.show() } else { w.hide() };
+            if after.visible {
+                // dopo "Mostra desktop" la finestra può essere ridotta a icona: show() da solo non basta
+                let _ = w.unminimize();
+                let _ = w.show();
+                apply_level(&w, &after.level);
+            } else {
+                let _ = w.hide();
+            }
         }
         if before.level != after.level {
             apply_level(&w, &after.level);
@@ -69,6 +78,7 @@ pub fn update(app: &AppHandle, f: impl FnOnce(&mut Config)) {
 }
 
 fn apply_level(w: &WebviewWindow, level: &str) {
+    platform::set_desktop_owner(w, level == "desktop");
     match level {
         "top" => {
             let _ = w.set_always_on_bottom(false);
@@ -101,8 +111,12 @@ pub fn open_settings(app: &AppHandle, page: Option<String>) {
     std::thread::spawn(move || {
         let _ = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("index.html".into()))
             .title("Glyphling · Impostazioni")
-            .inner_size(820.0, 720.0)
-            .min_inner_size(560.0, 480.0)
+            .inner_size(840.0, 740.0)
+            // senza cornice di Windows: barra del titolo e pulsanti li disegna la pagina
+            .decorations(false)
+            .transparent(true)
+            .shadow(false)
+            .resizable(false)
             .theme(Some(tauri::Theme::Dark))
             .center()
             .build();
@@ -136,6 +150,16 @@ fn set_snap(app: AppHandle, on: bool) {
     update(&app, |c| c.snap = on);
 }
 
+/// Lato da cui si apre il riquadro: right, left o auto.
+#[tauri::command]
+fn set_panel_dir(app: AppHandle, dir: String) {
+    if !["right", "left", "auto"].contains(&dir.as_str()) {
+        return;
+    }
+    update(&app, |c| c.panel_dir = dir);
+    snap::sync_side(&app);
+}
+
 #[tauri::command]
 fn set_shape(state: tauri::State<AppState>, shape: hit::Shape) {
     *state.shape.lock().unwrap() = shape;
@@ -162,8 +186,19 @@ fn take_settings_page(state: tauri::State<AppState>) -> Option<String> {
 }
 
 #[tauri::command]
-fn popup_menu(app: AppHandle, window: WebviewWindow) {
-    tray::popup(&app, &window);
+fn menu_place(app: AppHandle, w: f64, h: f64) {
+    tray::place_menu(&app, w, h);
+}
+
+#[tauri::command]
+fn menu_hide(app: AppHandle) {
+    tray::hide_menu(&app);
+}
+
+#[tauri::command]
+fn menu_action(app: AppHandle, id: String) {
+    tray::hide_menu(&app);
+    tray::handle(&app, &id);
 }
 
 #[tauri::command]
@@ -296,7 +331,42 @@ pub fn run() {
             #[cfg(windows)]
             grid.set_ignore_cursor_events(true)?;
 
+            // menu dell'icona: finestra in vetro, nascosta finché non si fa clic destro sull'icona
+            let menu = WebviewWindowBuilder::new(app, "menu", WebviewUrl::App("menu.html".into()))
+                .title("Glyphling · menu")
+                .decorations(false)
+                .transparent(true)
+                .shadow(false)
+                .skip_taskbar(true)
+                .always_on_top(true)
+                .resizable(false)
+                .focused(false)
+                .visible(false)
+                .inner_size(300.0, 600.0)
+                .build()?;
+            let mh = handle.clone();
+            menu.on_window_event(move |ev| {
+                if let tauri::WindowEvent::Focused(false) = ev {
+                    tray::hide_menu(&mh);
+                }
+            });
+            // il widget deve restare visibile anche dopo "Mostra desktop" o altri giochi di Windows
+            let wd = handle.clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_millis(700));
+                let st = wd.state::<AppState>();
+                let (visible, level) = { let c = st.cfg.lock().unwrap(); (c.visible, c.level.clone()) };
+                if !visible || st.dragging.load(std::sync::atomic::Ordering::Relaxed) {
+                    continue;
+                }
+                if let Some(w) = wd.get_webview_window("widget") {
+                    if platform::ensure_shown(&w) {
+                        apply_level(&w, &level);
+                    }
+                }
+            });
             tray::create(&handle)?;
+            snap::sync_side(&handle);
             hit::spawn(handle.clone());
             system::spawn(handle.clone());
             media::spawn(handle.clone());
@@ -314,6 +384,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_config,
+            set_panel_dir,
             list_disks,
             set_mode,
             set_move,
@@ -323,7 +394,9 @@ pub fn run() {
             reset_position,
             widget_action,
             take_settings_page,
-            popup_menu,
+            menu_place,
+            menu_hide,
+            menu_action,
             get_autostart,
             media_control,
             set_volume,

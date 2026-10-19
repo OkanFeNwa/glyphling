@@ -20,6 +20,10 @@ pub struct Config {
     /// Posizione della finestra in pixel fisici.
     pub x: Option<i32>,
     pub y: Option<i32>,
+    /// Da che lato si apre il riquadro: right, left o auto (in base a dove sta il widget).
+    pub panel_dir: String,
+    /// Lato attuale: true se il riquadro si apre a sinistra (il cerchio sta a destra nella finestra).
+    pub left: bool,
 }
 
 impl Default for Config {
@@ -33,6 +37,8 @@ impl Default for Config {
             visible: true,
             x: None,
             y: None,
+            panel_dir: "auto".into(),
+            left: false,
         }
     }
 }
@@ -51,6 +57,9 @@ pub fn load(app: &AppHandle) -> Config {
         .and_then(|s| serde_json::from_str(&s).ok())
         .unwrap_or_default();
     c.move_enabled = false;
+    if !["right", "left", "auto"].contains(&c.panel_dir.as_str()) {
+        c.panel_dir = "auto".into();
+    }
     if c.grid < 8 || c.grid > 96 {
         c.grid = 24;
     }

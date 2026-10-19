@@ -2,6 +2,16 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Permessi delle finestre del widget, delle impostazioni e della griglia",
-  "windows": ["widget", "settings", "grid"],
-  "permissions": ["core:default", "core:window:allow-close"]
+  "windows": [
+    "widget",
+    "settings",
+    "grid",
+    "menu"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize"
+  ]
 }

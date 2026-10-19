@@ -2,7 +2,11 @@
 
 Widget desktop per Windows in stile Nothing OS: una mascotte a LED in un cerchio, con un pannello per orologio, calendario, musica, timer, meteo e stato del PC. Fatto con Tauri 2 (backend Rust, interfaccia web). Progetto completo in `../architettura/progetto-implementazione.md`.
 
-## Versione di prova 0.2
+## Versione di prova 0.3
+
+**Novità 0.3**: interfaccia del prototipo 0.13 (ghiera per scegliere la modalità, clic destro per tornare alla mascotte, riquadro a destra, a sinistra o automatico), menu dell'icona e finestra Impostazioni su misura senza cornice di Windows, area di trascinamento uguale alla forma vera, il widget resta visibile dopo Mostra desktop.
+
+### Dalla 0.2
 
 **Funziona davvero**: finestra trasparente senza bordi, icona nell'area di notifica con menu (anche con il clic destro sul widget), finestra Impostazioni separata, spostamento con aggancio alla griglia di 24 px (Alt = libero), livello sul desktop / sempre in primo piano / normale, avvio con Windows, una sola copia attiva, posizione e impostazioni salvate, clic che passano al desktop fuori dal cerchio, la mascotte segue il mouse.
 
@@ -18,6 +22,7 @@ Widget desktop per Windows in stile Nothing OS: una mascotte a LED in un cerchio
 - `src/index.html`: il prototipo dell'interfaccia, generato da `tools/port_prototype.py` a partire dall'Artifact. Non va modificato a mano: si aggiorna il prototipo e si rilancia lo script.
 - `src/host.js`, `src/host.css`, `src/host-pre.js`: adattano il prototipo alle finestre dell'app e lo collegano al backend.
 - `src/grid.html`: la griglia di punti mostrata durante il trascinamento.
+- `src/menu.html`: il menu in vetro dell'icona nell'area di notifica.
 - `src-tauri/src/`: backend. `lib.rs` (stato e comandi), `tray.rs` (icona e menu), `snap.rs` (trascinamento e aggancio), `hit.rs` (forma cliccabile e mouse per la mascotte), `platform.rs` (chiamate Win32), `config.rs` (impostazioni), `system.rs` (statistiche del PC), `media.rs` (musica e volume), `spectrum.rs` (visualizer).
 
 ## Compilare

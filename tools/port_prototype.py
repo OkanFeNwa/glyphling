@@ -158,6 +158,8 @@ API = """
 sub("  requestAnimationFrame(frame);\n})();\n</script>", API + "  requestAnimationFrame(frame);\n})();\n</script>")
 
 # 6. nome dell'app: Glyphling (solo i testi visibili, le chiavi interne restano minuscole)
+# nell'app il lato del riquadro lo decide il backend, che conosce lo schermo
+sub("  function applyDir() {\n", "  function applyDir() {\n    if (window.__host) return;\n")
 html = html.replace("Companion", "Glyphling")
 html = html.replace(" Meteo e brani in questo prototipo sono finti.", "")
 

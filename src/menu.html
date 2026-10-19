@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Glyphling · menu</title>
+<link rel="stylesheet" href="fonts.css">
+<style>
+/* Menu dell'icona nell'area di notifica, come quello in vetro del prototipo. La finestra è
+   trasparente e grande quanto il menu: il backend la ridimensiona e la mette vicino all'icona. */
+:root { --red: #d71921; --ink: #f2f2f2; --mute: #8a8a8a; --glass: #121214;
+  --dot: "Nothing Dot Local", "Glyphling Dot", "Doto", monospace; --mono: "Space Mono", ui-monospace, monospace; color-scheme: dark; }
+html, body { margin: 0; background: transparent; overflow: hidden; user-select: none; }
+body { padding: 6px; }
+.tmenu { width: 228px; padding: 6px; border-radius: 16px; box-sizing: border-box; display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 40%, rgba(255,255,255,.03) 100%), linear-gradient(160deg, color-mix(in srgb, var(--glass) 70%, #2a2a2a), color-mix(in srgb, var(--glass) 85%, #0c0c0c));
+  border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.2); transform-origin: 85% 100%; }
+.tmenu.opening { animation: pop .26s cubic-bezier(.2,1.3,.4,1); }
+@keyframes pop { 0% { opacity: 0; transform: scale(.85); } 100% { opacity: 1; transform: none; } }
+.mh { padding: 8px 10px 6px; font: 400 9px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--mute); display: flex; justify-content: space-between; align-items: baseline; }
+.mh b { font-family: var(--dot); font-weight: 900; font-size: 13px; letter-spacing: .06em; color: var(--ink); }
+.sec { padding: 6px 10px 2px; font: 400 8px/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--mute); }
+button { appearance: none; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 9px; font: 400 11px/1.2 var(--mono); }
+button:hover, button:focus-visible { background: rgba(255,255,255,.08); outline: none; }
+.ck { width: 9px; height: 9px; flex: none; display: grid; place-items: center; }
+button[aria-checked="true"] .ck::before { content: ""; width: 5px; height: 5px; background: var(--red); }
+button[aria-checked="false"] { color: var(--mute); }
+button[aria-checked="false"]:hover { color: var(--ink); }
+.lv { display: flex; gap: 4px; padding: 2px 6px 4px; }
+.lv button { flex: 1; justify-content: center; padding: 6px 4px; font-size: 9px; letter-spacing: .06em; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; }
+.lv button[aria-checked="true"] { border-color: var(--red); color: var(--ink); background: color-mix(in srgb, var(--red) 16%, transparent); }
+hr { border: 0; height: 1px; background: rgba(255,255,255,.08); margin: 5px 6px; }
+</style>
+</head>
+<body>
+<div class="tmenu" id="m" role="menu" aria-label="Glyphling"></div>
+<script>
+(() => {
+  const { invoke } = window.__TAURI__.core, { listen } = window.__TAURI__.event;
+  const m = document.getElementById('m');
+  const MODES = [['idle', 'Mascotte'], ['clock', 'Orologio'], ['calendar', 'Calendario'], ['music', 'Musica'], ['timer', 'Timer'], ['weather', 'Meteo'], ['disks', 'Sistema']];
+  const LEVELS = [['desktop', 'Desktop'], ['normal', 'Normale'], ['top', 'Sopra tutto']];
+  const item = (id, text, checked) => `<button role="${checked == null ? 'menuitem' : 'menuitemcheckbox'}" data-id="${id}"${checked == null ? '' : ` aria-checked="${checked}"`}><span class="ck"></span>${text}</button>`;
+  function colors() {
+    try {
+      const c = JSON.parse(localStorage.getItem('glyphling-menu-colors') || 'null');
+      if (c) for (const k of ['red', 'ink', 'glass']) if (c[k]) document.documentElement.style.setProperty('--' + k, c[k]);
+    } catch (e) {}
+  }
+  function render({ cfg, version }) {
+    colors();
+    m.innerHTML = `<div class="mh"><b>Glyphling</b>v${version}</div>`
+      + MODES.map(([id, n]) => `<button role="menuitemradio" aria-checked="${cfg.mode === id}" data-id="mode:${id}"><span class="ck"></span>${n}</button>`).join('')
+      + '<hr>'
+      + (cfg.mode === 'idle' ? item('sleep', 'Fai dormire / sveglia') : '')
+      + item('move', 'Sposta il widget', !!cfg.move_enabled)
+      + item('snap', 'Aggancio alla griglia', !!cfg.snap)
+      + item('show', cfg.visible ? 'Nascondi il widget' : 'Mostra il widget')
+      + '<div class="sec">Livello</div><div class="lv">'
+      + LEVELS.map(([id, n]) => `<button role="menuitemradio" aria-checked="${cfg.level === id}" data-id="level:${id}">${n}</button>`).join('')
+      + '</div><hr>'
+      + item('settings', 'Impostazioni…') + item('info', 'Info su Glyphling')
+      + '<hr>' + item('quit', 'Esci');
+    // misura senza l'animazione (che scala il menu), poi la fa partire
+    invoke('menu_place', { w: m.offsetWidth + 12, h: m.offsetHeight + 12 });
+    m.classList.remove('opening'); void m.offsetWidth; m.classList.add('opening');
+  }
+  listen('menu-open', e => render(e.payload));
+  m.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    invoke('menu_action', { id: b.dataset.id });
+  });
+  addEventListener('blur', () => invoke('menu_hide'));
+  addEventListener('keydown', e => {
+    const items = [...m.querySelectorAll('button')], i = items.indexOf(document.activeElement);
+    if (e.key === 'Escape') invoke('menu_hide');
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
+  });
+  addEventListener('contextmenu', e => e.preventDefault());
+})();
+</script>
+</body>
+</html>

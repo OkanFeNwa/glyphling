@@ -35,11 +35,21 @@
     if (C.getMode() !== c.mode) C.setMode(c.mode);
     if (C.isMoving() !== !!c.move_enabled) C.setMoving(!!c.move_enabled);
     if (C.isSnap() !== !!c.snap) C.setSnap(!!c.snap);
+    const wEl = $('widget');
+    if (wEl && wEl.classList.contains('left') !== !!c.left) wEl.classList.toggle('left', !!c.left);
+    document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === (c.panel_dir || 'auto')));
     if (host === 'widget') sendShape();
   }
   invoke('get_config').then(applyCfg);
+  // i colori del tema servono anche al menu dell'icona, che è una finestra a parte
+  function shareColors() {
+    if (host !== 'widget') return;
+    const cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim();
+    store.set('glyphling-menu-colors', JSON.stringify({ red: v('--red'), ink: v('--ink'), glass: v('--glass') }));
+  }
+  shareColors();
   listen('config', e => applyCfg(e.payload));
-  listen('themes-changed', e => { if (e.payload.from !== host) C.reloadThemes(); });
+  listen('themes-changed', e => { if (e.payload.from !== host) C.reloadThemes(); shareColors(); });
 
   // ---------- widget ----------
   if (host === 'widget') {
@@ -49,18 +59,40 @@
       invoke('start_drag', { color });
     };
     // forma cliccabile: fuori dal cerchio e dal pannello i clic passano al desktop
+    // la forma finale (a fine animazione): cerchio con la ghiera e, se aperto, il riquadro
+    // largo --pw dal bordo del cerchio, attaccato al lato giusto
+    const BEZEL = 11, CORNER = 30;
+    const shapeGeom = () => {
+      const r = $('ring').getBoundingClientRect(), w = $('widget');
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2, half = r.height / 2;
+      const pw = (parseFloat(getComputedStyle(w).getPropertyValue('--pw')) || 560) - r.width / 2;
+      const left = w.classList.contains('left'), open = C.getMode() !== 'idle';
+      return { cx, cy, half, rb: r.width / 2 + BEZEL, left, panel: open ? { x: left ? cx - pw : cx, y: r.top, w: pw, h: r.height } : null };
+    };
+    document.body.insertAdjacentHTML('beforeend', '<svg id="moveOutline" aria-hidden="true"><path/></svg>');
+    // contorno tratteggiato dell'unione cerchio + riquadro, distanziato di o px
+    function drawOutline(g) {
+      const o = 6, R = g.rb + o, { cx, cy } = g;
+      let d;
+      if (!g.panel) d = `M ${cx - R} ${cy} a ${R} ${R} 0 1 0 ${2 * R} 0 a ${R} ${R} 0 1 0 ${-2 * R} 0 Z`;
+      else {
+        const h = g.half + o, k = Math.sqrt(Math.max(0, R * R - h * h)), c = CORNER + o, s = g.left ? -1 : 1;
+        const end = g.left ? g.panel.x - o : g.panel.x + g.panel.w + o;
+        d = `M ${cx + s * k} ${cy - h} L ${end - s * c} ${cy - h} A ${c} ${c} 0 0 ${g.left ? 0 : 1} ${end} ${cy - h + c}`
+          + ` L ${end} ${cy + h - c} A ${c} ${c} 0 0 ${g.left ? 0 : 1} ${end - s * c} ${cy + h} L ${cx + s * k} ${cy + h}`
+          + ` A ${R} ${R} 0 1 ${g.left ? 0 : 1} ${cx + s * k} ${cy - h} Z`;
+      }
+      document.querySelector('#moveOutline path').setAttribute('d', d);
+    }
     const shapeNow = () => {
-      const r = $('ring').getBoundingClientRect();
-      const open = C.getMode() !== 'idle';
-      invoke('set_shape', { shape: {
-        cx: r.left + r.width / 2, cy: r.top + r.height / 2, r: r.width / 2 + 12,
-        panel: open ? { x: r.left + r.width / 2, y: r.top, w: 646 - r.width / 2, h: r.height } : null,
-      } });
+      const g = shapeGeom();
+      invoke('set_shape', { shape: { cx: g.cx, cy: g.cy, r: g.rb, panel: g.panel } });
+      drawOutline(g);
     };
     window.sendShape = shapeNow;
     addEventListener('load', shapeNow);
-    // clic destro sul widget: lo stesso menu dell'icona
-    addEventListener('contextmenu', e => { e.preventDefault(); invoke('popup_menu'); });
+    // il clic destro sul cerchio torna alla mascotte (lo gestisce il prototipo); il menu resta sull'icona
+    addEventListener('contextmenu', e => e.preventDefault());
     // la mascotte segue il mouse su tutto lo schermo
     listen('cursor', e => C.look(e.payload.x, e.payload.y));
     listen('action', e => {
@@ -86,6 +118,21 @@
       invoke('get_autostart').then(on => sw.setAttribute('aria-checked', on));
       sw.addEventListener('click', () => invoke('set_autostart', { on: sw.getAttribute('aria-checked') !== 'true' }).then(on => sw.setAttribute('aria-checked', on)));
     }
+    $('dirSeg').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      e.stopImmediatePropagation();
+      invoke('set_panel_dir', { dir: b.dataset.d });
+    }, true);
+    // barra del titolo: si trascina dalla parte vuota, pulsanti riduci a icona e chiudi
+    const top = document.querySelector('.swin-top'), win = T.window.getCurrentWindow();
+    for (const el of [top, ...top.querySelectorAll(':scope > div, :scope > div > *')]) el.setAttribute('data-tauri-drag-region', '');
+    const close = $('setClose');
+    close.insertAdjacentHTML('beforebegin', '<span class="wbtns" id="wbtns"></span>');
+    $('wbtns').insertAdjacentHTML('beforeend', '<button class="cp-x" id="setMin" aria-label="Riduci a icona"><svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><rect x="1" y="4" width="7" height="1" fill="currentColor"/></svg></button>');
+    $('wbtns').appendChild(close);
+    $('setMin').addEventListener('click', () => win.minimize());
+    close.addEventListener('click', e => { e.stopImmediatePropagation(); win.close(); }, true);
+    addEventListener('keydown', e => { if (e.key === 'Escape' && document.activeElement === document.body) win.close(); });
     listen('settings-page', e => C.setPage(e.payload));
     invoke('take_settings_page').then(p => { if (p) C.setPage(p); });
     const upd = $('infoUpd'), fresh = upd.cloneNode(true);   // toglie il finto controllo aggiornamenti
@@ -386,7 +433,7 @@
     if (!newsAdded) {
       newsAdded = true;
       const lists = document.querySelectorAll('.spage[data-p="info"] .news');
-      if (lists[0]) lists[0].insertAdjacentHTML('afterbegin', `<li><span><b>${i.version}</b> · dati veri: musica da qualunque lettore con copertina e visualizer, meteo, calendario Google, CPU, GPU, RAM, temperature e dischi. Nuovo font a punti.</span></li>`);
+      if (lists[0]) lists[0].insertAdjacentHTML('afterbegin', `<li><span><b>${i.version}</b> · ghiera per scegliere la modalità, riquadro a destra o a sinistra, menu dell'icona e impostazioni su misura, il widget resta visibile con Mostra desktop.</span></li><li><span><b>0.2</b> · dati veri: musica, meteo, calendario Google, CPU, GPU, RAM, temperature e dischi. Font a punti.</span></li>`);
       if (lists[1]) lists[1].insertAdjacentHTML('afterbegin', `<li><span>Font a punti <b>Glyphling Dot</b>, disegnato per Glyphling (SIL Open Font License). Se sul PC è installato il font 5x7 di Nothing, si usa quello.</span></li>`);
       if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Meteo da <b>Open-Meteo</b> (CC BY 4.0). Temperatura della CPU da <b>LibreHardwareMonitor</b>, se è aperto.</span></li>`);
       if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Costruito con <b>Tauri</b> (licenza MIT/Apache 2.0). Impostazioni salvate in <b>${i.config_dir}</b>.</span></li>`);
