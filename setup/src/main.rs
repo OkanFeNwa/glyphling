@@ -237,6 +237,24 @@ fn write_retry(path: &Path, data: &[u8]) -> std::io::Result<()> {
 
 // ---------- commands ----------
 
+/// Clips the window to the glass's rounded corners, turns on the blur behind it and
+/// shows it. Done once the page is drawn: before that the transparent window would
+/// show black where nothing is painted yet.
+fn reveal(w: &tauri::WebviewWindow) {
+    win::round(w, 28.0);
+    use tauri::window::{Effect, EffectsBuilder};
+    let _ = w.set_effects(EffectsBuilder::new().effect(Effect::Blur).build());
+    let _ = w.show();
+    let _ = w.set_focus();
+}
+
+#[tauri::command]
+fn ready(window: tauri::WebviewWindow) {
+    if !window.is_visible().unwrap_or(false) {
+        reveal(&window);
+    }
+}
+
 #[tauri::command]
 fn get_state() -> State {
     State {
@@ -352,7 +370,7 @@ fn main() {
         }
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_state, install, uninstall, finish])
+        .invoke_handler(tauri::generate_handler![get_state, install, uninstall, finish, ready])
         .setup(|app| {
             let w = WebviewWindowBuilder::new(app, "setup", WebviewUrl::App("index.html".into()))
                 .title(if uninstall_mode() { "Disinstalla Glyphling" } else { "Installa Glyphling" })
@@ -361,11 +379,18 @@ fn main() {
                 .transparent(true)
                 .shadow(false)
                 .resizable(false)
+                .theme(Some(tauri::Theme::Dark))
+                .visible(false)
                 .center()
                 .build()?;
-            win::round(&w, 28.0);
-            use tauri::window::{Effect, EffectsBuilder};
-            let _ = w.set_effects(EffectsBuilder::new().effect(Effect::Blur).build());
+            // if the page never calls `ready`, show the window anyway
+            let late = w.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                if !late.is_visible().unwrap_or(true) {
+                    reveal(&late);
+                }
+            });
             Ok(())
         })
         .run(tauri::generate_context!())

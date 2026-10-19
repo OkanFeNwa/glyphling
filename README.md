@@ -8,7 +8,7 @@ The full design document lives in the project's shared files, not in this reposi
 
 Installers are published on the [Releases](../../releases) page. Download `Glyphling-Setup-x.y.z.exe` and run it. The same file installs, updates in place (settings, themes and position are kept) and, as `uninstall.exe` in the install folder, removes the app. The setup is not signed yet, so Windows SmartScreen may warn on first launch ("More info" → "Run anyway").
 
-## What it does (0.4)
+## What it does (0.5)
 
 - **Widget**: transparent, frameless, clipped to its real shape (circle plus panel) with the desktop blurred behind the glass. The panel opens to the right, to the left or automatically, and its layout mirrors when it opens to the left. Turn the dial (or the mouse wheel) to pick a mode, right click the circle to go back to the mascot.
 - **Placement**: drag anywhere with snapping to a 24 px grid (Alt = free). The snapped point is the centre of the circle when closed, the centre of circle plus panel when open. Levels: on the desktop (survives Show desktop / Win+D), normal, always on top.
@@ -18,9 +18,21 @@ Installers are published on the [Releases](../../releases) page. Download `Glyph
   - Music from any player using the Windows media controls (Spotify, browsers, VLC...): title, artist, progress, controls, cover art on the LEDs, master volume, visualizer from the real audio spectrum.
   - Weather from Open-Meteo; city chosen in Settings (Milan by default).
   - Google Calendar through the secret iCal address pasted in Settings (recurring events included).
-  - CPU, RAM and disks; NVIDIA GPU usage and temperature; CPU temperature from LibreHardwareMonitor when it runs with its web server enabled (port 8085).
+  - CPU, RAM and disks; NVIDIA GPU usage and temperature; CPU temperature (see below).
 - **Font**: Glyphling Dot, our own 5x7 dot font (`tools/make_font.py`). If Nothing's 5x7 font is installed on the PC it is used instead (it cannot be redistributed).
 - Starts with Windows (optional), single instance.
+
+## CPU temperature
+
+Windows has no public API for the CPU's own temperature sensor. The value lives in model-specific registers of the processor, which can only be read from kernel mode, so every monitoring tool ships a kernel driver and runs with administrator rights. Glyphling deliberately does not: a widget that starts with Windows should not install a driver or ask for elevation at every boot, and the drivers commonly used for this (such as WinRing0) are now blocked by Windows Defender as vulnerable.
+
+So Glyphling reads the temperature from the first source that has it:
+
+1. **HWiNFO** (free, [hwinfo.com](https://www.hwinfo.com)). In HWiNFO open *Settings* and enable *Shared Memory Support*, then keep HWiNFO running (sensors only mode works, it can be minimized to the tray). Glyphling reads the shared memory, looking for `CPU (Tctl/Tdie)` on AMD or `CPU Package` on Intel. In the free version shared memory turns itself off after 12 hours and has to be re-enabled.
+2. **LibreHardwareMonitor** (open source, [GitHub](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)). Enable *Options > Remote Web Server* (port 8085) and keep it running.
+3. **Windows thermal zone**, with no extra program and no admin rights. This is the ACPI thermal zone exposed by the firmware through Windows performance counters. On most laptops it follows the CPU closely; on many desktops it is a motherboard sensor or a fixed placeholder (27.85 °C is ignored), so Settings marks it as approximate.
+
+Settings > Data shows the current reading and its source. NVIDIA GPU temperature needs nothing extra (NVML ships with the driver).
 
 ## Repository layout
 
@@ -53,3 +65,4 @@ Cross-compiling from Linux works for checking the code (`--target x86_64-pc-wind
 - Install folder: `%LOCALAPPDATA%\Glyphling`. Settings: `%APPDATA%\com.okanfenwa.glyphling\config.json`.
 - Calendar address, city and chosen disks stay on the PC (the windows' local storage).
 - Fonts: Glyphling Dot (ours), Doto and Space Mono (SIL Open Font License), in `src/fonts/`.
+- Icons: [Lucide](https://lucide.dev) (ISC License).

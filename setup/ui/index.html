@@ -13,8 +13,10 @@
 html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; font-family: var(--mono); color: var(--ink); }
 /* the window is clipped to these corners and blurred behind by Windows */
 .win { position: relative; height: 100%; border-radius: 28px; overflow: hidden;
-  background: radial-gradient(120% 90% at 0% 0%, rgba(215,25,33,.16), transparent 55%), linear-gradient(160deg, rgba(34,34,34,.88), rgba(10,10,10,.94));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(255,255,255,.1);
+  /* same dark liquid glass as the widget and the tray menu */
+  background: linear-gradient(180deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.02) 38%, rgba(255,255,255,0) 60%, rgba(255,255,255,.04) 100%),
+    linear-gradient(160deg, rgba(36,36,36,.80), rgba(12,12,12,.88));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(255,255,255,.05);
   display: grid; grid-template-columns: 300px 1fr; }
 .win::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
   background-image: radial-gradient(circle, rgba(255,255,255,.07) 1px, transparent 1.3px); background-size: 14px 14px; }
@@ -63,8 +65,8 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
 <body>
 <div class="win">
   <div class="bar" data-tauri-drag-region>
-    <button id="min" aria-label="Riduci a icona"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="5" width="8" height="1" fill="currentColor"/></svg></button>
-    <button id="x" aria-label="Chiudi"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.2"/></svg></button>
+    <button id="min" aria-label="Riduci a icona"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+    <button id="x" aria-label="Chiudi"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
   </div>
   <div class="side" data-tauri-drag-region><div class="disc"><canvas id="led" width="464" height="464"></canvas></div></div>
   <div class="main" data-tauri-drag-region>
@@ -210,7 +212,8 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
   addEventListener('contextmenu', e => e.preventDefault());
   addEventListener('keydown', e => { if (e.key === 'Enter' && !$('go').disabled) $('go').click(); if (e.key === 'Escape' && phase !== 'work') $('x').click(); });
 
-  invoke('get_state').then(s => { st = s; setup(); });
+  // the window stays hidden until the page is drawn, then gets its shape and blur and shows up
+  invoke('get_state').then(s => { st = s; setup(); requestAnimationFrame(() => requestAnimationFrame(() => invoke('ready'))); });
 })();
 </script>
 </body>

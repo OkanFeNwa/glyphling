@@ -15,11 +15,6 @@ pub const MODES: [(&str, &str); 7] = [
     ("weather", "Meteo"),
     ("disks", "Sistema"),
 ];
-pub const LEVELS: [(&str, &str); 3] = [
-    ("desktop", "Sul desktop"),
-    ("top", "Sempre in primo piano"),
-    ("normal", "Normale"),
-];
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
     // no system menu: right click opens the glass menu ("menu" window)

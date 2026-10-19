@@ -145,7 +145,7 @@
     for (const el of [top, ...top.querySelectorAll(':scope > div:not(.tabs), :scope > div:not(.tabs) > *')]) el.setAttribute('data-tauri-drag-region', '');
     const close = $('setClose');
     close.insertAdjacentHTML('beforebegin', '<span class="wbtns" id="wbtns"></span>');
-    $('wbtns').insertAdjacentHTML('beforeend', '<button class="cp-x" id="setMin" aria-label="Riduci a icona"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="5" width="8" height="1" fill="currentColor"/></svg></button>');
+    $('wbtns').insertAdjacentHTML('beforeend', '<button class="cp-x" id="setMin" aria-label="Riduci a icona"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>');
     $('wbtns').appendChild(close);
     $('setMin').addEventListener('click', () => win.minimize());
     close.addEventListener('click', e => { e.stopImmediatePropagation(); win.close(); }, true);
@@ -381,7 +381,8 @@
   let cpuTempEl = null;
   function cpuTempStatus(s) {
     if (!cpuTempEl) return;
-    cpuTempEl.textContent = s.tc != null ? `Letta da LibreHardwareMonitor: ${Math.round(s.tc)}°` : 'Non disponibile: apri LibreHardwareMonitor';
+    const SRC = { hwinfo: 'da HWiNFO', lhm: 'da LibreHardwareMonitor', acpi: 'da Windows, approssimativa' };
+    cpuTempEl.textContent = s.tc != null ? `${Math.round(s.tc)}° ${SRC[s.tc_source] || ''}` : 'Non disponibile';
   }
   if (host === 'settings') {
     const after = $('swAuto') ? $('swAuto').closest('.sgroup') : $('posReset').closest('.sgroup');
@@ -392,7 +393,7 @@
       <div class="srow col"><div><b>Calendario Google</b><small>In Google Calendar apri Impostazioni, scegli il calendario e copia l'<b>indirizzo segreto in formato iCal</b> da "Integra calendario". Uno per riga se sono più di uno. Resta salvato solo su questo PC.</small></div>
         <textarea id="icsIn" rows="2" spellcheck="false" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" aria-label="Indirizzi iCal"></textarea>
         <div class="drow"><small id="icsMsg"></small><button class="ghost" id="icsSave">Salva</button></div></div>
-      <div class="srow"><div><b>Temperatura della CPU</b><small>Windows non la espone: Glyphling la legge da <b>LibreHardwareMonitor</b>, se è aperto con Opzioni › Remote Web Server attivo (porta 8085). La GPU NVIDIA si legge da sola.</small></div><span class="dstat" id="cpuTemp">Si aggiorna con la modalità Sistema</span></div>
+      <div class="srow"><div><b>Temperatura della CPU</b><small>Senza programmi esterni Glyphling usa la zona termica di Windows, che su molti PC fissi non è la CPU. Per il valore preciso apri <b>HWiNFO</b> con Impostazioni › Shared Memory Support attivo, oppure <b>LibreHardwareMonitor</b> con Opzioni › Remote Web Server (porta 8085). La GPU NVIDIA si legge da sola.</small></div><span class="dstat" id="cpuTemp">Si aggiorna con la modalità Sistema</span></div>
     </div>`);
     cpuTempEl = $('cpuTemp');
     // the real disks for the dial picker, even if the widget is not in System mode
@@ -452,7 +453,7 @@
       const lists = document.querySelectorAll('.spage[data-p="info"] .news');
       if (lists[0]) lists[0].insertAdjacentHTML('afterbegin', `<li><span><b>${i.version}</b> · ghiera per scegliere la modalità, riquadro a destra o a sinistra, menu dell'icona e impostazioni su misura, il widget resta visibile con Mostra desktop.</span></li><li><span><b>0.2</b> · dati veri: musica, meteo, calendario Google, CPU, GPU, RAM, temperature e dischi. Font a punti.</span></li>`);
       if (lists[1]) lists[1].insertAdjacentHTML('afterbegin', `<li><span>Font a punti <b>Glyphling Dot</b>, disegnato per Glyphling (SIL Open Font License). Se sul PC è installato il font 5x7 di Nothing, si usa quello.</span></li>`);
-      if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Meteo da <b>Open-Meteo</b> (CC BY 4.0). Temperatura della CPU da <b>LibreHardwareMonitor</b>, se è aperto.</span></li>`);
+      if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Meteo da <b>Open-Meteo</b> (CC BY 4.0). Temperatura della CPU da <b>HWiNFO</b> o <b>LibreHardwareMonitor</b> se sono aperti, altrimenti dalla zona termica di Windows.</span></li><li><span>Icone da <b>Lucide</b> (licenza ISC).</span></li>`);
       if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Costruito con <b>Tauri</b> (licenza MIT/Apache 2.0). Impostazioni salvate in <b>${i.config_dir}</b>.</span></li>`);
     }
   }
