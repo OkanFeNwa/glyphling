@@ -120,24 +120,31 @@ API = """
       const srcEl = document.querySelector('.view[data-v="music"] .src');
       if (!m.active) {
         tracks.splice(0, tracks.length, { title: 'Niente in riproduzione', artist: 'Apri Spotify o un altro lettore', album: '', dur: 1, seed: 5, live: true });
-        ti = 0; pos = 0; window.__companion._cover = null;
+        ti = 0; pos = 0; window.__companion._seed = null;
         if (playing) { playing = false; setPlayIcon(); syncDisc(); }
         loadTrack(); $('upNext').textContent = ''; if (srcEl) srcEl.childNodes[1].nodeValue = 'Musica';
         return;
       }
       const old = tracks[0];
       const changed = !old || !old.live || old.title !== m.title || old.artist !== m.artist;
-      tracks.splice(0, tracks.length, { title: m.title || '—', artist: m.artist || m.app, album: m.album, dur: Math.max(1, m.duration || 1), seed: 7, live: true });
+      tracks.splice(0, tracks.length, { title: m.title || '—', artist: m.artist || m.app, album: m.album, dur: Math.max(1, m.duration || 1), seed: window.__companion._seed || 7, live: true });
       ti = 0; pos = Math.min(m.position || 0, tracks[0].dur);
       if (playing !== m.playing) { playing = m.playing; setPlayIcon(); syncDisc(); }
       if (changed) { loadTrack(); $('tDur').textContent = m.duration ? fmt(m.duration) : '—'; }
+      else if (coverSeed !== tracks[0].seed) { trk.from = coverSeed; trk.t = 1; drawCover(tracks[0].seed); }
       $('upNext').textContent = '';
       if (srcEl) srcEl.childNodes[1].nodeValue = m.app || 'Musica';
       if (m.volume != null && volShow <= 0) { vol = m.volume; $('volTxt').textContent = `vol ${Math.round(vol * 100)}%`; }
-      if (!window.__companion._cover && changed) drawCover(7);
     },
-    // real cover: a function that renders it at the circle's resolution (NH x NH values)
-    setCover(fn) { window.__companion._cover = fn; coverKey = ''; if (!fn) drawCover(7); },
+    // real cover: a function that renders it at the circle's resolution (NH x NH values);
+    // it takes effect with the next setMedia, with the page's cover sweep
+    setCover(fn) {
+      const all = window.__covers = window.__covers || {};
+      if (!fn) { window.__companion._seed = null; return; }
+      all['r' + fn.id] = fn;
+      window.__companion._seed = 'r' + fn.id;
+      for (const k of Object.keys(all).slice(0, -3)) delete all[k];   // keep the last few for the sweep
+    },
     // the format and resolution chosen in the settings window
     reloadFmt() {
       try { Object.assign(units, JSON.parse(localStorage.getItem('companion-units') || '{}')); } catch (e) {}
@@ -166,11 +173,14 @@ API = """
 sub("  requestAnimationFrame(frame);\n})();\n</script>", API + "  requestAnimationFrame(frame);\n})();\n</script>")
 
 
-# 5d. real covers at every circle resolution
-sub("    const key = coverSeed + ':' + NH;\n",
-    "    const rc = window.__companion && window.__companion._cover;\n    const key = (rc ? 'real' + rc.id : coverSeed) + ':' + NH;\n")
-sub("    for (let y = 0, i = 0; y < NH; y++) for (let x = 0; x < NH; x++, i++) cover[i] = coverArt(coverSeed, LX[x], LX[y]);\n",
-    "    if (rc) { cover = rc(NH); return; }\n    for (let y = 0, i = 0; y < NH; y++) for (let x = 0; x < NH; x++, i++) cover[i] = coverArt(coverSeed, LX[x], LX[y]);\n")
+# 5d. real covers: a seed "r<id>" draws the cover the host registered, at every resolution
+sub("      for (let y = 0, i = 0; y < NH; y++) for (let x = 0; x < NH; x++, i++) c[i] = coverArt(seed, LX[x], LX[y]);\n",
+    "      const rc = typeof seed === 'string' && window.__covers && window.__covers[seed];\n"
+    "      if (rc) c.set(rc(NH)); else for (let y = 0, i = 0; y < NH; y++) for (let x = 0; x < NH; x++, i++) c[i] = coverArt(seed, LX[x], LX[y]);\n")
+
+# the live track has no "up next" line (the animated swap would write it after the host cleared it)
+sub("      swapText($('upNext'), `a seguire: ${nx.title}`, 90);", "      swapText($('upNext'), tr.live ? '' : `a seguire: ${nx.title}`, 90);")
+sub("      $('upNext').textContent = `a seguire: ${nx.title}`;\n      trackShown = true;", "      $('upNext').textContent = tr.live ? '' : `a seguire: ${nx.title}`;\n      trackShown = true;")
 
 # 5e. format and resolution are shared with the other window
 sub("    setRes(+b.dataset.r); try { localStorage.setItem('companion-res', resPts); } catch (e) {}\n",
