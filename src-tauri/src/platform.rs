@@ -57,6 +57,30 @@ mod imp {
         }
     }
 
+    /// Removes the non-client area for good: the window proc ignores WM_NCCALCSIZE (no frame
+    /// space), and WM_NCACTIVATE never repaints it, so focus changes cannot bring a title bar back.
+    pub fn no_frame(w: &tauri::WebviewWindow) {
+        use windows_sys::Win32::Graphics::Dwm::DwmSetWindowAttribute;
+        use windows_sys::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
+        use windows_sys::Win32::UI::WindowsAndMessaging::{WM_NCACTIVATE, WM_NCCALCSIZE};
+        unsafe extern "system" fn proc(h: *mut std::ffi::c_void, msg: u32, wp: usize, lp: isize, _id: usize, _d: usize) -> isize {
+            match msg {
+                WM_NCCALCSIZE if wp != 0 => 0,
+                WM_NCACTIVATE => DefSubclassProc(h, msg, wp, -1),
+                _ => DefSubclassProc(h, msg, wp, lp),
+            }
+        }
+        let Ok(h) = w.hwnd() else { return };
+        let h = h.0 as _;
+        unsafe {
+            // DWMWA_NCRENDERING_POLICY = 2, DWMNCRP_DISABLED = 1
+            let off: i32 = 1;
+            DwmSetWindowAttribute(h, 2, &off as *const i32 as *const _, 4);
+            SetWindowSubclass(h, Some(proc), 1, 0);
+        }
+        strip_frame(w);
+    }
+
     /// Clips the window to the shape (union of rounded rectangles, logical pixels): outside it
     /// clicks pass through and the background blur stays inside the shape.
     pub fn set_region(w: &tauri::WebviewWindow, parts: &[crate::hit::Part]) {
@@ -137,6 +161,7 @@ mod imp {
     }
     pub fn set_desktop_owner(_: &tauri::WebviewWindow, _: bool) {}
     pub fn strip_frame(_: &tauri::WebviewWindow) {}
+    pub fn no_frame(_: &tauri::WebviewWindow) {}
     pub fn set_region(_: &tauri::WebviewWindow, _: &[crate::hit::Part]) {}
     pub fn ensure_shown(_: &tauri::WebviewWindow) -> bool {
         false

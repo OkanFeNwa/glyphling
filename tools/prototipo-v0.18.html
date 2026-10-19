@@ -205,7 +205,7 @@ button:focus-visible, .ring:focus-visible, input:focus-visible + svg { outline: 
 .facts.side { margin: 0; padding: 4px 0 4px 18px; border-top: 0; border-left: 1px solid rgba(255,255,255,.08); gap: 10px; flex: none; }
 .facts.side .info { font-size: 10.5px; }
 .events { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
-.ev { display: grid; grid-template-columns: 6px 44px minmax(0, 1fr); align-items: center; gap: 8px; font-size: 10.5px; color: var(--mute); font-variant-numeric: tabular-nums; animation: fadeUp .3s cubic-bezier(.2,.8,.2,1) backwards; }
+.ev { --tw: 44px; display: grid; grid-template-columns: 6px var(--tw) minmax(0, 1fr); align-items: center; gap: 8px; font-size: 10.5px; color: var(--mute); font-variant-numeric: tabular-nums; animation: fadeUp .3s cubic-bezier(.2,.8,.2,1) backwards; }
 .ev i { width: 6px; height: 6px; border-radius: 1px; background: var(--c); box-shadow: 0 0 6px var(--c); }
 .ev b { color: var(--ink); font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ev:nth-child(2) { animation-delay: .05s; } .ev:nth-child(3) { animation-delay: .1s; } .ev:nth-child(4) { animation-delay: .15s; }
@@ -694,6 +694,13 @@ svg.lu { display: block; flex: none; }
 .srcadd input::placeholder { color: var(--mute); }
 .srcadd input:focus { outline: 0; border-color: rgba(255,255,255,.32); }
 
+.stepper { display: inline-flex; align-items: center; gap: 2px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 2px; flex: none; }
+.stepper button { appearance: none; border: 0; background: transparent; color: var(--ink); width: 28px; height: 26px; border-radius: 999px; cursor: pointer; font: 400 15px/1 var(--mono); transition: background .12s, transform .12s cubic-bezier(.3,1.4,.5,1); }
+.stepper button:hover { background: rgba(255,255,255,.12); }
+.stepper button:active { transform: scale(.9); background: rgba(255,255,255,.18); }
+.stepper output { min-width: 64px; text-align: center; font: 700 10px/1 var(--mono); letter-spacing: .1em; color: var(--ink); font-variant-numeric: tabular-nums; }
+#tmPre { margin: 4px 0 2px; }
+
 /* ---------- v0.18: dischi come selettore, formato a 12 ore ---------- */
 .dchips { position: relative; gap: 0; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 2px; }
 .dchips .dk-ind { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / var(--n, 4)); border-radius: 999px; background: rgba(255,255,255,.12); transform: translateX(calc(var(--k, 0) * 100%)); transition: transform .32s cubic-bezier(.3,1.25,.5,1); pointer-events: none; }
@@ -702,7 +709,38 @@ svg.lu { display: block; flex: none; }
 .dchips .disk.dchip[aria-pressed="true"] { background: transparent; color: var(--ink); }
 .dchips .disk.dchip:hover { background: rgba(255,255,255,.06); }
 .dchips .disk.dchip[aria-pressed="true"]:hover { background: transparent; }
-.h12 .ev { grid-template-columns: 6px 58px minmax(0, 1fr); }
+.h12 .ev { --tw: 58px; }
+.ev.user { grid-template-columns: 6px var(--tw) minmax(0, 1fr) 18px; }
+.ev em { font-style: normal; font-size: 8px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); margin-left: 6px; }
+.ev .evx { appearance: none; border: 0; background: none; color: var(--mute); cursor: pointer; width: 18px; height: 18px; border-radius: 6px; font-size: 13px; line-height: 1; opacity: 0; transition: opacity .15s, background .12s; padding: 0; }
+.ev:hover .evx, .ev .evx:focus-visible { opacity: 1; }
+.ev .evx:hover { background: rgba(255,255,255,.12); color: var(--ink); }
+.src .calplus { margin-left: 6px; width: 20px; height: 20px; border-radius: 7px; border: 1px solid rgba(255,255,255,.14); background: transparent; color: var(--ink); cursor: pointer; font: 400 13px/1 var(--mono); padding: 0; transition: background .12s, transform .12s cubic-bezier(.3,1.4,.5,1); }
+.src .calplus:hover { background: rgba(255,255,255,.12); }
+.src .calplus:active { transform: scale(.88); }
+.evpop { position: fixed; z-index: 46; width: 292px; box-sizing: border-box; padding: 14px; border-radius: 18px; display: flex; flex-direction: column; gap: 10px; transform-origin: 0 0; }
+.evpop[hidden] { display: none; }
+.evpop.opening { animation: pop .24s cubic-bezier(.2,1.3,.4,1); }
+.evpop .ep-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--mute); }
+.evpop .ep-top b { font-family: var(--dot); font-weight: 900; font-size: 13px; letter-spacing: .06em; color: var(--ink); }
+.evpop .seg3 { align-self: flex-start; }
+.evpop .seg3 button { padding: 6px 9px; }
+.evpop input[type=text] { width: 100%; box-sizing: border-box; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 9px 11px; color: var(--ink); font: 400 12px/1 var(--mono); }
+.evpop input[type=text]:focus { outline: 0; border-color: rgba(255,255,255,.34); }
+.evpop input::placeholder { color: var(--mute); }
+.evpop .ep-row { display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--mute); }
+.evpop .ep-row label { display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1; color: var(--ink); }
+.evpop .ep-row input.t { width: 64px; text-align: center; padding: 7px 6px; }
+.evpop .ep-row input.t:disabled { opacity: .35; }
+.evpop .ep-dots { display: flex; gap: 8px; }
+.evpop .ep-dots button { appearance: none; width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; background: var(--c); cursor: pointer; padding: 0; transition: transform .12s cubic-bezier(.3,1.4,.5,1); }
+.evpop .ep-dots button:hover { transform: scale(1.15); }
+.evpop .ep-dots button[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 0 0 2px rgba(0,0,0,.5) inset; }
+.evpop .ep-act { display: flex; justify-content: flex-end; gap: 8px; }
+.evpop .ep-act .ghost.main { background: rgba(255,255,255,.16); color: var(--ink); }
+.evpop .ep-err { color: var(--red); font-size: 10px; min-height: 12px; }
+
+/* ---------- v0.18: dischi come selettore
 #clAp { margin-left: .3em; }
 
 /* ---------- v0.17: apertura del riquadro, preset, easter egg ---------- */
@@ -757,11 +795,12 @@ svg.lu { display: block; flex: none; }
 
         <div class="view" data-v="timer">
           <div class="src"><i></i><span id="tmPhase">Focus</span>
-            <span class="tabs"><button id="tbP" aria-pressed="true">Pomodoro</button><button id="tbT" aria-pressed="false">Timer</button><button id="tbS" aria-pressed="false">Cronometro</button></span>
+            <span class="tabs"><button id="tbP" aria-pressed="true">Focus</button><button id="tbT" aria-pressed="false">Timer</button><button id="tbS" aria-pressed="false">Cronometro</button></span>
           </div>
           <div class="tmblock" id="tmPomo">
             <div class="big" id="tmTime">25:00</div>
             <div class="sessions" id="tmSess" aria-label="Sessioni"></div>
+            <div class="cdp" id="tmPre" aria-label="Durata del focus"></div>
             <div class="sub"><span id="tmNote"></span> · <span id="tmSpeed"></span></div>
           </div>
           <div class="tmblock" id="tmCd" hidden>
@@ -811,7 +850,7 @@ svg.lu { display: block; flex: none; }
         <div class="view calv" data-v="calendar">
           <div class="cal" id="cal"></div>
           <div class="cl">
-            <div class="src"><i></i>Google<span class="sp" id="clWeek"></span></div>
+            <div class="src"><i></i>Google<span class="sp" id="clWeek"></span><button class="calplus" id="calAdd" aria-label="Nuovo evento sul giorno scelto" title="Nuovo evento. Puoi anche cliccare un giorno col tasto destro">+</button></div>
             <div class="title" id="calDay" style="font-size:15px">—</div>
             <div class="events" id="calEv"></div>
           </div>
@@ -876,6 +915,12 @@ svg.lu { display: block; flex: none; }
   <div class="srow"><div><b>Risoluzione</b><small>Quanti punti accende il cerchio. Con più punti ghiere, lancette, visualizer e copertine diventano più fini; occhi e cifre sono ridisegnati a tratto per ogni risoluzione.</small></div><span class="seg3" id="resSeg"><button data-r="512">512</button><button data-r="1024">1024</button><button data-r="2048">2048</button></span></div>
 </div>
 <div class="sgroup">
+  <h3>Focus</h3>
+  <div class="srow"><div><b>Durata del focus</b><small>Minuti di ogni sessione di lavoro.</small></div><span class="stepper" data-ph="focus"><button data-d="-1" aria-label="Meno un minuto">−</button><output></output><button data-d="1" aria-label="Più un minuto">+</button></span></div>
+  <div class="srow"><div><b>Pausa breve</b><small>Dopo ogni sessione, tranne la quarta.</small></div><span class="stepper" data-ph="short"><button data-d="-1" aria-label="Meno un minuto">−</button><output></output><button data-d="1" aria-label="Più un minuto">+</button></span></div>
+  <div class="srow"><div><b>Pausa lunga</b><small>Dopo la quarta sessione.</small></div><span class="stepper" data-ph="long"><button data-d="-1" aria-label="Meno un minuto">−</button><output></output><button data-d="1" aria-label="Più un minuto">+</button></span></div>
+</div>
+<div class="sgroup">
   <h3>Musica</h3>
   <div class="srow"><div><b>App da ascoltare</b><small>Il widget ascolta una sola app alla volta, quella che sta riproducendo, e il volume regola soltanto lei. Scegli come filtrare le app.</small></div><span class="seg3" id="srcMode"><button data-s="all">Tutte</button><button data-s="white">Solo queste</button><button data-s="black">Escludi queste</button></span></div>
   <div class="srow src-row"><div><b>App</b><small id="srcNote"></small><div class="chiplist" id="srcList"></div>
@@ -928,6 +973,7 @@ svg.lu { display: block; flex: none; }
   <div class="sgroup">
     <h3>Novità</h3>
     <ul class="news">
+      <li><span><b>0.18</b> · tasto destro sui giorni del calendario per aggiungere eventi, promemoria e attività; il Pomodoro diventa Focus con durate regolabili; app musicali filtrabili.</span></li>
       <li><span><b>0.18</b> · risoluzione del cerchio a 512, 1024 o 2048 punti, copertine disegnate, volume all'1% (5% con Shift), ore 12/24 e °C/°F, dischi come selettore, vomito più breve. Disegni rifatti per ogni risoluzione e cambio brano morbido.</span></li>
       <li><span><b>0.17</b> · il cerchio è il centro del widget, comportamento ai bordi, posizioni rapide, nuove animazioni del riquadro e due sorprese.</span></li>
       <li><span><b>0.16</b> · tutorial al primo avvio, ghiera piatta.</span></li>
@@ -960,6 +1006,17 @@ svg.lu { display: block; flex: none; }
 
 <div class="tip glass-s" id="tip">Clic destro sull'icona per le impostazioni</div>
 <div class="tmenu glass" id="tmenu" hidden role="menu" aria-label="Companion"></div>
+<div class="evpop glass" id="evPop" hidden role="dialog" aria-label="Nuovo impegno">
+  <div class="ep-top"><b id="epDay">—</b><button class="cp-x" id="epX" aria-label="Chiudi"></button></div>
+  <span class="seg3" id="epType" role="group" aria-label="Tipo"><button data-t="evento" aria-pressed="true">Evento</button><button data-t="promemoria" aria-pressed="false">Promemoria</button><button data-t="attivita" aria-pressed="false">Attività</button></span>
+  <input type="text" id="epTitle" maxlength="40" placeholder="Aggiungi un titolo" aria-label="Titolo" autocomplete="off">
+  <div class="ep-row"><label><button class="sw-t" id="epAll" role="switch" aria-checked="false" aria-label="Tutto il giorno" type="button"></button>Tutto il giorno</label>
+    <input class="t" type="text" id="epTime" maxlength="5" value="09:00" aria-label="Ora di inizio" autocomplete="off"></div>
+  <div class="ep-row"><span>Ripeti</span><span class="seg3" id="epRep"><button data-r="" aria-pressed="true">Mai</button><button data-r="d" aria-pressed="false">Giorno</button><button data-r="w" aria-pressed="false">Sett.</button><button data-r="m" aria-pressed="false">Mese</button></span></div>
+  <div class="ep-dots" id="epDots" role="group" aria-label="Colore"></div>
+  <div class="ep-err" id="epErr" aria-live="polite"></div>
+  <div class="ep-act"><button class="ghost" id="epCancel" type="button">Annulla</button><button class="ghost main" id="epSave" type="button">Salva</button></div>
+</div>
 <div class="taskbar" aria-label="Barra delle applicazioni (simulata)">
   <div class="tb-apps" aria-hidden="true"><span><i><b></b><b></b><b></b><b></b></i></span><span><i></i></span><span><i></i></span><span><i></i></span></div>
   <div class="tray">
@@ -1552,7 +1609,9 @@ svg.lu { display: block; flex: none; }
 
   // ---------- timer pomodoro ----------
   const PH = { focus: { len: 25 * 60, name: 'Focus' }, short: { len: 5 * 60, name: 'Pausa breve' }, long: { len: 15 * 60, name: 'Pausa lunga' } };
-  const tm = { phase: 'focus', left: 24 * 60 + 37, run: true, session: 2, speed: 1, doneMin: 25 };
+  try { const f = JSON.parse(localStorage.getItem('companion-focus') || '{}'); for (const k of ['focus', 'short', 'long']) if (f[k] >= 1 && f[k] <= 180) PH[k].len = Math.round(f[k]) * 60; } catch (e) {}
+  const tm = { phase: 'focus', left: Math.min(PH.focus.len, 24 * 60 + 37), run: true, session: 2, speed: 1, doneMin: 25 };
+  const FOCUS_PRE = [15, 25, 45, 50, 90];
   const tmLen = () => PH[tm.phase].len;
   function tmNext() {
     if (tm.phase === 'focus') { tm.doneMin += Math.round((tmLen() - Math.max(0, tm.left)) / 60); tm.phase = tm.session >= 4 ? 'long' : 'short'; }
@@ -1560,17 +1619,31 @@ svg.lu { display: block; flex: none; }
     tm.left = tmLen();
     tmUi();
   }
+  // durata di una fase in minuti; vale anche mentre il timer gira (riparte la fase in corso)
+  function setPh(k, min) {
+    min = Math.max(1, Math.min(180, Math.round(min)));
+    PH[k].len = min * 60;
+    try { localStorage.setItem('companion-focus', JSON.stringify({ focus: PH.focus.len / 60, short: PH.short.len / 60, long: PH.long.len / 60 })); } catch (e) {}
+    if (tm.phase === k) tm.left = PH[k].len;
+    tmUi(); phUi();
+  }
+  const focusStep = d => setPh('focus', PH.focus.len / 60 + d);
+  // la ghiera cambia i minuti del focus quando il timer è fermo o in una fase di focus nuova
+  const focusDial = () => tmTab === 'pomo' && tm.phase === 'focus' && !tm.run;
   function tmUi() {
+    $('tmPre').innerHTML = FOCUS_PRE.map(m => `<button data-m="${m}" aria-pressed="${PH.focus.len === m * 60}">${m}′</button>`).join('')
+      + (FOCUS_PRE.includes(PH.focus.len / 60) ? '' : `<button aria-pressed="true" disabled>${PH.focus.len / 60}′</button>`);
     $('tmPhase').textContent = PH[tm.phase].name;
     $('tmSpeed').textContent = tm.speed > 1 ? `demo ×${tm.speed}` : `oggi ${Math.floor(tm.doneMin / 60)}h ${p2(tm.doneMin % 60)}m di focus`;
     $('tmPlay').innerHTML = icon(tm.run ? 'pause' : 'play', 12);
     $('tmPlay').setAttribute('aria-label', tm.run ? 'Pausa' : 'Avvia');
     $('tmSess').innerHTML = [1, 2, 3, 4].map(i => `<span class="${i < tm.session ? 'done' : i === tm.session ? 'now' : ''}"></span>`).join('');
     $('tmNote').innerHTML = tm.phase === 'focus'
-      ? `Sessione <b>${tm.session} di 4</b> · poi ${tm.session >= 4 ? 'pausa lunga da 15 minuti' : 'pausa breve da 5 minuti'}`
+      ? `Sessione <b>${tm.session} di 4</b> · poi ${tm.session >= 4 ? `pausa lunga da ${PH.long.len / 60}` : `pausa breve da ${PH.short.len / 60}`} minuti`
       : `Riposa gli occhi · poi sessione <b>${tm.phase === 'long' ? 1 : tm.session + 1}</b>`;
     if (typeof tmTab !== 'undefined' && tmTab !== 'pomo') tabUi();
   }
+  $('tmPre').addEventListener('click', e => { const b = e.target.closest('button[data-m]'); if (b) setPh('focus', +b.dataset.m); });
   $('tmPlay').addEventListener('click', () => { tm.run = !tm.run; tmUi(); });
   $('tmReset').addEventListener('click', () => { tm.left = tmLen(); tmUi(); });
   $('tmSkip').addEventListener('click', tmNext);
@@ -1604,6 +1677,7 @@ svg.lu { display: block; flex: none; }
     cd.run = !cd.run; tabUi();
   }
   function cdStep(d) { if (cd.run) return; cdSet(cd.total + d * 60); }
+  function tmStep(d) { if (tmTab === 'cd') cdStep(d); else if (focusDial()) focusStep(d); }
   function tabUi() {
     const p = tmTab === 'pomo', c = tmTab === 'cd', w = tmTab === 'sw';
     $('tbP').setAttribute('aria-pressed', p); $('tbT').setAttribute('aria-pressed', c); $('tbS').setAttribute('aria-pressed', w);
@@ -1864,12 +1938,23 @@ svg.lu { display: block; flex: none; }
     while (picked.size < count) picked.add(Math.floor(rnd() * EVT.length));
     let list = [...picked].map(i => EVT[i]);
     if (sameDay(d, new Date())) list = [['15:00', 'Revisione prototipo widget', 'accent'], ...list.slice(0, 2)];
+    for (const u of userEv) if (evOn(u, d)) list.push([u.all ? 'tutto il dì' : u.time, u.title, u.color, u]);
     list.sort((a, b) => (a[0] > b[0] ? 1 : -1));
     evCache.set(key, list);
     return list;
   }
+  // impegni creati dall'utente; nell'app vera si scrivono su Google Calendar
+  let userEv = [];
+  try { const v = JSON.parse(localStorage.getItem('companion-events') || '[]'); if (Array.isArray(v)) userEv = v; } catch (e) {}
+  function evOn(u, d) {
+    const s = new Date(u.y, u.m, u.d), n = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()) - s) / 86400000);
+    if (n < 0) return false;
+    return u.rep === 'd' || (u.rep === 'w' && n % 7 === 0) || (u.rep === 'm' && d.getDate() === u.d) || n === 0;
+  }
+  function saveEv() { try { localStorage.setItem('companion-events', JSON.stringify(userEv)); } catch (e) {} evCache.clear(); calUi(); }
   const today0 = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
   let calSel = today0();
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   function calUi() {
     const now = new Date(), sel = calSel;
     const doy = Math.round((sel - new Date(sel.getFullYear(), 0, 1)) / 86400000) + 1;
@@ -1879,7 +1964,7 @@ svg.lu { display: block; flex: none; }
     $('clWeek').textContent = `${rel ? rel + ' · ' : ''}sett. ${isoWeek(sel)}`;
     const ev = eventsFor(sel);
     $('calEv').innerHTML = ev.length
-      ? ev.slice(0, 3).map(([t, n, c]) => `<div class="ev" style="--c:${c === 'accent' ? 'var(--red)' : c}"><i></i><span>${/^\d\d:\d\d$/.test(t) ? hm(+t.slice(0, 2), +t.slice(3)) : t}</span><b>${n}</b></div>`).join('') + (ev.length > 3 ? `<div class="ev none">+${ev.length - 3} altri</div>` : '')
+      ? ev.slice(0, 3).map(([t, n, c, u]) => `<div class="ev${u ? ' user' : ''}" style="--c:${c === 'accent' ? 'var(--red)' : c}"><i></i><span>${/^\d\d:\d\d$/.test(t) ? hm(+t.slice(0, 2), +t.slice(3)) : t}</span><b>${esc(n)}${u && u.type !== 'evento' ? `<em>${u.type === 'promemoria' ? 'promemoria' : 'attività'}</em>` : ''}</b>${u ? `<button class="evx" data-id="${u.id}" aria-label="Elimina ${esc(n)}" title="Elimina">×</button>` : ''}</div>`).join('') + (ev.length > 3 ? `<div class="ev none">+${ev.length - 3} altri</div>` : '')
       : `<div class="ev none">Nessun impegno · giorno ${doy} dell'anno</div>`;
     const ref = new Date(sel.getFullYear(), sel.getMonth(), 1);
     const daysIn = new Date(ref.getFullYear(), ref.getMonth() + 1, 0).getDate();
@@ -1896,6 +1981,68 @@ svg.lu { display: block; flex: none; }
     }
     $('cal').innerHTML = h + '</div>';
   }
+  // ---------- nuovo impegno: menu a vetro sul giorno scelto ----------
+  const EP_COL = ['#4d7cff', '#2ee6a6', '#ffcc33', '#ff2e7e', '#b04dff', '#ff8a65'];
+  const ep = { type: 'evento', all: false, rep: '', color: EP_COL[0], day: null };
+  const epEl = $('evPop');
+  function epRender() {
+    document.querySelectorAll('#epType button').forEach(b => b.setAttribute('aria-pressed', b.dataset.t === ep.type));
+    document.querySelectorAll('#epRep button').forEach(b => b.setAttribute('aria-pressed', b.dataset.r === ep.rep));
+    $('epAll').setAttribute('aria-checked', ep.all);
+    $('epTime').disabled = ep.all;
+    $('epDots').innerHTML = EP_COL.map(c => `<button style="--c:${c}" data-c="${c}" aria-pressed="${c === ep.color}" aria-label="Colore ${c}"></button>`).join('');
+  }
+  function openEvPop(day, ax, ay) {
+    calSel = day; calUi();
+    Object.assign(ep, { type: 'evento', all: false, rep: '', color: EP_COL[0], day });
+    $('epDay').textContent = `${DAYS[day.getDay()]} ${day.getDate()} ${MONTHS[day.getMonth()]}`;
+    $('epTitle').value = ''; $('epTime').value = '09:00'; $('epErr').textContent = '';
+    epRender();
+    epEl.hidden = false;
+    const w = epEl.offsetWidth, h = epEl.offsetHeight;
+    epEl.style.left = Math.max(8, Math.min(innerWidth - w - 8, ax)) + 'px';
+    epEl.style.top = Math.max(8, Math.min(innerHeight - h - 56, ay)) + 'px';
+    epEl.classList.remove('opening'); void epEl.offsetWidth; epEl.classList.add('opening');
+    $('epTitle').focus();
+  }
+  function closeEvPop() { epEl.hidden = true; }
+  function saveEvPop() {
+    const title = $('epTitle').value.trim();
+    if (!title) { $('epErr').textContent = 'Scrivi un titolo'; $('epTitle').focus(); return; }
+    let time = $('epTime').value.trim();
+    if (!ep.all) {
+      const m = /^(\d{1,2})[:.](\d{2})$/.exec(time);
+      if (!m || +m[1] > 23 || +m[2] > 59) { $('epErr').textContent = 'Ora non valida, ad esempio 09:30'; $('epTime').focus(); return; }
+      time = `${p2(+m[1])}:${m[2]}`;
+    }
+    const d = ep.day;
+    userEv.push({ id: Date.now().toString(36) + Math.floor(Math.random() * 99), title, type: ep.type, all: ep.all, time, color: ep.color, rep: ep.rep, y: d.getFullYear(), m: d.getMonth(), d: d.getDate() });
+    closeEvPop(); saveEv();
+  }
+  $('cal').addEventListener('contextmenu', e => {
+    const el = e.target.closest('span[data-d]'); if (!el) return;
+    e.preventDefault();
+    const r = el.getBoundingClientRect();
+    openEvPop(new Date(calSel.getFullYear(), calSel.getMonth(), +el.dataset.d), e.clientX + 10, e.clientY + 6);
+  });
+  $('calEv').addEventListener('contextmenu', e => { e.preventDefault(); openEvPop(calSel, e.clientX + 10, e.clientY + 6); });
+  $('calAdd').addEventListener('click', () => { const r = $('calAdd').getBoundingClientRect(); openEvPop(calSel, r.right + 8, r.top); });
+  $('calEv').addEventListener('click', e => {
+    const b = e.target.closest('.evx'); if (!b) return;
+    userEv = userEv.filter(u => u.id !== b.dataset.id); saveEv();
+  });
+  $('epType').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { ep.type = b.dataset.t; epRender(); } });
+  $('epRep').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { ep.rep = b.dataset.r; epRender(); } });
+  $('epDots').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { ep.color = b.dataset.c; epRender(); } });
+  $('epAll').addEventListener('click', () => { ep.all = !ep.all; epRender(); });
+  $('epSave').addEventListener('click', saveEvPop);
+  $('epCancel').addEventListener('click', closeEvPop);
+  $('epX').addEventListener('click', closeEvPop);
+  epEl.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.stopPropagation(); closeEvPop(); }
+    else if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); saveEvPop(); }
+  });
+  document.addEventListener('pointerdown', e => { if (!epEl.hidden && !epEl.contains(e.target)) closeEvPop(); });
   function calStep(days) { calSel = new Date(calSel.getFullYear(), calSel.getMonth(), calSel.getDate() + days); calUi(); }
   function calMonth(d) {
     const y = calSel.getFullYear(), m = calSel.getMonth() + d;
@@ -2041,7 +2188,7 @@ svg.lu { display: block; flex: none; }
     clock: () => `Orologio a due lancette con l'ora del tuo dispositivo. Attiva la <b>lancetta dei secondi</b> col pulsante o cliccando il cerchio. Luna, alba e tramonto sono calcolati per Milano.`,
     calendar: () => `La ghiera è il mese: <b>trascinala in senso orario o antiorario</b> per scorrere i giorni (anche rotellina e frecce). I tratti accesi sono i giorni con impegni. Gli impegni qui sono finti; nell'app vera arrivano da Google Calendar.`,
     music: () => '<b>Trascina in cerchio</b> o usa la rotellina sul cerchio per il <b>volume</b>: diventa un anello con la percentuale. Un clic mostra la copertina, disegnata con gli stessi LED, che gira.',
-    timer: () => tmTab === 'cd' ? 'Timer: <b>ruota la ghiera</b> per scegliere i minuti (oppure i tasti rapidi), poi clicca il cerchio per partire. La ghiera scorre i secondi, l\'anello interno si svuota; alla fine lampeggia.' : tmTab === 'sw' ? 'Cronometro: la <b>ghiera</b> fa il giro dei secondi, l\'anello interno e le cifre contano i <b>minuti</b>. I giri segnati restano come punti in accento. Clicca il cerchio per avviare o fermare.' : 'Pomodoro: la <b>ghiera</b> scorre i secondi, il <b>quadrante</b> al centro mostra i minuti, con l\'anello interno che si svuota. Clicca il cerchio per la demo accelerata.',
+    timer: () => tmTab === 'cd' ? 'Timer: <b>ruota la ghiera</b> per scegliere i minuti (oppure i tasti rapidi), poi clicca il cerchio per partire. La ghiera scorre i secondi, l\'anello interno si svuota; alla fine lampeggia.' : tmTab === 'sw' ? 'Cronometro: la <b>ghiera</b> fa il giro dei secondi, l\'anello interno e le cifre contano i <b>minuti</b>. I giri segnati restano come punti in accento. Clicca il cerchio per avviare o fermare.' : 'Focus: la <b>ghiera</b> scorre i secondi, il <b>quadrante</b> al centro mostra i minuti, con l\'anello interno che si svuota. A timer fermo ruota la ghiera o scegli i minuti per cambiare la durata. Clicca il cerchio per la demo accelerata.',
     weather: () => '<b>Trascina la ghiera</b> in senso orario per andare avanti nelle previsioni e antiorario per tornare indietro (anche clic sui lati, rotellina e frecce). Scegli Ore o Giorni nel pannello.',
     disks: () => 'Nel pannello CPU, GPU, RAM e temperature. I dischi stanno sulla <b>ghiera</b>: uno spicchio per disco attivo, riempito in base allo spazio usato. Trascina la ghiera o clicca il cerchio per passare da un disco all\'altro; sotto scegli quali mostrare.',
   };
@@ -2081,7 +2228,7 @@ svg.lu { display: block; flex: none; }
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('on', v.dataset.v === m));
     document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.m === m));
     moveSegInd();
-    const labels = { idle: 'Mascotte', clock: 'Orologio', calendar: 'Calendario', music: 'Visualizer musicale e volume', timer: 'Timer pomodoro', weather: 'Meteo', disks: 'Sistema e dischi' };
+    const labels = { idle: 'Mascotte', clock: 'Orologio', calendar: 'Calendario', music: 'Visualizer musicale e volume', timer: 'Timer, focus e cronometro', weather: 'Meteo', disks: 'Sistema e dischi' };
     $('ring').setAttribute('aria-label', labels[m]);
     if (m === 'music') { playing = true; setPlayIcon(); } else showDisc = false;
     syncDisc();
@@ -2255,12 +2402,12 @@ svg.lu { display: block; flex: none; }
       while (drag.acc <= -1) { drag.acc += 1; pickStep(-1); }
       return;
     }
-    const per = mode === 'weather' ? wxList().length : mode === 'calendar' ? 31 : mode === 'disks' ? dkShown.length : mode === 'timer' && tmTab === 'cd' && !cd.run ? 30 : 0;
+    const per = mode === 'weather' ? wxList().length : mode === 'calendar' ? 31 : mode === 'disks' ? dkShown.length : mode === 'timer' && ((tmTab === 'cd' && !cd.run) || focusDial()) ? 30 : 0;
     if (!per) return;
     drag.acc = (drag.acc || 0) + da * per;
     while (drag.acc >= 1) { drag.acc -= 1; step(1); }
     while (drag.acc <= -1) { drag.acc += 1; step(-1); }
-    function step(d) { if (mode === 'weather') wxStep(d); else if (mode === 'calendar') calStep(d); else if (mode === 'timer') cdStep(d); else dkCycle(d); }
+    function step(d) { if (mode === 'weather') wxStep(d); else if (mode === 'calendar') calStep(d); else if (mode === 'timer') tmStep(d); else dkCycle(d); }
   });
   ring.addEventListener('pointerup', e => {
     ring.classList.remove('press');
@@ -2280,7 +2427,7 @@ svg.lu { display: block; flex: none; }
     else if (mode === 'weather') wxStep(-d);
     else if (mode === 'calendar') calStep(-d);
     else if (mode === 'disks') dkCycle(-d);
-    else if (mode === 'timer' && tmTab === 'cd') cdStep(d);
+    else if (mode === 'timer' && (tmTab === 'cd' || focusDial())) tmStep(d);
     else return;
     e.preventDefault();
   }, { passive: false });
@@ -2295,7 +2442,7 @@ svg.lu { display: block; flex: none; }
     else if (mode === 'weather') wxStep(d);
     else if (mode === 'calendar') calStep(d);
     else if (mode === 'disks') dkCycle(d);
-    else if (mode === 'timer' && tmTab === 'cd') cdStep(d);
+    else if (mode === 'timer' && (tmTab === 'cd' || focusDial())) tmStep(d);
   });
   function poke(side) {
     if (mode === 'idle') { if (asleep) wake(); else eye.happy = 1.4; }
@@ -2720,7 +2867,7 @@ svg.lu { display: block; flex: none; }
   // ---------- icona nell'area di notifica ----------
   const MENU_MODES = [['idle', 'Mascotte'], ['clock', 'Orologio'], ['calendar', 'Calendario'], ['music', 'Musica'], ['timer', 'Timer'], ['weather', 'Meteo'], ['disks', 'Sistema']];
   $('trayIc').innerHTML = pxDisc(5);
-  $('setClose').innerHTML = icon('x', 10);
+  $('setClose').innerHTML = icon('x', 10); $('epX').innerHTML = icon('x', 10);
   let widgetAway = false;
   function setAway(v) { widgetAway = v; $('stage').classList.toggle('away', v); $('stage').setAttribute('aria-hidden', v); }
   function placeTip() {
@@ -2936,6 +3083,13 @@ svg.lu { display: block; flex: none; }
     document.body.classList.toggle('h12', units.h12);
     $('swCov').setAttribute('aria-checked', units.cover);
   }
+  // ---------- durate del focus ----------
+  function phUi() { document.querySelectorAll('.stepper[data-ph] output').forEach(o => { o.textContent = `${PH[o.parentElement.dataset.ph].len / 60} min`; }); }
+  document.querySelectorAll('.stepper[data-ph]').forEach(el => el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    const k = el.dataset.ph; setPh(k, PH[k].len / 60 + (e.shiftKey ? 5 : 1) * +b.dataset.d);
+  }));
+  phUi();
   // ---------- sorgente musicale ----------
   const KNOWN_APPS = ['Spotify', 'YouTube Music', 'Apple Music', 'Amazon Music', 'Deezer', 'Tidal', 'VLC', 'foobar2000', 'iTunes', 'Winamp'];
   const RUNNING = ['Spotify', 'YouTube Music', 'VLC'];     // finto: nell'app vera sono le sessioni multimediali di Windows

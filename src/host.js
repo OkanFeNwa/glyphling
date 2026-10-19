@@ -168,6 +168,7 @@
       if (!p) return;                        // no monitor info: show it inside the window
       document.body.style.setProperty('--tx', p.dx + 'px');
       document.body.style.setProperty('--ty', p.dy + 'px');
+      window.__hostTutOff = [p.dx, p.dy];
       document.documentElement.classList.add('tut-host');
       tray = p.tray;
       window.__hostTutOn = true;
@@ -210,21 +211,29 @@
     if (genPage && dk) {
       dk.insertAdjacentHTML('afterend', `<div class="sgroup" id="tempGroup"><h3>Temperatura CPU</h3>
         <div class="srow"><div><b id="tempTitle">Sensore non trovato</b><small id="tempNote"></small></div><button class="ghost" id="tempBtn">Installa il sensore</button></div></div>`);
-      let src = null, busy = false, err = '';
+      let src = null, busy = false, err = '', st = { installed: false, running: false };
       const ui = () => {
         const ok = src === 'hwinfo' || src === 'lhm';
-        $('tempTitle').textContent = ok ? `Temperatura letta da ${src === 'hwinfo' ? 'HWiNFO' : 'LibreHardwareMonitor'}` : 'Sensore non trovato';
-        $('tempNote').textContent = err || (busy ? 'Installazione in corso: Windows chiederà il permesso di amministratore una volta.'
-          : ok ? 'Funziona da solo, non serve fare altro.' : 'Per leggere i gradi serve LibreHardwareMonitor (gratuito, open source). Glyphling lo scarica dal sito ufficiale e lo avvia con Windows. Puoi anche attivare la memoria condivisa di HWiNFO.');
-        $('tempBtn').hidden = ok; $('tempBtn').disabled = busy;
-        $('tempBtn').textContent = busy ? 'Installazione...' : 'Installa il sensore';
+        const name = src === 'hwinfo' ? 'HWiNFO' : 'LibreHardwareMonitor';
+        let title, note, btn = null;
+        if (ok) { title = `Temperatura letta da ${name}`; note = 'Funziona da solo, non serve fare altro.'; }
+        else if (st.installed && st.running) { title = 'Sensore installato'; note = 'LibreHardwareMonitor è attivo ma non espone la temperatura della CPU. Con alcuni processori serve qualche secondo dopo l\'avvio; se resta così, usa HWiNFO con la memoria condivisa attiva.'; }
+        else if (st.installed) { title = 'Sensore installato, ma non attivo'; note = 'LibreHardwareMonitor non sta girando. Avvialo: parte da solo a ogni accesso a Windows.'; btn = 'Avvia il sensore'; }
+        else { title = 'Sensore non trovato'; note = 'Per leggere i gradi serve LibreHardwareMonitor (gratuito, open source). Glyphling lo scarica dal sito ufficiale e lo avvia con Windows. Puoi anche attivare la memoria condivisa di HWiNFO.'; btn = 'Installa il sensore'; }
+        $('tempTitle').textContent = title;
+        $('tempNote').textContent = err || (busy ? 'Un momento: se Windows chiede il permesso di amministratore, accetta.' : note);
+        $('tempBtn').hidden = !btn; $('tempBtn').disabled = busy;
+        $('tempBtn').textContent = busy ? 'Un momento...' : (btn || '');
+        $('tempBtn').dataset.act = st.installed ? 'start' : 'install';
       };
-      listen('pc', e => { const s = e.payload.tc_source || null; if (s !== src) { src = s; ui(); } });
+      const refresh = () => invoke('sensor_state').then(s => { st = s; ui(); }).catch(() => {});
+      listen('pc', e => { const s = e.payload.tc_source || null; if (s !== src) { src = s; refresh(); } });
+      refresh(); setInterval(refresh, 5000);
       $('tempBtn').addEventListener('click', () => {
         busy = true; err = ''; ui();
-        invoke('install_sensor').then(() => { busy = false; ui(); }).catch(m => { busy = false; err = String(m); ui(); });
+        const p = $('tempBtn').dataset.act === 'start' ? invoke('start_sensor').then(ok => { if (!ok) err = 'Non si avvia: prova a reinstallarlo dal tuo PC o riavvia Windows.'; }) : invoke('install_sensor');
+        p.catch(m => { err = String(m); }).finally(() => { busy = false; refresh(); });
       });
-      ui();
     }
     // updates: checked from GitHub; installs over the current copy
     const tutBtn = $('tutAgain');
@@ -306,7 +315,7 @@
     return new Promise(res => {
       const img = new Image();
       img.onload = () => {
-        const cache = {};
+        const cache = {}, rgbs = {};
         const fn = n => {
           if (cache[n]) return cache[n];
           const c = (n - 1) / 2, k = c / 9, cv = document.createElement('canvas');
@@ -322,13 +331,17 @@
           const inRing = p => { const d = Math.hypot(p.x - c, p.y - c); return d <= c + 0.3 * k && d >= 1.6 * k; };
           const sats = cells.filter(inRing).map(p => p.s).sort((a, b) => b - a);
           const cut = Math.max(0.35, sats[Math.floor(sats.length * 0.04)] || 1);
-          const out = new Float32Array(n * n);
+          const out = new Float32Array(n * n), rgb = new Uint8Array(n * n * 3);
           for (const p of cells) {
             if (!inRing(p)) continue;
+            const o = (p.y * n + p.x) * 4;
+            rgb[(p.y * n + p.x) * 3] = px[o]; rgb[(p.y * n + p.x) * 3 + 1] = px[o + 1]; rgb[(p.y * n + p.x) * 3 + 2] = px[o + 2];
             out[p.y * n + p.x] = p.s >= cut ? -1 : p.l > 0.75 ? 1 : p.l > 0.5 ? 0.7 : p.l > 0.25 ? 0.35 : 0;
           }
+          rgbs[n] = rgb;
           return (cache[n] = out);
         };
+        fn.rgb = n => { fn(n); return rgbs[n]; };
         fn.id = ++coverId;
         res(fn);
       };

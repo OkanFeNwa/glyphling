@@ -60,14 +60,18 @@ pub fn disk_list() -> Vec<Disk> {
     out
 }
 
-/// Looks up the first CPU temperature sensor in LibreHardwareMonitor's JSON.
+/// Looks up the CPU temperature in LibreHardwareMonitor's JSON.
 fn lhm_cpu_temp() -> Option<f32> {
-    let body = ureq::get("http://127.0.0.1:8085/data.json").timeout(Duration::from_millis(600)).call().ok()?.into_string().ok()?;
-    let v: serde_json::Value = serde_json::from_str(&body).ok()?;
-    const NAMES: [&str; 6] = ["Core (Tctl/Tdie)", "CPU Package", "Core (Tctl)", "Tctl/Tdie", "Package", "Core Average"];
+    let resp = ureq::get("http://127.0.0.1:8085/data.json").timeout(Duration::from_millis(1500)).call().ok()?;
+    // read bytes: the page may not be UTF-8, and the degree sign is not needed anyway
+    let mut bytes = Vec::new();
+    std::io::Read::read_to_end(&mut std::io::Read::take(resp.into_reader(), 4_000_000), &mut bytes).ok()?;
+    let v: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
+    const NAMES: [&str; 8] = ["Core (Tctl/Tdie)", "CPU Package", "Core (Tctl)", "Tctl/Tdie", "Package", "Core Average", "Core Max", "CPU"];
     fn walk<'a>(v: &'a serde_json::Value, out: &mut Vec<(&'a str, &'a str)>) {
         if let (Some(t), Some(val)) = (v.get("Text").and_then(|x| x.as_str()), v.get("Value").and_then(|x| x.as_str())) {
-            if val.contains("°C") {
+            // temperatures end with the unit "C" ("45,0 °C"); fan speeds, loads and clocks do not
+            if val.trim_end().ends_with('C') && val.contains(|c: char| c.is_ascii_digit()) {
                 out.push((t, val));
             }
         }
@@ -80,7 +84,11 @@ fn lhm_cpu_temp() -> Option<f32> {
     let mut temps = vec![];
     walk(&v, &mut temps);
     let num = |s: &str| s.split_whitespace().next()?.replace(',', ".").parse::<f32>().ok();
-    NAMES.iter().find_map(|n| temps.iter().find(|(t, _)| t == n).and_then(|(_, v)| num(v)))
+    NAMES
+        .iter()
+        .find_map(|n| temps.iter().find(|(t, _)| t == n).and_then(|(_, v)| num(v)))
+        // any other core sensor, then the first one in the tree (the CPU is listed first)
+        .or_else(|| temps.iter().find(|(t, _)| t.starts_with("Core") || t.contains("CPU")).and_then(|(_, v)| num(v)))
 }
 
 /// Reads the CPU temperature from the first source that has one.

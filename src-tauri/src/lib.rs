@@ -137,7 +137,7 @@ pub fn open_settings(app: &AppHandle, page: Option<String>) {
         if let Ok(w) = built {
             // rounded corners like the page's glass
             platform::set_region(&w, &[hit::Part { x: 0.0, y: 0.0, w: 840.0, h: 740.0, r: 30.0 }]);
-            platform::strip_frame(&w);
+            platform::no_frame(&w);
             // Windows can bring the frame back when the focus changes
             let wc = w.clone();
             w.on_window_event(move |e| {
@@ -227,10 +227,36 @@ fn set_auto_update(app: AppHandle, on: bool) {
     update(&app, |c| c.auto_update = on);
 }
 
-/// Whether the optional CPU temperature sensor is already installed.
+#[derive(serde::Serialize)]
+struct SensorState {
+    installed: bool,
+    /// LibreHardwareMonitor's web server answers.
+    running: bool,
+}
+
+/// State of the optional CPU temperature sensor (installed, running).
 #[tauri::command]
-fn sensor_installed(app: AppHandle) -> bool {
-    sensor::installed(&app)
+async fn sensor_state(app: AppHandle) -> SensorState {
+    tauri::async_runtime::spawn_blocking(move || SensorState { installed: sensor::installed(&app), running: sensor::web_alive() })
+        .await
+        .unwrap_or(SensorState { installed: false, running: false })
+}
+
+/// Starts the installed sensor again.
+#[tauri::command]
+async fn start_sensor() -> bool {
+    tauri::async_runtime::spawn_blocking(|| {
+        sensor::start();
+        for _ in 0..10 {
+            if sensor::web_alive() {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+        false
+    })
+    .await
+    .unwrap_or(false)
 }
 
 /// Downloads and starts LibreHardwareMonitor (the user already agreed in Settings).
@@ -245,6 +271,9 @@ async fn install_sensor(app: AppHandle) -> Result<(), String> {
 fn sensor_offer(app: AppHandle) -> &'static str {
     if in_tutorial(&app) {
         return "wait";
+    }
+    if sensor::installed(&app) {
+        return "done";
     }
     let mut first = false;
     update(&app, |c| {
@@ -547,6 +576,7 @@ pub fn run() {
             system::spawn(handle.clone());
             media::spawn(handle.clone());
             updater::spawn(handle.clone());
+            sensor::spawn(handle.clone());
             spectrum::spawn(handle);
             Ok(())
         })
@@ -565,7 +595,8 @@ pub fn run() {
             set_music_filter,
             music_sessions,
             music_now,
-            sensor_installed,
+            sensor_state,
+            start_sensor,
             install_sensor,
             sensor_offer,
             update_state,

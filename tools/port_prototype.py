@@ -63,7 +63,22 @@ sub("    pos = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * tracks
 sub("$('artist').textContent = `${tr.artist} · ${tr.album}`;", "$('artist').textContent = tr.album ? `${tr.artist} · ${tr.album}` : tr.artist;")
 sub("$('wxCond').textContent = WXC[it.key].cond;", "$('wxCond').textContent = it.cond || WXC[it.key].cond;")
 sub("  const LAT = 45.4642, LON = 9.19,", "  let LAT = 45.4642, LON = 9.19;\n  const")
-sub("  function eventsFor(d) {\n", "  function eventsFor(d) {\n    if (window.__liveEvents) return window.__liveEvents(d);\n")
+sub("  function eventsFor(d) {\n", "  function eventsFor(d) {\n"
+    "    if (window.__liveEvents) {\n"
+    "      const list = window.__liveEvents(d).slice();\n"
+    "      for (const u of userEv) if (evOn(u, d)) list.push([u.all ? 'tutto il dì' : u.time, u.title, u.color, u]);\n"
+    "      return list.sort((a, b) => (a[0] > b[0] ? 1 : -1));\n"
+    "    }\n")
+# the event editor needs room: in the app the widget window grows over the screen while it is open
+sub("  function openEvPop(day, ax, ay) {\n    calSel = day; calUi();\n",
+    "  async function openEvPop(day, ax, ay) {\n"
+    "    if (window.__host === 'widget' && window.__hostTut && !window.__hostTutOn) {\n"
+    "      await window.__hostTut(true);\n"
+    "      const o = window.__hostTutOff || [0, 0]; ax += o[0]; ay += o[1];\n"
+    "    }\n"
+    "    calSel = day; calUi();\n")
+sub("  function closeEvPop() { epEl.hidden = true; }", "  function closeEvPop() {\n    epEl.hidden = true;\n    if (window.__host === 'widget' && window.__hostTutOn && !window.__hostTutRun) window.__hostTut(false);\n  }")
+
 
 # 5. functions exposed to host.js
 API = """
@@ -183,6 +198,36 @@ sub("      for (let y = 0, i = 0; y < NH; y++) for (let x = 0; x < NH; x++, i++)
 sub("      swapText($('upNext'), `a seguire: ${nx.title}`, 90);", "      swapText($('upNext'), tr.live ? '' : `a seguire: ${nx.title}`, 90);")
 sub("      $('upNext').textContent = `a seguire: ${nx.title}`;\n      trackShown = true;", "      $('upNext').textContent = tr.live ? '' : `a seguire: ${nx.title}`;\n      trackShown = true;")
 
+# 5f. cover switch OFF = the cover keeps its own colors (real covers carry an RGB map per cell)
+sub("  function drawCoverLed() {\n    const cur = coverBuf(coverSeed), old = trk.t > 0 ? coverBuf(trk.from) : null;\n",
+    "  let cvm = new Uint8Array(1), cvr = new Uint8Array(3);   // cover LEDs and their own colors\n"
+    "  function coverRgb(seed) {\n"
+    "    const rc = typeof seed === 'string' && window.__covers && window.__covers[seed];\n"
+    "    return rc && rc.rgb ? rc.rgb(NH) : null;\n"
+    "  }\n"
+    "  function drawCoverLed() {\n"
+    "    const cur = coverBuf(coverSeed), old = trk.t > 0 ? coverBuf(trk.from) : null;\n"
+    "    const curR = coverRgb(coverSeed), oldR = old ? coverRgb(trk.from) : null;\n"
+    "    if (cvm.length !== NH * NH) { cvm = new Uint8Array(NH * NH); cvr = new Uint8Array(NH * NH * 3); } else cvm.fill(0);\n")
+sub("      let src = null;\n" if False else "      let src = cur;\n      if (old) {", "      let src = cur, srcR = curR;\n      if (old) {")
+sub("        if (a > sweep) src = old;\n", "        if (a > sweep) { src = old; srcR = oldR; }\n")
+sub("      const v = src[sy * NH + sx];\n      if (v === -1) hset(i, 1, true); else if (v > 0) hset(i, v);\n",
+    "      const v = src[sy * NH + sx];\n"
+    "      if (srcR) {\n"
+    "        const j = (sy * NH + sx) * 3;\n"
+    "        if (srcR[j] | srcR[j + 1] | srcR[j + 2]) { cvm[i] = 1; cvr[i * 3] = srcR[j]; cvr[i * 3 + 1] = srcR[j + 1]; cvr[i * 3 + 2] = srcR[j + 2]; hset(i, 1); continue; }\n"
+    "      }\n"
+    "      if (v === -1) hset(i, 1, true); else if (v > 0) hset(i, v);\n")
+sub("      let glow = null;\n      if (v > 0.02 && orr[i]) {\n",
+    "      let glow = null;\n"
+    "      if (plain && cvm[i] === 1 && mode === 'music' && v > 0.02) {\n"
+    "        const cr = cvr[i * 3], cg = cvr[i * 3 + 1], cb = cvr[i * 3 + 2];\n"
+    "        ctx.fillStyle = `rgb(${Math.round(r0 + (cr - r0) * v)},${Math.round(g0 + (cg - g0) * v)},${Math.round(b0 + (cb - b0) * v)})`;\n"
+    "        glow = `rgba(${cr},${cg},${cb},${v * 0.45})`;\n"
+    "        if (!soft) { ctx.shadowColor = glow; ctx.shadowBlur = cell * 0.8 * v; }\n"
+    "      } else if (v > 0.02 && orr[i]) {\n")
+sub("Se spento la copertina del brano resta bianca con l'accento rosso originale, qualunque tema usi.", "Se spento la copertina mantiene i suoi colori originali, qualunque tema usi.")
+
 # 5e. format and resolution are shared with the other window
 sub("    setRes(+b.dataset.r); try { localStorage.setItem('companion-res', resPts); } catch (e) {}\n",
     "    setRes(+b.dataset.r); try { localStorage.setItem('companion-res', resPts); } catch (e) {}\n    if (window.__hostEvent) window.__hostEvent('fmt');\n")
@@ -195,8 +240,9 @@ sub("  function tutOpen() {",
     "  window.__tutOpen = () => tutOpen();\n"
     "  function tutOpen() {\n"
     "    if (window.__host && window.__host !== 'widget') return;\n"
+    "    window.__hostTutRun = true;\n"
     "    if (window.__hostTut && !window.__hostTutOn) { window.__hostTut(true).then(() => tutOpen()); return; }\n   ")
-sub("  function tutClose() {\n", "  function tutClose() {\n    if (window.__hostTut) window.__hostTut(false);\n")
+sub("  function tutClose() {\n", "  function tutClose() {\n    window.__hostTutRun = false;\n    if (window.__hostTut) window.__hostTut(false);\n")
 # in the app the first-run check is done by the host with a flag saved by the backend
 sub("  if (!tutSeen) setTimeout(tutOpen, 1400);", "  if (!tutSeen && !window.__host) setTimeout(tutOpen, 1400);")
 sub("el: () => $('trayIc')", "el: () => (window.__tutTray ? window.__tutTray() : $('trayIc'))", 2)

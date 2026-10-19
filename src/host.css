@@ -89,3 +89,6 @@ html.h-widget .stage { padding: 0 !important; }
 /* smooth panel opening: no blur filters while the window is resizing/moving */
 html.h-widget .view, html.h-widget .stage.away .widget { filter: none !important; }
 html.h-widget .panel { will-change: clip-path, opacity; }
+
+/* no blur behind windows, so the event editor needs a solid background to stay readable over the calendar */
+html.h-widget .evpop { background: rgba(26,26,26,.97) !important; }

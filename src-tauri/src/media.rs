@@ -90,7 +90,7 @@ mod imp {
     };
     use windows::Storage::Streams::{DataReader, IRandomAccessStreamReference};
     use windows::Win32::Media::Audio::{
-        eConsole, eRender, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
+        eConsole, eRender, AudioSessionStateActive, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
         MMDeviceEnumerator,
     };
     use windows::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
@@ -242,31 +242,41 @@ mod imp {
     }
 
     /// Audio sessions (volume controls) of the app being followed. Browsers may have several.
+    /// When no process name matches the media session (apps whose exe differs from their
+    /// media id), the sessions that are playing right now are used instead.
     fn app_volumes(source: &str) -> Vec<ISimpleAudioVolume> {
-        let mut out = vec![];
+        let mut named = vec![];
+        let mut active = vec![];
         let id = super::compact(source);
         if id.is_empty() {
-            return out;
+            return named;
         }
         com_init();
         unsafe {
-            let Ok(en) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return out };
-            let Ok(dev) = en.GetDefaultAudioEndpoint(eRender, eConsole) else { return out };
-            let Ok(mgr) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None) else { return out };
-            let Ok(list) = mgr.GetSessionEnumerator() else { return out };
+            let Ok(en) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return named };
+            let Ok(dev) = en.GetDefaultAudioEndpoint(eRender, eConsole) else { return named };
+            let Ok(mgr) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None) else { return named };
+            let Ok(list) = mgr.GetSessionEnumerator() else { return named };
             for i in 0..list.GetCount().unwrap_or(0) {
                 let Ok(c) = list.GetSession(i) else { continue };
                 let Ok(c2) = c.cast::<IAudioSessionControl2>() else { continue };
-                let Ok(pid) = c2.GetProcessId() else { continue };
-                let Some(stem) = exe_stem(pid) else { continue };
-                if stem.len() >= 3 && id.contains(&stem) {
-                    if let Ok(v) = c.cast::<ISimpleAudioVolume>() {
-                        out.push(v);
+                let pid = c2.GetProcessId().unwrap_or(0);
+                // pid 0 is the system sounds session; never touch it or ourselves
+                if pid == 0 || pid == std::process::id() {
+                    continue;
+                }
+                let Ok(v) = c.cast::<ISimpleAudioVolume>() else { continue };
+                if c.GetState().map(|st| st == AudioSessionStateActive).unwrap_or(false) {
+                    active.push(v.clone());
+                }
+                if let Some(stem) = exe_stem(pid) {
+                    if stem.len() >= 3 && id.contains(&stem) {
+                        named.push(v);
                     }
                 }
             }
         }
-        out
+        if named.is_empty() { active } else { named }
     }
 
     /// Volume of the followed app only; None when it has no audio session yet.
