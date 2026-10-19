@@ -149,6 +149,14 @@
       return el;
     };
     listen('tutorial-start', () => window.__tutOpen && window.__tutOpen());
+    // first run only: the flag lives in the backend's settings file, which updates keep;
+    // it is saved as soon as the tutorial opens, so closing the app halfway does not repeat it
+    invoke('get_config').then(c => {
+      let seen = c.tutorial_done;
+      try { seen = seen || localStorage.getItem('companion-tutorial') === 'done'; } catch (e) {}
+      invoke('set_tutorial_done');
+      if (!seen) setTimeout(() => window.__tutOpen && window.__tutOpen(), 1400);
+    });
   }
 
   // ---------- Settings window ----------

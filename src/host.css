@@ -76,6 +76,7 @@ html.h-widget .pick-lbl { box-shadow: none !important; }
 
 /* tutorial: the window covers the monitor and the page's usual box is moved where the widget was */
 html.tut-host body { position: absolute; left: var(--tx, 0); top: var(--ty, 0); width: 730px; height: 288px; margin: 0; overflow: visible; }
-html.tut-host, html.tut-host body { overflow: visible; }
+html.tut-host { overflow: hidden !important; }
+html.tut-host body { overflow: visible !important; }
 #tutTray { position: fixed; pointer-events: none; border-radius: 6px; }
 html.h-widget #mbState { display: none !important; }

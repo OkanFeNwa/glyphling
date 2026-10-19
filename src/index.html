@@ -2664,7 +2664,7 @@ svg.lu { display: block; flex: none; }
   window.addEventListener('resize', () => { if (!$('tut').hidden) tutPlace(); });
   $('tutAgain').addEventListener('click', tutOpen);
   let tutSeen = false; try { tutSeen = localStorage.getItem('companion-tutorial') === 'done'; } catch (e) {}
-  if (!tutSeen) setTimeout(tutOpen, 1400);
+  if (!tutSeen && !window.__host) setTimeout(tutOpen, 1400);
   applyDir();
   tbClock(); setInterval(tbClock, 5000);
   placeTip();

@@ -29,6 +29,8 @@ pub struct Config {
     /// Saved circle centers (physical pixels) for the closed and the open state.
     pub home: Option<(i32, i32)>,
     pub home_open: Option<(i32, i32)>,
+    /// The first-run tutorial was already shown (saved here so updates keep it).
+    pub tutorial_done: bool,
 }
 
 impl Default for Config {
@@ -47,6 +49,7 @@ impl Default for Config {
             two_pos: false,
             home: None,
             home_open: None,
+            tutorial_done: false,
         }
     }
 }

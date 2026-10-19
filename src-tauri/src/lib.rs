@@ -184,6 +184,12 @@ fn set_two_pos(app: AppHandle, on: bool) {
     });
 }
 
+/// Marks the first-run tutorial as shown, so it never opens by itself again.
+#[tauri::command]
+fn set_tutorial_done(app: AppHandle) {
+    update(&app, |c| c.tutorial_done = true);
+}
+
 /// Side the panel opens on: right, left or auto.
 #[tauri::command]
 fn set_panel_dir(app: AppHandle, dir: String) {
@@ -473,6 +479,7 @@ pub fn run() {
             set_panel_dir,
             set_two_pos,
             tutorial,
+            set_tutorial_done,
             list_disks,
             set_mode,
             set_move,

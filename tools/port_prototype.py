@@ -168,6 +168,8 @@ sub("  function tutOpen() {",
     "    if (window.__host && window.__host !== 'widget') return;\n"
     "    if (window.__hostTut && !window.__hostTutOn) { window.__hostTut(true).then(() => tutOpen()); return; }\n   ")
 sub("  function tutClose() {\n", "  function tutClose() {\n    if (window.__hostTut) window.__hostTut(false);\n")
+# in the app the first-run check is done by the host with a flag saved by the backend
+sub("  if (!tutSeen) setTimeout(tutOpen, 1400);", "  if (!tutSeen && !window.__host) setTimeout(tutOpen, 1400);")
 sub("el: () => $('trayIc')", "el: () => (window.__tutTray ? window.__tutTray() : $('trayIc'))", 2)
 
 # 6. app name: Glyphling (visible text only, internal keys stay lowercase)
