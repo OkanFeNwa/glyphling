@@ -857,7 +857,7 @@ svg.lu { display: block; flex: none; }
 </div>
 <div class="sgroup">
   <h3>Cerchio</h3>
-  <div class="srow"><div><b>Risoluzione</b><small>Quanti punti accende il cerchio. 256 è il look a LED classico, con più punti ghiere, lancette, visualizer e copertine diventano più fini. Occhi e cifre restano a pixel.</small></div><span class="seg3" id="resSeg"><button data-r="256">256</button><button data-r="512">512</button><button data-r="1024">1024</button><button data-r="2048">2048</button></span></div>
+  <div class="srow"><div><b>Risoluzione</b><small>Quanti punti accende il cerchio. Con più punti ghiere, lancette, visualizer e copertine diventano più fini; occhi e cifre sono ridisegnati a tratto per ogni risoluzione.</small></div><span class="seg3" id="resSeg"><button data-r="512">512</button><button data-r="1024">1024</button><button data-r="2048">2048</button></span></div>
 </div>
 <div class="sgroup">
   <h3>Formato</h3>
@@ -905,7 +905,7 @@ svg.lu { display: block; flex: none; }
   <div class="sgroup">
     <h3>Novità</h3>
     <ul class="news">
-      <li><span><b>0.18</b> · risoluzione del cerchio da 256 a 2048 punti, copertine disegnate, volume all'1% (5% con Shift), ore 12/24 e °C/°F, dischi come selettore, vomito più breve. Disegni rifatti per ogni risoluzione e cambio brano morbido.</span></li>
+      <li><span><b>0.18</b> · risoluzione del cerchio a 512, 1024 o 2048 punti, copertine disegnate, volume all'1% (5% con Shift), ore 12/24 e °C/°F, dischi come selettore, vomito più breve. Disegni rifatti per ogni risoluzione e cambio brano morbido.</span></li>
       <li><span><b>0.17</b> · il cerchio è il centro del widget, comportamento ai bordi, posizioni rapide, nuove animazioni del riquadro e due sorprese.</span></li>
       <li><span><b>0.16</b> · tutorial al primo avvio, ghiera piatta.</span></li>
       <li><span><b>0.15</b> · icone vettoriali vere al posto delle bitmap a pixel.</span></li>
@@ -1029,8 +1029,8 @@ svg.lu { display: block; flex: none; }
   // ---------- risoluzione del cerchio ----------
   // la scena ragiona sempre su 19×19 pixel logici (occhi, cifre, icone); le parti geometriche
   // (ghiere, lancette, visualizer, copertina) si disegnano direttamente sui punti fini scelti.
-  const RES = { 256: 19, 512: 25, 1024: 37, 2048: 51 };
-  let resPts = 256;
+  const RES = { 512: 25, 1024: 37, 2048: 51 };
+  let resPts = 512;
   try { const r = +localStorage.getItem('companion-res'); if (RES[r]) resPts = r; } catch (e) {}
   let NH, CH, KH, LX, AX, hin, hb, hr, cb, cr, ob, orr, coverKey = '';
   const coverBufs = new Map();     // copertine già calcolate, per brano e risoluzione
