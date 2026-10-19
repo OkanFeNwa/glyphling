@@ -1,0 +1,42 @@
+/* Adatta la pagina del prototipo alle due finestre dell'app.
+   Il widget mostra solo il cerchio e il pannello su fondo trasparente;
+   la finestra Impostazioni mostra solo il contenuto delle impostazioni. */
+
+/* ---------- finestra del widget ---------- */
+html.h-widget, html.h-widget body { background: transparent !important; overflow: hidden; }
+html.h-widget body { background-image: none !important; padding: 0 !important; display: block !important; height: 100vh; }
+html.h-widget .ambient, html.h-widget header, html.h-widget .under, html.h-widget #settings,
+html.h-widget .tip, html.h-widget .tmenu, html.h-widget .taskbar, html.h-widget footer,
+html.h-widget .gridov, html.h-widget .movebar, html.h-widget .cp { display: none !important; }
+html.h-widget .stage { position: absolute; left: 40px; top: 34px; width: 680px; max-width: none; justify-content: flex-start; align-items: flex-start; }
+html.h-widget .scaler { transform: none !important; transform-origin: 0 0; }
+html.h-widget body.moving .stage .widget { outline-offset: 14px; }
+
+/* ---------- finestra Impostazioni ---------- */
+html.h-settings body { padding: 0 !important; display: block !important; min-height: 100vh; }
+html.h-settings header, html.h-settings .stage, html.h-settings .under, html.h-settings .tip,
+html.h-settings .tmenu, html.h-settings .taskbar, html.h-settings footer,
+html.h-settings .gridov, html.h-settings .movebar, html.h-settings #setClose { display: none !important; }
+html.h-settings #settings, html.h-settings #settings[hidden] {
+  display: block !important; position: static; inset: auto; padding: 14px;
+  background: none; -webkit-backdrop-filter: none; backdrop-filter: none; animation: none !important;
+}
+html.h-settings .swin { max-width: none; max-height: none; overflow: visible; animation: none !important; }
+
+/* ---------- gruppo Dati ---------- */
+.dfield { display: flex; gap: 6px; flex: none; }
+#dataGroup input, #dataGroup textarea { background: rgba(0,0,0,.25); color: var(--ink); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 11px; font: 400 11px/1.4 var(--mono); box-sizing: border-box; }
+#dataGroup input { width: 180px; }
+#dataGroup textarea { width: 100%; resize: vertical; min-height: 44px; }
+#dataGroup input:focus, #dataGroup textarea:focus { outline: none; border-color: var(--pix); }
+.srow.col { flex-direction: column; align-items: stretch; gap: 8px; }
+.drow { display: flex; align-items: center; gap: 10px; }
+.drow small { flex: 1; margin: 0; }
+.dres { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 0 10px; font-size: 10px; color: var(--mute); }
+.dres[hidden] { display: none; }
+.dstat { flex: none; max-width: 180px; text-align: right; font-size: 10px; color: var(--ink); }
+
+/* ---------- font a punti ---------- */
+:root { --dot: "Nothing Dot Local", "Glyphling Dot", "Doto", "Courier New", monospace !important; }
+html { font-synthesis: none; }
+.srow small b { display: inline; font-size: inherit; color: var(--ink); }

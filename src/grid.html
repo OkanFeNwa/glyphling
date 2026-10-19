@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Griglia</title>
+<style>
+  /* Griglia di punti mostrata sul monitor mentre si trascina il widget. */
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  #g {
+    position: fixed; inset: 0; opacity: 0; transition: opacity .25s;
+    background-image: radial-gradient(circle, var(--c, #d71921) 1.3px, transparent 1.9px);
+    background-size: var(--s, 24px) var(--s, 24px);
+    background-position: var(--ox, -12px) var(--oy, -12px);
+  }
+  body.on #g { opacity: .55; }
+</style>
+</head>
+<body>
+<div id="g"></div>
+<script>
+  const g = document.getElementById('g');
+  window.__TAURI__.event.listen('grid', e => {
+    const p = e.payload;
+    g.style.setProperty('--s', p.step + 'px');
+    // i punti cadono dove può atterrare il centro del cerchio
+    g.style.setProperty('--ox', (p.ox - p.step / 2) + 'px');
+    g.style.setProperty('--oy', (p.oy - p.step / 2) + 'px');
+    if (p.color) g.style.setProperty('--c', p.color);
+    document.body.classList.toggle('on', p.on);
+  });
+</script>
+</body>
+</html>

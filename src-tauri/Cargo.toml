@@ -1,0 +1,51 @@
+[package]
+name = "glyphling"
+version = "0.2.0"
+description = "Glyphling: widget desktop in stile Nothing OS"
+edition = "2021"
+
+[lib]
+name = "glyphling_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = { version = "0.35", default-features = false, features = ["system", "disk"] }
+ureq = "2"
+base64 = "0.22"
+
+[target.'cfg(any(windows, target_os = "linux", target_os = "macos"))'.dependencies]
+tauri-plugin-single-instance = "2"
+tauri-plugin-autostart = "2"
+
+[target.'cfg(windows)'.dependencies]
+nvml-wrapper = "0.11"
+windows = { version = "0.58", features = [
+  "Foundation",
+  "Foundation_Collections",
+  "Media_Control",
+  "Storage_Streams",
+  "Win32_Media_Audio",
+  "Win32_Media_Audio_Endpoints",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+] }
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_System_Registry",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
