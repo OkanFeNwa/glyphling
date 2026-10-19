@@ -1,0 +1,37 @@
+[package]
+name = "glyphling-setup"
+version = "0.4.0"
+description = "Glyphling installer and uninstaller"
+edition = "2021"
+publish = false
+
+[[bin]]
+name = "glyphling-setup"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+miniz_oxide = "0.8"
+serde_json = "1"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+miniz_oxide = "0.8"
+ureq = "2"
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+windows-sys = { version = "0.59", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_Threading",
+  "Win32_UI_WindowsAndMessaging",
+] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

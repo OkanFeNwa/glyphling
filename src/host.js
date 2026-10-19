@@ -1,15 +1,15 @@
-// Collega la pagina del prototipo all'app: stato condiviso con il backend Rust,
-// trascinamento nativo, forma cliccabile del widget e schermata Info vera.
+// Connects the prototype page to the app: state shared with the Rust backend,
+// native dragging, the widget's clickable shape and the real Info screen.
 (() => {
   const T = window.__TAURI__, C = window.__companion, host = window.__host;
-  if (!T || !C || !host) return;            // nel browser il prototipo resta com'è
+  if (!T || !C || !host) return;            // in the browser the prototype stays as is
   const { invoke } = T.core;
   const { listen, emit } = T.event;
   const $ = id => document.getElementById(id);
 
-  // ---------- stato condiviso ----------
-  // Ogni finestra manda i cambiamenti al backend, che li salva e li ridistribuisce a tutte.
-  // Il backend ignora i valori invariati, quindi l'eco di ritorno non crea cicli.
+  // ---------- shared state ----------
+  // Each window sends its changes to the backend, which saves them and redistributes them to all.
+  // The backend ignores unchanged values, so the echo coming back does not create loops.
   window.__hostEvent = (kind, v) => {
     if (kind === 'mode') { invoke('set_mode', { mode: v }); if (host === 'widget') sendShape(); }
     else if (kind === 'move') invoke('set_move', { on: v });
@@ -20,7 +20,7 @@
     else if (kind === 'volume') sendVolume(v);
     else if (kind === 'seek') invoke('media_control', { action: 'seek', value: v });
   };
-  // localStorage è lo stesso per tutte le finestre dell'app
+  // localStorage is shared by all of the app's windows
   const store = {
     get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
@@ -41,7 +41,7 @@
     if (host === 'widget') sendShape();
   }
   invoke('get_config').then(applyCfg);
-  // i colori del tema servono anche al menu dell'icona, che è una finestra a parte
+  // the theme colors are also needed by the tray icon menu, which is a separate window
   function shareColors() {
     if (host !== 'widget') return;
     const cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim();
@@ -53,14 +53,14 @@
 
   // ---------- widget ----------
   if (host === 'widget') {
-    // trascinamento con il gestore nativo di Windows; l'aggancio lo calcola il backend al rilascio
+    // dragging with the native Windows handler; the backend computes the snapping on release
     window.__hostDrag = () => {
       const color = getComputedStyle(document.documentElement).getPropertyValue('--red').trim();
       invoke('start_drag', { color });
     };
-    // forma cliccabile: fuori dal cerchio e dal pannello i clic passano al desktop
-    // la forma finale (a fine animazione): cerchio con la ghiera e, se aperto, il riquadro
-    // largo --pw dal bordo del cerchio, attaccato al lato giusto
+    // clickable shape: outside the circle and the panel, clicks pass through to the desktop
+    // the final shape (at the end of the animation): circle with the dial and, if open, the panel
+    // --pw wide from the circle's edge, attached to the correct side
     const BEZEL = 11, CORNER = 30;
     const shapeGeom = () => {
       const r = $('ring').getBoundingClientRect(), w = $('widget');
@@ -70,7 +70,7 @@
       return { cx, cy, half, rb: r.width / 2 + BEZEL, left, panel: open ? { x: left ? cx - pw : cx, y: r.top, w: pw, h: r.height } : null };
     };
     document.body.insertAdjacentHTML('beforeend', '<svg id="moveOutline" aria-hidden="true"><path/></svg>');
-    // contorno tratteggiato dell'unione cerchio + riquadro, distanziato di o px
+    // dashed outline of the circle + panel union, offset by o px
     function drawOutline(g) {
       const o = 6, R = g.rb + o, { cx, cy } = g;
       let d;
@@ -84,16 +84,32 @@
       }
       document.querySelector('#moveOutline path').setAttribute('d', d);
     }
-    const shapeNow = () => {
-      const g = shapeGeom();
-      invoke('set_shape', { shape: { cx: g.cx, cy: g.cy, r: g.rb, panel: g.panel } });
-      drawOutline(g);
-    };
+    // the shape visible right now, even mid-animation: circle with the dial, panel,
+    // dial label. The backend clips the window to it (clicks and blur).
+    // While moving it grows to fit the dashed outline.
+    const rectPart = (r, rad, pad = 0) => ({ x: r.left - pad, y: r.top - pad, w: r.width + 2 * pad, h: r.height + 2 * pad, r: rad + pad });
+    let lastKey = '';
+    function shapeTick() {
+      const g = shapeGeom(), pad = document.body.classList.contains('moving') ? 9 : 1, parts = [];
+      parts.push({ x: g.cx - g.rb - pad, y: g.cy - g.rb - pad, w: 2 * (g.rb + pad), h: 2 * (g.rb + pad), r: g.rb + pad });
+      const pr = document.getElementById('panel').getBoundingClientRect();
+      if (pr.width > 2 && getComputedStyle(document.getElementById('panel')).opacity > 0.02) parts.push(rectPart(pr, CORNER, pad));
+      const lbl = document.querySelector('.pick-lbl.on');
+      if (lbl) parts.push(rectPart(lbl.getBoundingClientRect(), 999, 2));
+      const key = JSON.stringify(parts.map(p => [p.x, p.y, p.w, p.h].map(Math.round)));
+      if (key !== lastKey) {
+        lastKey = key;
+        invoke('set_shape', { shape: { parts } });
+        drawOutline(g);
+      }
+      requestAnimationFrame(shapeTick);
+    }
+    const shapeNow = () => { lastKey = ''; };
     window.sendShape = shapeNow;
-    addEventListener('load', shapeNow);
-    // il clic destro sul cerchio torna alla mascotte (lo gestisce il prototipo); il menu resta sull'icona
+    requestAnimationFrame(shapeTick);
+    // right click on the circle goes back to the mascot (handled by the prototype); the menu stays on the tray icon
     addEventListener('contextmenu', e => e.preventDefault());
-    // la mascotte segue il mouse su tutto lo schermo
+    // the mascot follows the mouse across the whole screen
     listen('cursor', e => C.look(e.payload.x, e.payload.y));
     listen('action', e => {
       if (e.payload === 'sleep') C.toggleSleep();
@@ -102,14 +118,14 @@
   }
   function sendShape() { if (window.sendShape) window.sendShape(); }
 
-  // ---------- finestra Impostazioni ----------
+  // ---------- Settings window ----------
   if (host === 'settings') {
     $('posReset').addEventListener('click', e => { e.stopImmediatePropagation(); invoke('reset_position'); }, true);
     $('posReset').textContent = 'Ripristina';
     const resetRow = $('posReset').closest('.srow');
     if (resetRow) resetRow.querySelector('b').textContent = 'Riporta alla posizione iniziale';
     if (resetRow) resetRow.querySelector('small').textContent = "In basso a destra sul monitor principale, con spazio per il pannello.";
-    // avvio con Windows
+    // start with Windows
     const posGroup = $('posReset').closest('.sgroup');
     if (posGroup) {
       posGroup.insertAdjacentHTML('afterend', `<div class="sgroup"><h3>Avvio</h3>
@@ -123,24 +139,25 @@
       e.stopImmediatePropagation();
       invoke('set_panel_dir', { dir: b.dataset.d });
     }, true);
-    // barra del titolo: si trascina dalla parte vuota, pulsanti riduci a icona e chiudi
+    // title bar: dragged from the empty area, minimize and close buttons
     const top = document.querySelector('.swin-top'), win = T.window.getCurrentWindow();
-    for (const el of [top, ...top.querySelectorAll(':scope > div, :scope > div > *')]) el.setAttribute('data-tauri-drag-region', '');
+    // only the title and the empty space drag: tabs and buttons must stay clickable
+    for (const el of [top, ...top.querySelectorAll(':scope > div:not(.tabs), :scope > div:not(.tabs) > *')]) el.setAttribute('data-tauri-drag-region', '');
     const close = $('setClose');
     close.insertAdjacentHTML('beforebegin', '<span class="wbtns" id="wbtns"></span>');
-    $('wbtns').insertAdjacentHTML('beforeend', '<button class="cp-x" id="setMin" aria-label="Riduci a icona"><svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><rect x="1" y="4" width="7" height="1" fill="currentColor"/></svg></button>');
+    $('wbtns').insertAdjacentHTML('beforeend', '<button class="cp-x" id="setMin" aria-label="Riduci a icona"><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><rect x="1" y="5" width="8" height="1" fill="currentColor"/></svg></button>');
     $('wbtns').appendChild(close);
     $('setMin').addEventListener('click', () => win.minimize());
     close.addEventListener('click', e => { e.stopImmediatePropagation(); win.close(); }, true);
     addEventListener('keydown', e => { if (e.key === 'Escape' && document.activeElement === document.body) win.close(); });
     listen('settings-page', e => C.setPage(e.payload));
     invoke('take_settings_page').then(p => { if (p) C.setPage(p); });
-    const upd = $('infoUpd'), fresh = upd.cloneNode(true);   // toglie il finto controllo aggiornamenti
+    const upd = $('infoUpd'), fresh = upd.cloneNode(true);   // removes the fake update check
     upd.replaceWith(fresh);
     fresh.style.cursor = 'default';
   }
 
-  // ---------- dati veri: sistema, musica, meteo, calendario ----------
+  // ---------- real data: system, music, weather, calendar ----------
   const storedDisks = () => { try { return JSON.parse(store.get('glyphling-disks', 'null')); } catch (e) { return null; } };
   listen('pc', e => {
     C.setPc(e.payload);
@@ -150,7 +167,7 @@
   });
   listen('disks-changed', e => { if (e.payload.from !== host) { const w = storedDisks(); if (w) C.setShownDisks(w); } });
 
-  // la copertina diventa 19x19 LED: luminosità a 4 livelli, i pixel più saturi come accento
+  // the cover becomes 19x19 LEDs: 4 brightness levels, the most saturated pixels as accent
   function coverToLeds(url) {
     return new Promise(res => {
       const img = new Image();
@@ -192,7 +209,7 @@
     }
   }
 
-  // meteo da Open-Meteo, senza chiave
+  // weather from Open-Meteo, no API key
   const MILANO = { name: 'Milano', lat: 45.4642, lon: 9.19 };
   const city = () => { try { return JSON.parse(store.get('glyphling-city', 'null')) || MILANO; } catch (e) { return MILANO; } };
   function wmo(code, day) {
@@ -238,7 +255,7 @@
     C.setWeather({ hours, days, city: c.name, lat: c.lat, lon: c.lon });
   }
 
-  // calendario: indirizzi iCal (per Google l'"indirizzo segreto in formato iCal")
+  // calendar: iCal URLs (for Google, the "secret address in iCal format")
   const icsUrls = () => store.get('glyphling-ics', '').split(/\s+/).filter(u => u.startsWith('https://'));
   function tzOffset(tz, utcMs) {
     try {
@@ -247,7 +264,7 @@
       return Date.UTC(+p.year, p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - utcMs;
     } catch (e) { return null; }
   }
-  // "20261019T143000Z", "20261019T143000" (+TZID), "20261019" (tutto il giorno)
+  // "20261019T143000Z", "20261019T143000" (+TZID), "20261019" (all day)
   function icsDate(v, params) {
     const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})?(Z)?)?/.exec(v);
     if (!m) return null;
@@ -282,7 +299,7 @@
     return evs.filter(e => e.status !== 'CANCELLED' || e.recId);
   }
   const BYDAY = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
-  // tutte le occorrenze tra from e to (Date)
+  // all occurrences between from and to (Date)
   function occurrences(ev, from, to, skip) {
     const s = ev.start.d, out = [];
     const ok = d => d >= from && d <= to && !ev.ex.includes(d.getTime()) && !skip.has(d.getTime());
@@ -334,7 +351,7 @@
       let evs;
       try { evs = parseIcs(await invoke('fetch_text', { url })); } catch (e) { failed++; continue; }
       const color = EV_COLORS[ci % EV_COLORS.length];
-      const moved = new Map();   // occorrenze spostate o annullate: le salta la serie
+      const moved = new Map();   // moved or cancelled occurrences: the series skips them
       for (const e of evs) if (e.recId) { if (!moved.has(e.uid)) moved.set(e.uid, new Set()); moved.get(e.uid).add(e.recId.d.getTime()); }
       for (const e of evs) {
         if (e.status === 'CANCELLED') continue;
@@ -360,7 +377,7 @@
     listen('data-changed', e => { if (e.payload === 'city') wxNow(); else calNow(); });
   }
 
-  // ---------- Impostazioni: gruppo Dati ----------
+  // ---------- Settings: Data group ----------
   let cpuTempEl = null;
   function cpuTempStatus(s) {
     if (!cpuTempEl) return;
@@ -378,7 +395,7 @@
       <div class="srow"><div><b>Temperatura della CPU</b><small>Windows non la espone: Glyphling la legge da <b>LibreHardwareMonitor</b>, se è aperto con Opzioni › Remote Web Server attivo (porta 8085). La GPU NVIDIA si legge da sola.</small></div><span class="dstat" id="cpuTemp">Si aggiorna con la modalità Sistema</span></div>
     </div>`);
     cpuTempEl = $('cpuTemp');
-    // i dischi veri per la scelta sulla ghiera, anche se il widget non è in modalità Sistema
+    // the real disks for the dial picker, even if the widget is not in System mode
     invoke('list_disks').then(disks => {
       if (!disks.length) return;
       C.setPc({ cpu: 0, ram: 0, ram_used: 0, ram_total: 0, gpu: null, tc: null, tg: null, up_min: 0, disks });
@@ -421,7 +438,7 @@
     });
   }
 
-  // ---------- Info con i dati veri ----------
+  // ---------- Info with real data ----------
   let newsAdded = false;
   async function fillInfo() {
     if (host !== 'settings') return;

@@ -5,12 +5,12 @@
 <title>Glyphling · menu</title>
 <link rel="stylesheet" href="fonts.css">
 <style>
-/* Menu dell'icona nell'area di notifica, come quello in vetro del prototipo. La finestra è
-   trasparente e grande quanto il menu: il backend la ridimensiona e la mette vicino all'icona. */
-:root { --red: #d71921; --ink: #f2f2f2; --mute: #8a8a8a; --glass: #121214;
+/* Notification area icon menu, like the glass one in the prototype. The window is
+   transparent and as big as the menu: the backend resizes it and places it near the icon. */
+:root { --red: #d71921; --ink: #f2f2f2; --mute: #a3a3a3; --glass: #121214;
   --dot: "Nothing Dot Local", "Glyphling Dot", "Doto", monospace; --mono: "Space Mono", ui-monospace, monospace; color-scheme: dark; }
 html, body { margin: 0; background: transparent; overflow: hidden; user-select: none; }
-body { padding: 6px; }
+body { padding: 0; }
 .tmenu { width: 228px; padding: 6px; border-radius: 16px; box-sizing: border-box; display: flex; flex-direction: column;
   background: linear-gradient(180deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,.02) 40%, rgba(255,255,255,.03) 100%), linear-gradient(160deg, color-mix(in srgb, var(--glass) 70%, #2a2a2a), color-mix(in srgb, var(--glass) 85%, #0c0c0c));
   border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.2); transform-origin: 85% 100%; }
@@ -25,8 +25,8 @@ button:hover, button:focus-visible { background: rgba(255,255,255,.08); outline:
 button[aria-checked="true"] .ck::before { content: ""; width: 5px; height: 5px; background: var(--red); }
 button[aria-checked="false"] { color: var(--mute); }
 button[aria-checked="false"]:hover { color: var(--ink); }
-.lv { display: flex; gap: 4px; padding: 2px 6px 4px; }
-.lv button { flex: 1; justify-content: center; padding: 6px 4px; font-size: 9px; letter-spacing: .06em; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; }
+.lv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 2px 6px 4px; }
+.lv button { justify-content: center; text-align: center; white-space: nowrap; padding: 6px 4px; font-size: 9px; letter-spacing: .06em; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; }
 .lv button[aria-checked="true"] { border-color: var(--red); color: var(--ink); background: color-mix(in srgb, var(--red) 16%, transparent); }
 hr { border: 0; height: 1px; background: rgba(255,255,255,.08); margin: 5px 6px; }
 </style>
@@ -37,8 +37,7 @@ hr { border: 0; height: 1px; background: rgba(255,255,255,.08); margin: 5px 6px;
 (() => {
   const { invoke } = window.__TAURI__.core, { listen } = window.__TAURI__.event;
   const m = document.getElementById('m');
-  const MODES = [['idle', 'Mascotte'], ['clock', 'Orologio'], ['calendar', 'Calendario'], ['music', 'Musica'], ['timer', 'Timer'], ['weather', 'Meteo'], ['disks', 'Sistema']];
-  const LEVELS = [['desktop', 'Desktop'], ['normal', 'Normale'], ['top', 'Sopra tutto']];
+  const LEVELS = [['desktop', 'Desktop'], ['normal', 'Normale'], ['top', 'In alto']];
   const item = (id, text, checked) => `<button role="${checked == null ? 'menuitem' : 'menuitemcheckbox'}" data-id="${id}"${checked == null ? '' : ` aria-checked="${checked}"`}><span class="ck"></span>${text}</button>`;
   function colors() {
     try {
@@ -49,8 +48,6 @@ hr { border: 0; height: 1px; background: rgba(255,255,255,.08); margin: 5px 6px;
   function render({ cfg, version }) {
     colors();
     m.innerHTML = `<div class="mh"><b>Glyphling</b>v${version}</div>`
-      + MODES.map(([id, n]) => `<button role="menuitemradio" aria-checked="${cfg.mode === id}" data-id="mode:${id}"><span class="ck"></span>${n}</button>`).join('')
-      + '<hr>'
       + (cfg.mode === 'idle' ? item('sleep', 'Fai dormire / sveglia') : '')
       + item('move', 'Sposta il widget', !!cfg.move_enabled)
       + item('snap', 'Aggancio alla griglia', !!cfg.snap)
@@ -60,8 +57,8 @@ hr { border: 0; height: 1px; background: rgba(255,255,255,.08); margin: 5px 6px;
       + '</div><hr>'
       + item('settings', 'Impostazioni…') + item('info', 'Info su Glyphling')
       + '<hr>' + item('quit', 'Esci');
-    // misura senza l'animazione (che scala il menu), poi la fa partire
-    invoke('menu_place', { w: m.offsetWidth + 12, h: m.offsetHeight + 12 });
+    // measure without the animation (which scales the menu), then start it
+    invoke('menu_place', { w: m.offsetWidth, h: m.offsetHeight });
     m.classList.remove('opening'); void m.offsetWidth; m.classList.add('opening');
   }
   listen('menu-open', e => render(e.payload));

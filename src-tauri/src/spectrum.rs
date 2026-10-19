@@ -1,8 +1,8 @@
-//! Visualizer: spettro reale dell'audio in uscita.
+//! Visualizer: real spectrum of the audio output.
 //!
-//! Cattura in loopback WASAPI l'audio che va alle casse (la stessa tecnica di OBS), ne
-//! calcola la FFT e manda 19 bande (una per colonna di LED) a 30 fotogrammi al secondo.
-//! Gira solo quando la modalità Musica è visibile e qualcosa sta suonando.
+//! Captures the audio going to the speakers via WASAPI loopback (the same technique OBS uses),
+//! computes its FFT and sends 19 bands (one per LED column) at 30 frames per second.
+//! Runs only while the Music mode is visible and something is playing.
 
 use crate::AppState;
 use std::sync::atomic::Ordering;
@@ -18,7 +18,7 @@ fn wanted(app: &AppHandle) -> bool {
     c.mode == "music" && c.visible && st.playing.load(Ordering::Relaxed)
 }
 
-/// FFT radix-2 in place (n potenza di 2).
+/// In-place radix-2 FFT (n a power of 2).
 fn fft(re: &mut [f32], im: &mut [f32]) {
     let n = re.len();
     let mut j = 0;
@@ -57,7 +57,7 @@ fn fft(re: &mut [f32], im: &mut [f32]) {
     }
 }
 
-/// Dalle ultime FFT_N campioni alle 19 bande, in scala logaritmica da 40 Hz a 14 kHz.
+/// From the last FFT_N samples to the 19 bands, on a log scale from 40 Hz to 14 kHz.
 pub struct Analyzer {
     rate: f32,
     peak: f32,
@@ -89,10 +89,10 @@ impl Analyzer {
             for i in i0..i1.min(FFT_N / 2) {
                 m = m.max((re[i] * re[i] + im[i] * im[i]).sqrt());
             }
-            // le alte frequenze hanno meno energia: le alzo un po'
+            // high frequencies carry less energy: boost them a bit
             *slot = m * (1.0 + b as f32 * 0.12);
         }
-        // guadagno automatico: segue il picco e lo lascia scendere piano
+        // automatic gain: follows the peak and lets it fall slowly
         let top = raw.iter().cloned().fold(0f32, f32::max);
         self.peak = if top > self.peak { top } else { (self.peak * 0.995).max(0.02) };
         let mut out = [0f32; BANDS];
@@ -101,7 +101,7 @@ impl Analyzer {
             self.smooth[b] = if v > self.smooth[b] { v } else { self.smooth[b] * 0.8 + v * 0.2 };
             out[b] = self.smooth[b];
         }
-        // ordine a specchio come nel prototipo: bassi al centro
+        // mirrored order as in the prototype: bass in the middle
         let mut mirrored = [0f32; BANDS];
         let c = BANDS / 2;
         for (k, slot) in mirrored.iter_mut().enumerate() {
@@ -185,7 +185,7 @@ fn capture(_: &AppHandle) -> Result<(), ()> {
 pub fn spawn(app: AppHandle) {
     std::thread::spawn(move || loop {
         if wanted(&app) {
-            // se il dispositivo cambia o la cattura fallisce, riprova dopo un attimo
+            // if the device changes or the capture fails, retry shortly
             if capture(&app).is_err() {
                 std::thread::sleep(Duration::from_secs(2));
             }
@@ -206,7 +206,7 @@ mod tests {
         let mut an = Analyzer::new(rate);
         let b = an.bands(&tone);
         let (imax, _) = b.iter().enumerate().fold((0, 0f32), |m, (i, &v)| if v > m.1 { (i, v) } else { m });
-        // 1 kHz cade circa a metà della scala logaritmica, quindi lontano dal centro (bassi)
+        // 1 kHz falls about halfway along the log scale, so away from the center (bass)
         assert!(imax != BANDS / 2, "{b:?}");
         assert!(b.iter().cloned().fold(0f32, f32::max) > 0.9);
     }

@@ -1,8 +1,8 @@
-//! Statistiche del PC: CPU, RAM, GPU (NVIDIA tramite NVML), temperature e dischi.
+//! PC stats: CPU, RAM, GPU (NVIDIA through NVML), temperatures and disks.
 //!
-//! Si leggono solo mentre la modalità Sistema è visibile. La temperatura della CPU non ha
-//! un'API ufficiale su Windows: la prendiamo da LibreHardwareMonitor, se è aperto con il
-//! server web attivo (porta 8085), senza installare driver nostri.
+//! Read only while the System mode is visible. CPU temperature has no official
+//! API on Windows: we take it from LibreHardwareMonitor, if it is running with its
+//! web server enabled (port 8085), without installing drivers of our own.
 
 use crate::AppState;
 use serde::Serialize;
@@ -28,7 +28,7 @@ pub struct Stats {
     pub tg: Option<u32>,
     pub up_min: u64,
     pub disks: Vec<Disk>,
-    /// Da dove arriva la temperatura della CPU (per le impostazioni).
+    /// Where the CPU temperature comes from (for the settings).
     pub tc_source: Option<String>,
 }
 
@@ -53,7 +53,7 @@ pub fn disk_list() -> Vec<Disk> {
     out
 }
 
-/// Cerca nel JSON di LibreHardwareMonitor il primo sensore di temperatura della CPU.
+/// Looks up the first CPU temperature sensor in LibreHardwareMonitor's JSON.
 fn lhm_cpu_temp() -> Option<f32> {
     let body = ureq::get("http://127.0.0.1:8085/data.json").timeout(Duration::from_millis(600)).call().ok()?.into_string().ok()?;
     let v: serde_json::Value = serde_json::from_str(&body).ok()?;
@@ -108,7 +108,7 @@ impl Gpu {
 pub fn spawn(app: AppHandle) {
     std::thread::spawn(move || {
         let mut sys = sysinfo::System::new();
-        let mut gpu: Option<Gpu> = None; // NVML si carica la prima volta che serve
+        let mut gpu: Option<Gpu> = None; // NVML is loaded the first time it is needed
         let mut cached: Vec<Disk> = vec![];
         let mut disks_at: Option<Instant> = None;
         loop {
@@ -119,7 +119,7 @@ pub fn spawn(app: AppHandle) {
             };
             if !wanted {
                 std::thread::sleep(Duration::from_millis(500));
-                disks_at = None; // al rientro i dischi si rileggono subito
+                disks_at = None; // on return the disks are read again right away
                 continue;
             }
             let gpu = gpu.get_or_insert_with(Gpu::init);

@@ -11,7 +11,7 @@
   --shell: #000000;
   --line: #262626;
   --ink: #f2f2f2;
-  --mute: #8a8a8a;
+  --mute: #a3a3a3;
   --red: #d71921;
   --glass: #121214;
   --pix: #f2f2f2;
@@ -147,12 +147,12 @@ canvas.dots { width: 100%; height: 6px; display: block; image-rendering: pixelat
 .times .vol:hover { border-color: rgba(255,255,255,.18); }
 .times .vol[aria-pressed="true"] { border-color: var(--red); background: color-mix(in srgb, var(--red) 18%, transparent); }
 .prog.voledit .bar { cursor: ew-resize; }
-.prog.voledit #tNow, .prog.voledit #tDur { opacity: .35; }
+.prog.voledit #tNow, .prog.voledit #tDur { opacity: .55; }
 .cdp { display: flex; gap: 4px; flex-wrap: nowrap; }
 .cdp button { appearance: none; cursor: pointer; flex: 1; min-width: 0; padding: 5px 0; border-radius: 8px; border: 1px solid transparent; background: rgba(255,255,255,.04); color: var(--mute); font: 400 10px/1 var(--mono); font-variant-numeric: tabular-nums; transition: background .2s, border-color .2s, color .2s; }
 .cdp button:hover { color: var(--ink); }
 .cdp button[aria-pressed="true"] { border-color: var(--pix); color: var(--ink); background: rgba(255,255,255,.08); }
-.cdp button:disabled { opacity: .35; cursor: default; }
+.cdp button:disabled { opacity: .55; cursor: default; }
 #cdTime.done { color: var(--red); animation: blink 1s steps(2, start) infinite; }
 @keyframes blink { 50% { opacity: .35; } }
 .slots button small { font-size: 8px; letter-spacing: .06em; margin-left: 1px; }
@@ -350,7 +350,7 @@ button:focus-visible, .ring:focus-visible, input:focus-visible + svg { outline: 
 .picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 10px; color: var(--mute); letter-spacing: .08em; text-transform: uppercase; }
 .hint { transition: opacity .16s, transform .16s; }
 .hint.swap { opacity: 0; transform: translateY(3px); }
-.hint { margin: 0; font-size: 11px; color: var(--mute); line-height: 1.6; max-width: 80ch; min-height: 3.2em; }
+.hint { margin: 0; font-size: 11px; color: var(--mute); line-height: 1.6; max-width: 80ch; min-height: 6.4em; }
 .hint b { color: var(--ink); font-weight: 400; }
 
 /* vetro piccolo per i controlli */
@@ -485,7 +485,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .cp-rec button { appearance: none; border: 0; padding: 0; width: 18px; height: 18px; cursor: pointer; background: none; color: var(--c); transition: transform .15s; }
 .cp-rec button:hover { transform: scale(1.15); }
 .hex { font-size: 10px; color: var(--mute); font-variant-numeric: tabular-nums; letter-spacing: .06em; margin-left: 4px; text-transform: uppercase; }
-footer { width: 100%; max-width: 720px; font-size: 10px; color: #5c5c5c; line-height: 1.6; letter-spacing: .02em; }
+footer { width: 100%; max-width: 720px; font-size: 10px; color: #858585; line-height: 1.6; letter-spacing: .02em; }
 @media (prefers-reduced-motion: reduce) {
   .widget, .panel, .view, .seg-ind, .hint { transition: none !important; }
   *, *::before, *::after { animation: none !important; }
@@ -533,7 +533,7 @@ body { padding-bottom: 84px; }
 .tmenu button[aria-checked="false"] { color: var(--mute); }
 .tmenu button[aria-checked="false"]:hover { color: var(--ink); }
 .tmenu button kbd { margin-left: auto; font: inherit; color: var(--mute); font-size: 9px; }
-.tmenu button:disabled { color: #555; cursor: default; background: none; }
+.tmenu button:disabled { color: #7a7a7a; cursor: default; background: none; }
 .tmenu hr { border: 0; height: 1px; background: rgba(255,255,255,.08); margin: 5px 6px; }
 .settings { position: fixed; inset: 0 0 48px; z-index: 30; display: grid; place-items: center; padding: 16px; box-sizing: border-box; background: rgba(0,0,0,.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .settings[hidden] { display: none; }
@@ -615,12 +615,54 @@ body.moving.free .gridov { opacity: .12; }
 .seg3 { display: inline-flex; gap: 2px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 2px; flex: none; }
 .seg3 button { appearance: none; border: 0; background: transparent; color: var(--mute); font: 700 9px/1 var(--mono); letter-spacing: .12em; text-transform: uppercase; padding: 7px 11px; border-radius: 999px; cursor: pointer; transition: background .2s, color .2s; }
 .seg3 button[aria-pressed="true"] { background: rgba(255,255,255,.12); color: var(--ink); }
+
+/* ---------- v0.14: impostazioni con barra laterale, pulsanti reattivi, specchio a sinistra ---------- */
+.swin { display: grid; grid-template-columns: 150px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); gap: 16px 18px; overflow: hidden; height: min(640px, 100%); }
+.swin.glass { background: linear-gradient(160deg, rgba(34,34,34,.97), rgba(14,14,14,.98)); }
+.swin-top { grid-column: 1 / -1; }
+.snav { display: flex; flex-direction: column; gap: 4px; }
+.snav button { appearance: none; border: 1px solid transparent; background: none; color: var(--mute); text-align: left; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; cursor: pointer; font: 700 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; transition: background .12s, color .12s, border-color .12s, transform .12s; }
+.snav button:hover { background: rgba(255,255,255,.07); color: var(--ink); }
+.snav button:active { transform: scale(.96); }
+.snav button[aria-pressed="true"] { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.14); color: var(--ink); }
+.snav .ni { width: 6px; height: 6px; background: currentColor; opacity: .5; flex: none; }
+.snav button[aria-pressed="true"] .ni { background: var(--red); opacity: 1; }
+.sbody { overflow: auto; min-height: 0; padding-right: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent; }
+.sbody .spage { gap: 14px; }
+.srow { min-height: 44px; }
+.srow > :last-child:not(div) { margin-left: auto; }
+@media (max-width: 640px) { .swin { grid-template-columns: 1fr; height: auto; overflow: auto; } .snav { flex-direction: row; } .sbody { overflow: visible; } }
+/* reattività di tutti i pulsanti dello stesso stile */
+.ghost, .seg3 button, .tabs button, .cdp button, .slots button, .dchip, .tmenu button, .pa, .sw-t, .cp-x, .cp-mode, .cp-eye, .times .vol, .ctrls button { transition: background .12s, color .12s, border-color .12s, box-shadow .12s, transform .12s cubic-bezier(.3,1.4,.5,1) !important; }
+.ghost:hover, .seg3 button:hover, .tabs button:hover, .cdp button:not(:disabled):hover, .slots button:hover, .dchip:hover, .cp-x:hover, .cp-mode:hover, .cp-eye:hover { background: rgba(255,255,255,.12); color: var(--ink); border-color: rgba(255,255,255,.22); }
+.ghost:active, .seg3 button:active, .tabs button:active, .cdp button:not(:disabled):active, .slots button:active, .dchip:active, .tmenu button:not(:disabled):active, .pa:active, .sw-t:active, .cp-x:active, .times .vol:active { transform: scale(.92); background: rgba(255,255,255,.18); }
+.ctrls button:hover { filter: brightness(1.25); }
+.ctrls button:active { transform: scale(.93); }
+.seg3 button[aria-pressed="true"]:hover, .tabs button[aria-pressed="true"]:hover { background: rgba(255,255,255,.16); }
+/* il vetro sfoca davvero quello che c'è dietro */
+.glass { -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); }
+.glass-s { -webkit-backdrop-filter: blur(20px) saturate(170%); backdrop-filter: blur(20px) saturate(170%); }
+/* il cerchio resta fermo: il riquadro esce di lato senza spostarlo */
+.widget.open { width: var(--d); }
+.stage { justify-content: flex-start; padding-left: max(0px, calc((100% - 646px) / 2)); box-sizing: border-box; }
+.scaler { transform-origin: left center; }
+/* apertura a sinistra: l'impaginazione si specchia */
+.widget.left .view { text-align: right; }
+.widget.left .src, .widget.left .view.clockv, .widget.left .view.calv, .widget.left .sys, .widget.left .wx-top, .widget.left .tmblock .sub { flex-direction: row-reverse; }
+.widget.left .meter, .widget.left .ev { direction: rtl; }
+.widget.left .meter > *, .widget.left .ev > * { direction: ltr; }
+.widget.left .src .sp, .widget.left .src .tabs { margin-left: 0; margin-right: auto; }
+.widget.left .facts.side { border-left: 0; padding: 4px 18px 4px 0; border-right: 1px solid rgba(255,255,255,.08); }
+.widget.left .facts .info, .widget.left .sessions, .widget.left .laps, .widget.left .cdp { flex-direction: row-reverse; }
+.tmenu.glass { background: linear-gradient(180deg, rgba(40,40,40,.95), rgba(20,20,20,.96)); }
+.widget.left .slots, .widget.left .dchips { direction: rtl; }
+.widget.left .slots button, .widget.left .dchips button { direction: ltr; }
 </style>
 
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
 <header>
   <h1>Companion</h1>
-  <span class="rec"><i></i>prototipo · v0.13</span>
+  <span class="rec"><i></i>prototipo · v0.14</span>
 </header>
 
 <div class="stage" id="stage">
@@ -737,8 +779,9 @@ body.moving.free .gridov { opacity: .12; }
 <div class="settings" id="settings" hidden>
 <div class="swin glass" role="dialog" aria-label="Impostazioni di Companion">
 <div class="swin-top"><div><b>Impostazioni</b><span>Companion</span></div>
-  <div class="tabs" id="setTabs" role="tablist"><button data-p="gen" aria-pressed="true">Widget</button><button data-p="col" aria-pressed="false">Colori</button><button data-p="info" aria-pressed="false">Info</button></div>
   <button class="cp-x" id="setClose" aria-label="Chiudi impostazioni"></button></div>
+<nav class="snav" id="setTabs" role="tablist"><button data-p="gen" aria-pressed="true"><span class="ni" data-i="pos"></span>Widget</button><button data-p="col" aria-pressed="false"><span class="ni" data-i="col"></span>Colori</button><button data-p="info" aria-pressed="false"><span class="ni" data-i="info"></span>Info</button></nav>
+<div class="sbody">
 <div class="spage" data-p="gen">
 <div class="controls devonly" hidden>
   <div class="row">
@@ -787,7 +830,7 @@ body.moving.free .gridov { opacity: .12; }
   <div class="sgroup about">
     <canvas id="aboutCv" width="224" height="224" aria-hidden="true"></canvas>
     <div><h3>Companion</h3><p>Una piccola mascotte a LED che vive sul desktop. Orologio, calendario, musica, timer, meteo e stato del PC in un cerchio.</p>
-      <div class="ver"><span>Versione <b>0.13 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div></div>
+      <div class="ver"><span>Versione <b>0.14 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div></div>
   </div>
   <div class="kv">
     <div>Sistema<b id="infoOs">Windows 11 · x64</b></div>
@@ -798,6 +841,7 @@ body.moving.free .gridov { opacity: .12; }
   <div class="sgroup">
     <h3>Novità</h3>
     <ul class="news">
+      <li><span><b>0.14</b> · impostazioni con barra laterale, pulsanti più reattivi, cerchio che resta fermo, riquadro specchiato a sinistra.</span></li>
       <li><span><b>0.13</b> · modalità scelte ruotando la ghiera, clic destro per tornare alla mascotte, lato di apertura del riquadro.</span></li>
       <li><span><b>0.12</b> · timer classico, volume dal numero, orari meteo con AM e PM.</span></li>
       <li><span><b>0.11</b> · impostazioni ripulite, nuovi interruttori, ora dell'orologio sempre dentro il riquadro.</span></li>
@@ -813,6 +857,7 @@ body.moving.free .gridov { opacity: .12; }
       <li><span>Ispirato allo stile di <b>Nothing OS</b>. Meteo e brani in questo prototipo sono finti.</span></li>
     </ul>
   </div>
+</div>
 </div>
 </div>
 </div>
@@ -2294,9 +2339,8 @@ body.moving.free .gridov { opacity: .12; }
   }
   function buildMenu() {
     const sleepItem = mode === 'idle' ? `<button role="menuitem" data-a="sleep"><span class="ck"></span>${asleep ? 'Sveglia la mascotte' : 'Fai dormire la mascotte'}</button>` : '';
-    $('tmenu').innerHTML = `<div class="mh"><b>Companion</b>v0.13</div>`
-      + MENU_MODES.map(([m, n]) => `<button role="menuitemradio" aria-checked="${m === mode}" data-m="${m}"><span class="ck"></span>${n}</button>`).join('')
-      + `<hr>${sleepItem}<button role="menuitemcheckbox" aria-checked="${moving}" data-a="move"><span class="ck"></span>Sposta il widget</button><button role="menuitem" data-a="show"><span class="ck"></span>${widgetAway ? 'Mostra il widget' : 'Nascondi il widget'}</button>`
+    $('tmenu').innerHTML = `<div class="mh"><b>Companion</b>v0.14</div>`
+      + `${sleepItem}<button role="menuitemcheckbox" aria-checked="${moving}" data-a="move"><span class="ck"></span>Sposta il widget</button><button role="menuitem" data-a="show"><span class="ck"></span>${widgetAway ? 'Mostra il widget' : 'Nascondi il widget'}</button>`
       + `<button role="menuitem" data-a="settings"><span class="ck"></span>Impostazioni…</button><button role="menuitem" data-a="info"><span class="ck"></span>Info su Companion</button><hr>`
       + `<button role="menuitem" disabled><span class="ck"></span>Esci</button>`;
   }
@@ -2396,7 +2440,7 @@ body.moving.free .gridov { opacity: .12; }
   $('swMove').addEventListener('click', () => setMoving(!moving));
   $('swSnap').addEventListener('click', () => setSnap(!snap));
   $('moveDone').addEventListener('click', () => setMoving(false));
-  $('posReset').addEventListener('click', () => { pos2 = { x: 0, y: 0 }; applyPos(); savePos(); setTimeout(applyDir, 380); });
+  $('posReset').addEventListener('click', () => { pos2 = { x: 0, y: 0 }; applyPos(); savePos(); setTimeout(() => applyDir(true), 380); });
   let mv = null;
   $('widget').addEventListener('pointerdown', e => {
     if (!moving) return;
@@ -2431,21 +2475,29 @@ body.moving.free .gridov { opacity: .12; }
   // ---------- direzione del riquadro ----------
   let panelDir = 'auto';
   try { const d = localStorage.getItem('companion-dir'); if (['left', 'right', 'auto'].includes(d)) panelDir = d; } catch (e) {}
-  function applyDir() {
+  function applyDir(nudge) {
     let left = panelDir === 'left';
     if (panelDir === 'auto') {
       const r = $('ring').getBoundingClientRect();
       left = r.left + r.width / 2 > innerWidth / 2;
     }
     $('widget').classList.toggle('left', left);
+    // con un lato scelto a mano, se il riquadro non ci starebbe sposta il widget quanto basta
+    if (panelDir !== 'auto' && nudge) {
+      const r = $('ring').getBoundingClientRect(), need = 474 + 12;
+      let dx = 0;
+      if (left && r.left < need) dx = need - r.left;
+      if (!left && innerWidth - r.right < need) dx = innerWidth - r.right - need;
+      if (dx) { pos2 = clampPos({ x: pos2.x + dx, y: pos2.y }); applyPos(); savePos(); }
+    }
     document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === panelDir));
   }
   $('dirSeg').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     panelDir = b.dataset.d; try { localStorage.setItem('companion-dir', panelDir); } catch (e) {}
-    applyDir();
+    applyDir(true);
   });
-  window.addEventListener('resize', applyDir);
+  window.addEventListener('resize', () => applyDir());
   applyDir();
   tbClock(); setInterval(tbClock, 5000);
   placeTip();

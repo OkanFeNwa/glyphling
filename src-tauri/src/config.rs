@@ -1,4 +1,4 @@
-//! Impostazioni del widget, salvate in `config.json` nella cartella dati dell'app.
+//! Widget settings, saved to `config.json` in the app's data folder.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -7,22 +7,22 @@ use tauri::{AppHandle, Manager};
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 #[serde(default)]
 pub struct Config {
-    /// Modalità mostrata: idle, clock, calendar, music, timer, weather, disks.
+    /// Mode shown: idle, clock, calendar, music, timer, weather, disks.
     pub mode: String,
-    /// Livello della finestra: desktop, top, normal.
+    /// Window level: desktop, top, normal.
     pub level: String,
-    /// Spostamento attivo (all'avvio il widget riparte sempre fermo).
+    /// Moving enabled (the widget always starts locked).
     pub move_enabled: bool,
     pub snap: bool,
-    /// Passo della griglia in pixel logici.
+    /// Grid step in logical pixels.
     pub grid: u32,
     pub visible: bool,
-    /// Posizione della finestra in pixel fisici.
+    /// Window position in physical pixels.
     pub x: Option<i32>,
     pub y: Option<i32>,
-    /// Da che lato si apre il riquadro: right, left o auto (in base a dove sta il widget).
+    /// Which side the panel opens on: right, left or auto (based on where the widget sits).
     pub panel_dir: String,
-    /// Lato attuale: true se il riquadro si apre a sinistra (il cerchio sta a destra nella finestra).
+    /// Current side: true if the panel opens to the left (the circle sits on the right of the window).
     pub left: bool,
 }
 

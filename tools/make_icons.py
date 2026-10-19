@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Disegna le icone a matrice di punti (app e area di notifica) senza librerie esterne."""
+"""Draws the dot matrix icons (app and notification area) without external libraries."""
 import math, struct, zlib, sys
 
 def png(path, w, h, px):
@@ -8,7 +8,7 @@ def png(path, w, h, px):
     open(path, "wb").write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 def disc(size, n, on, red, bg, ss=4, lit=(0xf2, 0xf2, 0xf2, 255)):
-    """Cerchio pieno (bg) con una griglia n x n di punti quadrati arrotondati."""
+    """Filled circle (bg) with an n x n grid of rounded square dots."""
     W = size * ss
     acc = [[0.0] * 4 for _ in range(size * size)]
     c = (n - 1) / 2
@@ -40,14 +40,14 @@ def red_set(n):
     return _red.get(n, set())
 
 WHITE = (0xf2, 0xf2, 0xf2, 255); RED = (0xd7, 0x19, 0x21, 255); BLACK = (0, 0, 0, 255)
-# icona dell'app: la mascotte (due occhi) sul cerchio nero, con il punto rosso dell'accento
+# app icon: the mascot (two eyes) on the black circle, with the red accent dot
 n = 11
 eyes = {(3, 4), (3, 5), (3, 6), (7, 4), (7, 5), (7, 6)}
 _red[n] = {(8, 8)}
 png(sys.argv[1] + "/app-1024.png", 1024, 1024, disc(1024, n, eyes, RED, BLACK, ss=1))
-# icona dell'area di notifica: disco di punti bianchi su trasparente
+# notification area icon: disc of white dots on transparent
 n = 5
 _red[n] = {(3, 1)}
 allp = {(x, y) for x in range(n) for y in range(n)}
 png(sys.argv[1] + "/tray.png", 32, 32, disc(32, n, allp, RED, None, ss=8))
-print("icone scritte")
+print("icons written")

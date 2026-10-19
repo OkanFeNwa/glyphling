@@ -1,24 +1,24 @@
-/* Adatta la pagina del prototipo alle due finestre dell'app.
-   Il widget mostra solo il cerchio e il pannello su fondo trasparente;
-   la finestra Impostazioni mostra solo il contenuto delle impostazioni. */
+/* Adapts the prototype page to the app's two windows.
+   The widget shows only the circle and the panel on a transparent background;
+   the Settings window shows only the settings content. */
 
-/* ---------- finestra del widget ---------- */
+/* ---------- widget window ---------- */
 html.h-widget, html.h-widget body { background: transparent !important; overflow: hidden; }
 html.h-widget body { background-image: none !important; padding: 0 !important; display: block !important; height: 100vh; }
 html.h-widget .ambient, html.h-widget header, html.h-widget .under, html.h-widget #settings,
 html.h-widget .tip, html.h-widget .tmenu, html.h-widget .taskbar, html.h-widget footer,
 html.h-widget .gridov, html.h-widget .movebar, html.h-widget .cp { display: none !important; }
 html.h-widget .stage { position: absolute; left: 40px; top: 60px; width: 650px; max-width: none; justify-content: flex-start; align-items: flex-start; }
-/* riquadro a sinistra: il cerchio sta a destra nella finestra, a 40 px dal bordo */
+/* panel on the left: the circle sits on the right of the window, 40 px from the edge */
 html.h-widget .stage:has(.widget.left) { left: auto; right: 40px; justify-content: flex-end; }
 html.h-widget .scaler { transform: none !important; transform-origin: 0 0; }
-/* in spostamento il contorno segue la forma vera (cerchio + riquadro), disegnato da host.js */
+/* while moving, the outline follows the real shape (circle + panel), drawn by host.js */
 html.h-widget body.moving .stage .widget { outline: none; }
 #moveOutline { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; display: none; overflow: visible; }
 html.h-widget body.moving #moveOutline { display: block; }
 #moveOutline path { fill: none; stroke: color-mix(in srgb, var(--red) 75%, transparent); stroke-width: 1; stroke-dasharray: 4 3; }
 
-/* ---------- finestra Impostazioni ---------- */
+/* ---------- Settings window ---------- */
 html.h-settings body { padding: 0 !important; display: block !important; min-height: 100vh; }
 html.h-settings header, html.h-settings .stage, html.h-settings .under, html.h-settings .tip,
 html.h-settings .tmenu, html.h-settings .taskbar, html.h-settings footer,
@@ -29,7 +29,7 @@ html.h-settings #settings, html.h-settings #settings[hidden] {
 }
 html.h-settings .swin { max-width: none; max-height: none; overflow: visible; animation: none !important; }
 
-/* ---------- gruppo Dati ---------- */
+/* ---------- Data group ---------- */
 .dfield { display: flex; gap: 6px; flex: none; }
 #dataGroup input, #dataGroup textarea { background: rgba(0,0,0,.25); color: var(--ink); border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 8px 11px; font: 400 11px/1.4 var(--mono); box-sizing: border-box; }
 #dataGroup input { width: 180px; }
@@ -42,19 +42,35 @@ html.h-settings .swin { max-width: none; max-height: none; overflow: visible; an
 .dres[hidden] { display: none; }
 .dstat { flex: none; max-width: 180px; text-align: right; font-size: 10px; color: var(--ink); }
 
-/* ---------- font a punti ---------- */
+/* ---------- dot font ---------- */
 :root { --dot: "Nothing Dot Local", "Glyphling Dot", "Doto", "Courier New", monospace !important; }
 html { font-synthesis: none; }
 .srow small b { display: inline; font-size: inherit; color: var(--ink); }
 
-/* nel widget niente animazione d'entrata: la forma cliccabile si calcola subito sulla posizione vera */
+/* no entrance animation in the widget: the clickable shape is computed right away on the real position */
 html.h-widget body > .stage, html.h-widget body.ready > .stage { animation: none !important; opacity: 1 !important; }
 
-/* ---------- finestra Impostazioni senza cornice ---------- */
+/* ---------- frameless Settings window ---------- */
 html.h-settings, html.h-settings body { background: transparent !important; background-image: none !important; overflow: hidden; }
 html.h-settings .ambient { display: none; }
-html.h-settings #settings, html.h-settings #settings[hidden] { padding: 10px; height: 100vh; box-sizing: border-box; }
-html.h-settings .swin { height: 100%; overflow: hidden; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 6px 18px rgba(0,0,0,.5); }
-html.h-settings .spage { flex: 1; min-height: 0; overflow: auto; margin: 0 -6px; padding: 0 6px 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent; }
-html.h-settings .swin-top { cursor: default; }
-html.h-settings .wbtns { display: flex; gap: 6px; flex: none; }
+html.h-settings #settings, html.h-settings #settings[hidden] { padding: 0; height: 100vh; box-sizing: border-box; }
+/* the window is clipped to the glass corners and blurred behind: the glass can be almost opaque */
+html.h-settings .swin { height: 100%; max-width: none; overflow: hidden; border-radius: 30px; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.1); }
+/* title bar: name on the left, minimize and close on the right as in Windows, tabs below */
+html.h-settings .swin-top { cursor: default; flex-wrap: wrap; row-gap: 14px; padding: 0 0 0 4px; margin: -6px -6px 0 0; }
+html.h-settings .wbtns { display: flex; gap: 2px; flex: none; margin-left: auto; }
+html.h-settings .wbtns .cp-x { width: 40px; height: 32px; border-radius: 10px; border: 0; background: transparent; color: var(--ink); transition: background .08s, color .08s; }
+html.h-settings .wbtns .cp-x:hover { background: rgba(255,255,255,.12); }
+html.h-settings .wbtns #setClose:hover { background: var(--red); color: #fff; }
+html.h-settings .wbtns .cp-x:active { background: rgba(255,255,255,.2); }
+
+/* responsiveness: no blur computed in the page (Windows does it behind the window),
+   short transitions and clear feedback on hover and press */
+html.h-widget *, html.h-settings * { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.h-widget .bezel { background: radial-gradient(70% 45% at 30% 8%, rgba(255,255,255,.30), transparent 60%), radial-gradient(50% 30% at 75% 96%, rgba(255,255,255,.12), transparent 70%), conic-gradient(from 210deg, rgba(255,255,255,.2), rgba(255,255,255,.06) 25%, rgba(255,255,255,.16) 50%, rgba(255,255,255,.05) 75%, rgba(255,255,255,.2)) !important; }
+
+/* the window is clipped to the shape: outer shadows would be cut off sharply */
+html.h-widget .ring { box-shadow: 0 0 0 1px #2c2c2c, 0 0 0 7px #0e0e0e, 0 0 0 8px #262626 !important; }
+html.h-widget .bezel-wrap { box-shadow: none !important; }
+html.h-widget .panel.glass { box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(255,255,255,.05) !important; }
+html.h-widget .pick-lbl { box-shadow: none !important; }

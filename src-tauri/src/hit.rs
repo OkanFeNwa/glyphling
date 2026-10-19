@@ -1,9 +1,8 @@
-//! Forma cliccabile del widget.
+//! Clickable shape of the widget.
 //!
-//! La finestra è un rettangolo trasparente: fuori dal cerchio e dal pannello i clic
-//! devono arrivare al desktop. Un thread legge la posizione del mouse 30 volte al
-//! secondo e attiva o disattiva il passaggio dei clic quando entra o esce dalla forma.
-//! Lo stesso thread manda la posizione del mouse alla mascotte, che la segue con gli occhi.
+//! The window is clipped to the shape (see `platform::set_region`); on top of that a thread reads
+//! the mouse position 60 times a second and toggles click-through when it enters or leaves the shape.
+//! The same thread sends the mouse position to the mascot, which follows it with its eyes.
 
 use crate::AppState;
 use serde::{Deserialize, Serialize};
@@ -11,35 +10,43 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
+/// One piece of the shape: a rectangle with corners rounded by radius `r`
+/// (a circle is a square with `r` equal to half its side). Logical pixels relative to the window.
 #[derive(Deserialize, Clone, Default, Debug)]
-pub struct Panel {
+pub struct Part {
     pub x: f64,
     pub y: f64,
     pub w: f64,
     pub h: f64,
+    pub r: f64,
 }
 
-/// Coordinate in pixel logici rispetto alla finestra del widget.
+impl Part {
+    fn contains(&self, x: f64, y: f64) -> bool {
+        if x < self.x || y < self.y || x > self.x + self.w || y > self.y + self.h {
+            return false;
+        }
+        let r = self.r.min(self.w / 2.0).min(self.h / 2.0);
+        // distance from the inner rectangle shrunk by r
+        let dx = (self.x + r - x).max(x - (self.x + self.w - r)).max(0.0);
+        let dy = (self.y + r - y).max(y - (self.y + self.h - r)).max(0.0);
+        dx.hypot(dy) <= r
+    }
+}
+
+/// The visible shape of the widget: union of its pieces (circle, panel, label...).
+/// Used for clicks and to clip the window, so the blur stays inside the shape.
 #[derive(Deserialize, Clone, Default, Debug)]
 pub struct Shape {
-    pub cx: f64,
-    pub cy: f64,
-    pub r: f64,
-    pub panel: Option<Panel>,
+    pub parts: Vec<Part>,
 }
 
 impl Shape {
     pub fn contains(&self, x: f64, y: f64) -> bool {
-        if self.r <= 0.0 {
-            return true; // forma non ancora nota: meglio cliccabile che irraggiungibile
+        if self.parts.is_empty() {
+            return true; // shape not known yet: better clickable than unreachable
         }
-        if (x - self.cx).hypot(y - self.cy) <= self.r {
-            return true;
-        }
-        match &self.panel {
-            Some(p) => x >= p.x && x <= p.x + p.w && y >= p.y && y <= p.y + p.h,
-            None => false,
-        }
+        self.parts.iter().any(|p| p.contains(x, y))
     }
 }
 
@@ -55,7 +62,7 @@ pub fn spawn(app: AppHandle) {
         let mut last = (i32::MIN, i32::MIN);
         let mut tick = 0u32;
         loop {
-            std::thread::sleep(Duration::from_millis(33));
+            std::thread::sleep(Duration::from_millis(16));
             tick = tick.wrapping_add(1);
             let Some(w) = app.get_webview_window("widget") else { continue };
             let state = app.state::<AppState>();
@@ -71,8 +78,8 @@ pub fn spawn(app: AppHandle) {
                 let _ = w.set_ignore_cursor_events(!inside);
                 ignoring = Some(!inside);
             }
-            // 15 volte al secondo bastano per gli occhi
-            if tick % 2 == 0 && (mx, my) != last {
+            // 15 times a second is enough for the eyes
+            if tick % 4 == 0 && (mx, my) != last {
                 last = (mx, my);
                 let idle = state.cfg.lock().unwrap().mode == "idle";
                 if idle && !inside {

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Porta il prototipo HTML (Artifact) nell'app Tauri.
+"""Ports the HTML prototype (Artifact) into the Tauri app.
 
-Uso: python3 tools/port_prototype.py prototipo.html src/index.html
+Usage: python3 tools/port_prototype.py prototipo.html src/index.html
 
-Il prototipo resta la fonte dell'interfaccia: questo script lo copia e applica
-poche modifiche mirate (font locali, agganci per host.js). Se un aggancio non
-si trova più, lo script si ferma e dice quale, così si aggiorna qui.
+The prototype stays the source of the interface: this script copies it and applies
+a few targeted changes (local fonts, hooks for host.js). If a hook can no longer
+be found, the script stops and says which one, so it can be updated here.
 """
 import re
 import sys
@@ -17,25 +17,25 @@ html = open(src, encoding="utf-8").read()
 def sub(old, new, count=1):
     global html
     if old not in html:
-        sys.exit(f"aggancio non trovato: {old[:70]!r}")
+        sys.exit(f"hook not found: {old[:70]!r}")
     html = html.replace(old, new, count)
 
 
-# 1. font locali al posto di Google Fonts (l'app deve funzionare offline)
+# 1. local fonts instead of Google Fonts (the app must work offline)
 html, n = re.subn(r'<link rel="(?:preconnect|stylesheet)" href="https://fonts\.(?:googleapis|gstatic)\.com[^>]*>\n?', "", html)
 if n < 1:
-    sys.exit("link di Google Fonts non trovati")
+    sys.exit("Google Fonts links not found")
 sub("<style>\n/* Layout:", '<link rel="stylesheet" href="fonts.css">\n<script src="host-pre.js"></script>\n<style>\n/* Layout:')
 
-# 2. il cambio di modalità viene comunicato all'host
+# 2. mode changes are reported to the host
 sub("  function setMode(m) {\n    if (m === mode) return;\n    mode = m;\n",
     "  function setMode(m) {\n    if (m === mode) return;\n    mode = m;\n    if (window.__hostEvent) queueMicrotask(() => window.__hostEvent('mode', m));\n")
 
-# 3. i temi salvati vengono comunicati all'altra finestra
+# 3. saved themes are reported to the other window
 sub("  function saveThemes() {\n",
     "  function saveThemes() {\n    if (window.__hostEvent) queueMicrotask(() => window.__hostEvent('themes'));\n")
 
-# 4. spostamento: nell'app la finestra si trascina con il gestore nativo di Windows
+# 4. moving: in the app the window is dragged by the native Windows handler
 sub("  function applyPos() {", "  function applyPos() { if (window.__host) return;")
 sub("    if (!moving) return;\n    e.preventDefault(); e.stopPropagation();\n",
     "    if (!moving) return;\n    e.preventDefault(); e.stopPropagation();\n    if (window.__hostDrag) { window.__hostDrag(e); return; }\n")
@@ -45,7 +45,7 @@ sub("  function setSnap(v) {\n",
     "  function setSnap(v) {\n    if (window.__hostEvent && v !== snap) queueMicrotask(() => window.__hostEvent('snap', v));\n")
 sub("  function infoUi() {\n", "  function infoUi() {\n    if (window.__hostEvent) queueMicrotask(() => window.__hostEvent('info'));\n")
 
-# 5a. dati veri al posto di quelli finti (host.js li fornisce tramite window.__companion)
+# 5a. real data instead of fake data (host.js provides it through window.__companion)
 sub("  const pc = { cpu", "  let pcLive = false;\n  const pc = { cpu")
 sub("  function updatePc(dt) {\n", "  function updatePc(dt) {\n    if (pcLive) return;\n")
 sub("r(pc.gpu);", "(pc.gpuNa ? '--' : r(pc.gpu));")
@@ -64,7 +64,7 @@ sub("$('wxCond').textContent = WXC[it.key].cond;", "$('wxCond').textContent = it
 sub("  const LAT = 45.4642, LON = 9.19,", "  let LAT = 45.4642, LON = 9.19;\n  const")
 sub("  function eventsFor(d) {\n", "  function eventsFor(d) {\n    if (window.__liveEvents) return window.__liveEvents(d);\n")
 
-# 5. funzioni esposte a host.js
+# 5. functions exposed to host.js
 API = """
   // ---------- agganci per l'app (aggiunti da tools/port_prototype.py) ----------
   window.__companion = {
@@ -157,14 +157,16 @@ API = """
 """
 sub("  requestAnimationFrame(frame);\n})();\n</script>", API + "  requestAnimationFrame(frame);\n})();\n</script>")
 
-# 6. nome dell'app: Glyphling (solo i testi visibili, le chiavi interne restano minuscole)
-# nell'app il lato del riquadro lo decide il backend, che conosce lo schermo
-sub("  function applyDir() {\n", "  function applyDir() {\n    if (window.__host) return;\n")
+# 6. app name: Glyphling (visible text only, internal keys stay lowercase)
+# in the app the panel side is decided by the backend, which knows the screen
+html, n = re.subn(r"(  function applyDir\([a-z]*\) \{\n)", r"\1    if (window.__host) return;\n", html, count=1)
+if not n:
+    sys.exit("hook not found: function applyDir")
 html = html.replace("Companion", "Glyphling")
 html = html.replace(" Meteo e brani in questo prototipo sono finti.", "")
 
-# 7. host.css e host.js alla fine della pagina
+# 7. host.css and host.js at the end of the page
 sub("</body></html>", '<link rel="stylesheet" href="host.css">\n<script src="host.js"></script>\n</body></html>')
 
 open(dst, "w", encoding="utf-8").write(html)
-print(f"scritto {dst} ({len(html)} byte)")
+print(f"wrote {dst} ({len(html)} bytes)")

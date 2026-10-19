@@ -1,51 +1,55 @@
 # Glyphling
 
-Widget desktop per Windows in stile Nothing OS: una mascotte a LED in un cerchio, con un pannello per orologio, calendario, musica, timer, meteo e stato del PC. Fatto con Tauri 2 (backend Rust, interfaccia web). Progetto completo in `../architettura/progetto-implementazione.md`.
+A tiny animated dot-matrix companion for your Windows desktop: an LED mascot inside a circle, with a glass panel for clock, calendar, music, timer, weather and PC stats. Built with Tauri 2 (Rust backend, web interface). Not affiliated with Nothing.
 
-## Versione di prova 0.3
+The full design document lives in the project's shared files, not in this repository.
 
-**Novità 0.3**: interfaccia del prototipo 0.13 (ghiera per scegliere la modalità, clic destro per tornare alla mascotte, riquadro a destra, a sinistra o automatico), menu dell'icona e finestra Impostazioni su misura senza cornice di Windows, area di trascinamento uguale alla forma vera, il widget resta visibile dopo Mostra desktop.
+## Download
 
-### Dalla 0.2
+Installers are published on the [Releases](../../releases) page. Download `Glyphling-Setup-x.y.z.exe` and run it. The same file installs, updates in place (settings, themes and position are kept) and, as `uninstall.exe` in the install folder, removes the app. The setup is not signed yet, so Windows SmartScreen may warn on first launch ("More info" → "Run anyway").
 
-**Funziona davvero**: finestra trasparente senza bordi, icona nell'area di notifica con menu (anche con il clic destro sul widget), finestra Impostazioni separata, spostamento con aggancio alla griglia di 24 px (Alt = libero), livello sul desktop / sempre in primo piano / normale, avvio con Windows, una sola copia attiva, posizione e impostazioni salvate, clic che passano al desktop fuori dal cerchio, la mascotte segue il mouse.
+## What it does (0.4)
 
-**Dati veri (0.2)**:
-- Musica da qualunque lettore che usa i controlli multimediali di Windows (Spotify, browser, VLC...): titolo, artista, avanzamento, comandi, copertina sui LED, volume generale, visualizer dallo spettro reale dell'audio in uscita.
-- Meteo da Open-Meteo, città scelta nelle Impostazioni (predefinita Milano), aggiornato ogni 30 minuti.
-- Calendario Google tramite l'indirizzo segreto in formato iCal, incollato nelle Impostazioni (eventi ricorrenti compresi), aggiornato ogni 10 minuti.
-- CPU, RAM e dischi; GPU NVIDIA (uso e temperatura) tramite il driver; temperatura della CPU da LibreHardwareMonitor se è aperto con il server web attivo (porta 8085).
-- Font a punti Glyphling Dot (`tools/make_font.py`); se sul PC è installato il font 5x7 di Nothing si usa quello.
+- **Widget**: transparent, frameless, clipped to its real shape (circle plus panel) with the desktop blurred behind the glass. The panel opens to the right, to the left or automatically, and its layout mirrors when it opens to the left. Turn the dial (or the mouse wheel) to pick a mode, right click the circle to go back to the mascot.
+- **Placement**: drag anywhere with snapping to a 24 px grid (Alt = free). The snapped point is the centre of the circle when closed, the centre of circle plus panel when open. Levels: on the desktop (survives Show desktop / Win+D), normal, always on top.
+- **Tray icon**: left click shows or hides the widget, right click opens a glass menu.
+- **Settings**: frameless glass window with sidebar navigation.
+- **Real data**:
+  - Music from any player using the Windows media controls (Spotify, browsers, VLC...): title, artist, progress, controls, cover art on the LEDs, master volume, visualizer from the real audio spectrum.
+  - Weather from Open-Meteo; city chosen in Settings (Milan by default).
+  - Google Calendar through the secret iCal address pasted in Settings (recurring events included).
+  - CPU, RAM and disks; NVIDIA GPU usage and temperature; CPU temperature from LibreHardwareMonitor when it runs with its web server enabled (port 8085).
+- **Font**: Glyphling Dot, our own 5x7 dot font (`tools/make_font.py`). If Nothing's 5x7 font is installed on the PC it is used instead (it cannot be redistributed).
+- Starts with Windows (optional), single instance.
 
-## Struttura
+## Repository layout
 
-- `src/index.html`: il prototipo dell'interfaccia, generato da `tools/port_prototype.py` a partire dall'Artifact. Non va modificato a mano: si aggiorna il prototipo e si rilancia lo script.
-- `src/host.js`, `src/host.css`, `src/host-pre.js`: adattano il prototipo alle finestre dell'app e lo collegano al backend.
-- `src/grid.html`: la griglia di punti mostrata durante il trascinamento.
-- `src/menu.html`: il menu in vetro dell'icona nell'area di notifica.
-- `src-tauri/src/`: backend. `lib.rs` (stato e comandi), `tray.rs` (icona e menu), `snap.rs` (trascinamento e aggancio), `hit.rs` (forma cliccabile e mouse per la mascotte), `platform.rs` (chiamate Win32), `config.rs` (impostazioni), `system.rs` (statistiche del PC), `media.rs` (musica e volume), `spectrum.rs` (visualizer).
+- `src/index.html`: the interface, generated by `tools/port_prototype.py` from the design prototype (`tools/prototipo-*.html`). Do not edit it by hand: update the prototype and run the script again.
+- `src/host.js`, `src/host.css`, `src/host-pre.js`: adapt the prototype to the app windows and connect it to the backend.
+- `src/menu.html`: the tray menu. `src/grid.html`: the dot grid shown while dragging.
+- `src-tauri/`: the app backend. `lib.rs` (state and commands), `tray.rs` (icon and menu), `snap.rs` (dragging, snapping, panel side), `hit.rs` (shape), `platform.rs` (Win32 calls), `config.rs`, `system.rs` (PC stats), `media.rs` (music and volume), `spectrum.rs` (visualizer).
+- `setup/`: the custom installer / updater / uninstaller (a small Tauri app with its own page in `setup/ui/`). The built app is compressed and embedded into it at build time.
+- `.github/workflows/release.yml`: builds everything on Windows and publishes a release when a `v*` tag is pushed.
 
-## Compilare
+## Building
 
-Sul PC Windows: Rust (`rustup`), Node.js LTS, poi
-
-```
-npm install
-npx tauri dev          # avvio in sviluppo
-npx tauri build        # installer in src-tauri/target/release/bundle/nsis/
-```
-
-Dal cloud (Linux) l'installer si produce con il target `x86_64-pc-windows-gnu` (servono mingw-w64 e NSIS):
+On Windows with Rust (`rustup`) and Node.js LTS:
 
 ```
-npx tauri build --target x86_64-pc-windows-gnu --bundles nsis
+npm ci
+npx tauri dev                       # run the app in development
+npx tauri build --no-bundle         # build src-tauri/target/release/glyphling.exe
+$env:GLYPHLING_PAYLOAD_DIR = "$PWD\src-tauri\target\release"
+cargo build --release --manifest-path setup/Cargo.toml --target-dir src-tauri/target
+# -> src-tauri/target/release/glyphling-setup.exe
 ```
 
-Aggiornare l'interfaccia dal prototipo: `python3 tools/port_prototype.py prototipo.html src/index.html`.
+Releasing: bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `setup/Cargo.toml`, add `.github/release-notes/vX.Y.Z.md`, then push a `vX.Y.Z` tag. The workflow builds the setup and attaches it to the release.
 
-## Note
+Cross-compiling from Linux works for checking the code (`--target x86_64-pc-windows-gnu`, needs mingw-w64), but a gnu build needs `WebView2Loader.dll` next to each executable, so the single-file setup must be built with MSVC (as the workflow does).
 
-- L'installer non è firmato: Windows SmartScreen avvisa al primo avvio ("Ulteriori informazioni" → "Esegui comunque").
-- Impostazioni salvate in `%APPDATA%\com.okanfenwa.glyphling\config.json`.
-- Font: Glyphling Dot (nostro), Doto e Space Mono (SIL Open Font License), inclusi in `src/fonts/`.
-- Indirizzo del calendario, città e dischi scelti restano nel PC (archivio locale della finestra).
+## Notes
+
+- Install folder: `%LOCALAPPDATA%\Glyphling`. Settings: `%APPDATA%\com.okanfenwa.glyphling\config.json`.
+- Calendar address, city and chosen disks stay on the PC (the windows' local storage).
+- Fonts: Glyphling Dot (ours), Doto and Space Mono (SIL Open Font License), in `src/fonts/`.

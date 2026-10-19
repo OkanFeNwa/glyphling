@@ -1,4 +1,4 @@
-// Capisce in quale finestra gira la pagina (widget o impostazioni) prima che parta il prototipo.
+// Works out which window the page runs in (widget or settings) before the prototype starts.
 (() => {
   try {
     const label = window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.metadata.currentWindow.label;

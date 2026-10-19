@@ -1,5 +1,5 @@
-; Colori dell'installer nello stile di Glyphling: intestazione e pagine di benvenuto
-; nere con testo chiaro, registro dell'installazione nero, barra di avanzamento piena.
+; Installer colors in Glyphling style: black header and welcome pages
+; with light text, black install log, solid progress bar.
 !define MUI_BGCOLOR "000000"
 !define MUI_TEXTCOLOR "F2F2F2"
 !define MUI_HEADERIMAGE_RIGHT

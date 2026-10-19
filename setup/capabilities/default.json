@@ -1,0 +1,11 @@
+{
+  "identifier": "default",
+  "description": "Permissions of the setup window",
+  "windows": ["setup"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize"
+  ]
+}

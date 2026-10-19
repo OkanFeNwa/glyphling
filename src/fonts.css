@@ -1,10 +1,10 @@
-/* Font inclusi nell'app (SIL Open Font License, vedi fonts/OFL-*.txt) */
+/* Fonts bundled with the app (SIL Open Font License, see fonts/OFL-*.txt) */
 @font-face { font-family: "Doto"; font-weight: 500; font-display: swap; src: url(fonts/doto-latin-500-normal.woff2) format("woff2"); }
 @font-face { font-family: "Doto"; font-weight: 700; font-display: swap; src: url(fonts/doto-latin-700-normal.woff2) format("woff2"); }
 @font-face { font-family: "Doto"; font-weight: 900; font-display: swap; src: url(fonts/doto-latin-900-normal.woff2) format("woff2"); }
 @font-face { font-family: "Space Mono"; font-weight: 400; font-display: swap; src: url(fonts/space-mono-latin-400-normal.woff2) format("woff2"); }
 @font-face { font-family: "Space Mono"; font-weight: 700; font-display: swap; src: url(fonts/space-mono-latin-700-normal.woff2) format("woff2"); }
-/* Font a punti di Glyphling (tools/make_font.py), SIL Open Font License */
+/* Glyphling's dot font (tools/make_font.py), SIL Open Font License */
 @font-face { font-family: "Glyphling Dot"; font-weight: 100 900; font-display: block; src: url(fonts/GlyphlingDot.woff2) format("woff2"); }
-/* Il font 5x7 di Nothing non si può distribuire: si usa solo se è già installato sul PC */
+/* Nothing's 5x7 font cannot be redistributed: it is used only if already installed on the PC */
 @font-face { font-family: "Nothing Dot Local"; font-weight: 100 900; src: local("Nothing Font (5x7) Regular"), local("Nothing Font (5x7)"), local("NothingFont5x7"); }

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Genera "Glyphling Dot", il font a punti 5x7 di Glyphling (punti tondi, cifre a larghezza fissa).
+"""Generates "Glyphling Dot", Glyphling's 5x7 dot font (round dots, fixed-width digits).
 
-Ogni glifo è una griglia di 5 colonne: 7 righe dalla linea delle maiuscole alla linea di
-base, più un'ottava riga facoltativa per le discendenti (g, j, p, q, y).
-Uso: python3 tools/make_font.py src/fonts/
+Each glyph is a 5 column grid: 7 rows from the cap height to the baseline,
+plus an optional eighth row for descenders (g, j, p, q, y).
+Usage: python3 tools/make_font.py src/fonts/
 """
 import sys
 from fontTools.fontBuilder import FontBuilder
@@ -110,7 +110,7 @@ g('|', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..', '..#..')
 g('}', '##...', '..#..', '..#..', '...#.', '..#..', '..#..', '##...')
 g('~', '.....', '.....', '.#...', '#.#.#', '...#.', '.....', '.....')
 
-# accenti italiani: la lettera minuscola con l'accento sopra (righe 0-1)
+# Italian accents: the lowercase letter with the accent on top (rows 0-1)
 g('à', '.#...', '..#..', '.###.', '....#', '.####', '#...#', '.####')
 g('è', '.#...', '..#..', '.###.', '#...#', '#####', '#....', '.###.')
 g('é', '...#.', '..#..', '.###.', '#...#', '#####', '#....', '.###.')
@@ -118,7 +118,7 @@ g('ì', '.#...', '..#..', '.##..', '..#..', '..#..', '..#..', '.###.')
 g('ò', '.#...', '..#..', '.###.', '#...#', '#...#', '#...#', '.###.')
 g('ó', '...#.', '..#..', '.###.', '#...#', '#...#', '#...#', '.###.')
 g('ù', '.#...', '..#..', '#...#', '#...#', '#...#', '#..##', '.##.#')
-# maiuscole accentate: l'accento sostituisce la prima riga
+# accented capitals: the accent replaces the first row
 g('À', '.#...', '..#..', '.###.', '#...#', '#####', '#...#', '#...#')
 g('È', '.#...', '#####', '#....', '####.', '#....', '#....', '#####')
 g('É', '...#.', '#####', '#....', '####.', '#....', '#....', '#####')
@@ -131,7 +131,7 @@ g('ä', '.#.#.', '.....', '.###.', '....#', '.####', '#...#', '.####')
 g('ö', '.#.#.', '.....', '.###.', '#...#', '#...#', '#...#', '.###.')
 g('ü', '.#.#.', '.....', '#...#', '#...#', '#...#', '#..##', '.##.#')
 
-# simboli usati nell'interfaccia
+# symbols used in the interface
 g('°', '.##..', '#..#.', '#..#.', '.##..', '.....', '.....', '.....')
 g('·', '.....', '.....', '.....', '..#..', '.....', '.....', '.....')
 g('…', '.....', '.....', '.....', '.....', '.....', '.....', '#.#.#')
@@ -152,14 +152,14 @@ g('±', '..#..', '..#..', '#####', '..#..', '..#..', '.....', '#####')
 g('→', '.....', '..#..', '...#.', '#####', '...#.', '..#..', '.....')
 g('←', '.....', '..#..', '.#...', '#####', '.#...', '..#..', '.....')
 
-PITCH = 120          # distanza tra i punti, in unità (em = 1000)
-RADIUS = 54          # raggio del punto
-ADV = PITCH * 6      # glifo .notdef: 5 colonne + 1 di spazio
-BASE = 0             # la riga 6 poggia sulla linea di base
+PITCH = 120          # distance between dots, in units (em = 1000)
+RADIUS = 54          # dot radius
+ADV = PITCH * 6      # .notdef glyph: 5 columns + 1 of spacing
+BASE = 0             # row 6 sits on the baseline
 
 
 def circle(pen, cx, cy, r):
-    # cerchio con 8 curve quadratiche
+    # circle made of 8 quadratic curves
     import math
     pts = []
     for i in range(8):
@@ -169,7 +169,7 @@ def circle(pen, cx, cy, r):
     for i in range(8):
         a0 = i * math.pi / 4
         p1 = pts[(i + 1) % 8]
-        # punto di controllo all'incrocio delle tangenti
+        # control point where the tangents cross
         c = (cx + r / math.cos(math.pi / 8) * math.cos(a0 + math.pi / 8), cy + r / math.cos(math.pi / 8) * math.sin(a0 + math.pi / 8))
         pen.qCurveTo((round(c[0]), round(c[1])), (round(p1[0]), round(p1[1])))
     pen.closePath()
@@ -186,8 +186,8 @@ def build(out_dir):
         pen = TTGlyphPen(None)
         assert all(len(row) == 5 for row in rows), c
         used = [col for col in range(5) if any(row[col] == '#' for row in rows)]
-        # proporzionale come il font di Nothing: si tolgono le colonne vuote ai lati,
-        # tranne che per le cifre, che restano larghe uguali per non far ballare l'ora
+        # proportional like Nothing's font: empty side columns are trimmed,
+        # except for digits, which keep the same width so the time does not jitter
         if c.isdigit() or not used:
             first, cols = 0, (5 if used else 3)
         else:
@@ -216,7 +216,7 @@ def build(out_dir):
     fb.font['head'].flags |= 1 << 3
     fb.font.flavor = 'woff2'
     fb.font.save(f'{out_dir}/GlyphlingDot.woff2')
-    print(f'{len(G)} glifi in {out_dir}')
+    print(f'{len(G)} glyphs in {out_dir}')
 
 
 if __name__ == '__main__':

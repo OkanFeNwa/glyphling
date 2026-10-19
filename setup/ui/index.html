@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>Glyphling Setup</title>
+<style>
+@font-face { font-family: "Glyphling Dot"; font-weight: 100 900; font-display: block; src: url(fonts/GlyphlingDot.woff2) format("woff2"); }
+@font-face { font-family: "Space Mono"; font-weight: 400; src: url(fonts/space-mono-latin-400-normal.woff2) format("woff2"); }
+@font-face { font-family: "Space Mono"; font-weight: 700; src: url(fonts/space-mono-latin-700-normal.woff2) format("woff2"); }
+:root { --red: #d71921; --ink: #f2f2f2; --mute: #9a9a9a; --line: rgba(255,255,255,.12);
+  --dot: "Glyphling Dot", monospace; --mono: "Space Mono", ui-monospace, monospace; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; user-select: none; font-family: var(--mono); color: var(--ink); }
+/* the window is clipped to these corners and blurred behind by Windows */
+.win { position: relative; height: 100%; border-radius: 28px; overflow: hidden;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(215,25,33,.16), transparent 55%), linear-gradient(160deg, rgba(34,34,34,.88), rgba(10,10,10,.94));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.2), inset 0 0 0 1px rgba(255,255,255,.1);
+  display: grid; grid-template-columns: 300px 1fr; }
+.win::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5;
+  background-image: radial-gradient(circle, rgba(255,255,255,.07) 1px, transparent 1.3px); background-size: 14px 14px; }
+.bar { position: absolute; top: 0; left: 0; right: 0; height: 48px; display: flex; align-items: center; justify-content: flex-end; gap: 2px; padding: 0 10px; z-index: 2; }
+.bar button { width: 40px; height: 30px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); display: grid; place-items: center; cursor: pointer; transition: background .08s; }
+.bar button:hover { background: rgba(255,255,255,.12); }
+.bar button:active { background: rgba(255,255,255,.2); }
+.bar #x:hover { background: var(--red); color: #fff; }
+.side { position: relative; display: grid; place-items: center; }
+.disc { width: 232px; height: 232px; border-radius: 50%; background: #000; position: relative;
+  box-shadow: 0 0 0 1px #2c2c2c, 0 0 0 9px rgba(255,255,255,.05), 0 0 0 10px rgba(255,255,255,.14), 0 24px 60px rgba(0,0,0,.6); }
+.disc canvas { width: 100%; height: 100%; display: block; }
+.main { position: relative; padding: 64px 48px 36px 12px; display: flex; flex-direction: column; min-width: 0; }
+.kicker { font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--mute); display: flex; align-items: center; gap: 8px; }
+.kicker i { width: 6px; height: 6px; background: var(--red); display: inline-block; }
+h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-transform: uppercase; }
+.lead { margin: 14px 0 0; font-size: 13px; line-height: 1.6; color: var(--ink); max-width: 46ch; }
+.lead b { color: #fff; font-weight: 700; }
+.opts { margin-top: 22px; display: flex; flex-direction: column; gap: 4px; }
+.opt { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-top: 1px solid rgba(255,255,255,.07); font-size: 12px; }
+.opt:first-child { border-top: 0; }
+.opt small { display: block; color: var(--mute); font-size: 10px; margin-top: 2px; }
+.sw { appearance: none; flex: none; width: 44px; height: 24px; border: 0; border-radius: 999px; background: rgba(255,255,255,.16); position: relative; cursor: pointer; transition: background .12s; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #d9d9d9; transition: transform .2s cubic-bezier(.3,1.4,.5,1), background .12s; }
+.sw[aria-checked="true"] { background: var(--red); }
+.sw[aria-checked="true"]::after { transform: translateX(20px); background: #fff; }
+.path { margin-top: auto; font-size: 10px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; }
+.btn { appearance: none; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--ink); font: 700 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+  padding: 14px 22px; border-radius: 999px; cursor: pointer; transition: background .08s, transform .08s, border-color .08s; }
+.btn:hover { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); }
+.btn:active { transform: scale(.96); }
+.btn.primary { background: #f2f2f2; color: #0a0a0a; border-color: #f2f2f2; min-width: 170px; }
+.btn.primary:hover { background: #fff; }
+.btn.danger { background: var(--red); color: #fff; border-color: var(--red); }
+.btn:disabled { opacity: .4; cursor: default; transform: none; }
+.prog { margin-top: 26px; }
+.prog canvas { width: 100%; height: 10px; display: block; }
+.step { margin-top: 12px; font-size: 12px; color: var(--ink); min-height: 1.4em; }
+.err { margin-top: 14px; font-size: 12px; color: #ff6b70; line-height: 1.5; }
+[hidden] { display: none !important; }
+.fade { animation: fade .35s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="bar" data-tauri-drag-region>
+    <button id="min" aria-label="Riduci a icona"><svg width="10" height="10" viewBox="0 0 10 10"><rect x="1" y="5" width="8" height="1" fill="currentColor"/></svg></button>
+    <button id="x" aria-label="Chiudi"><svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.2"/></svg></button>
+  </div>
+  <div class="side" data-tauri-drag-region><div class="disc"><canvas id="led" width="464" height="464"></canvas></div></div>
+  <div class="main" data-tauri-drag-region>
+    <div class="kicker" data-tauri-drag-region><i></i><span id="kick">Installazione</span></div>
+    <h1 data-tauri-drag-region>Glyphling</h1>
+    <p class="lead fade" id="lead"></p>
+    <div class="opts fade" id="opts"></div>
+    <div class="prog" id="prog" hidden><canvas id="bar" height="20"></canvas><div class="step" id="step"></div></div>
+    <div class="err" id="err" hidden></div>
+    <div class="path" id="path"></div>
+    <div class="actions"><button class="btn primary" id="go"></button><button class="btn" id="cancel">Annulla</button></div>
+  </div>
+</div>
+<script>
+(() => {
+  const { invoke } = window.__TAURI__.core, { listen } = window.__TAURI__.event;
+  const win = window.__TAURI__.window.getCurrentWindow();
+  const $ = id => document.getElementById(id);
+  let st = null, phase = 'ask', value = 0, shown = 0, face = 'idle';
+
+  // ---------- LED disc: the mascot, with the progress running around the edge ----------
+  const N = 19, C = (N - 1) / 2, cv = $('led'), g = cv.getContext('2d'), cell = cv.width / (N + 1.2);
+  const EYES = { idle: [[6, 7], [6, 8], [6, 9], [6, 10], [7, 7], [7, 8], [7, 9], [7, 10], [11, 7], [11, 8], [11, 9], [11, 10], [12, 7], [12, 8], [12, 9], [12, 10]],
+    happy: [[5, 9], [6, 8], [7, 8], [8, 9], [10, 9], [11, 8], [12, 8], [13, 9]],
+    sad: [[5, 8], [6, 9], [7, 9], [8, 8], [10, 8], [11, 9], [12, 9], [13, 8]],
+    blink: [[6, 9], [7, 9], [11, 9], [12, 9]] };
+  let blinkUntil = 0, nextBlink = performance.now() + 2500;
+  function draw(t) {
+    shown += (value - shown) * 0.12;
+    g.clearRect(0, 0, cv.width, cv.height);
+    if (t > nextBlink) { blinkUntil = t + 140; nextBlink = t + 2500 + Math.random() * 3000; }
+    const eyes = new Set((face === 'idle' && t < blinkUntil ? EYES.blink : EYES[face]).map(([x, y]) => x + ',' + y));
+    const off = (cv.width - cell * N) / 2;
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const d = Math.hypot(x - C, y - C);
+      if (d > C + 0.3) continue;
+      let col = '#262626';
+      if (eyes.has(x + ',' + y)) col = '#f2f2f2';
+      if (d > C - 1.2 && phase !== 'ask') {
+        // ring cells lit clockwise from the top as the work proceeds
+        const a = (Math.atan2(x - C, C - y) / (2 * Math.PI) + 1) % 1;
+        if (a <= shown) col = phase === 'error' ? '#ff6b70' : getComputedStyle(document.documentElement).getPropertyValue('--red');
+      }
+      g.fillStyle = col;
+      g.beginPath();
+      g.arc(off + (x + .5) * cell, off + (y + .5) * cell, cell * 0.36, 0, Math.PI * 2);
+      g.fill();
+    }
+    // dot progress bar
+    const b = $('bar');
+    if (!$('prog').hidden) {
+      const w = b.width = b.clientWidth * 2, h = b.height, n = Math.floor(w / 14), lit = Math.round(shown * n), bg = b.getContext('2d');
+      bg.clearRect(0, 0, w, h);
+      for (let i = 0; i < n; i++) {
+        bg.fillStyle = i < lit ? '#f2f2f2' : 'rgba(255,255,255,.14)';
+        bg.beginPath(); bg.arc(i * 14 + 7, h / 2, 3.2, 0, Math.PI * 2); bg.fill();
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  // ---------- options ----------
+  const toggles = {};
+  function opt(id, label, sub, on) {
+    toggles[id] = on;
+    return `<div class="opt"><div>${label}${sub ? `<small>${sub}</small>` : ''}</div><button class="sw" role="switch" data-id="${id}" aria-checked="${on}" aria-label="${label}"></button></div>`;
+  }
+  $('opts').addEventListener('click', e => {
+    const b = e.target.closest('.sw'); if (!b) return;
+    toggles[b.dataset.id] = !toggles[b.dataset.id];
+    b.setAttribute('aria-checked', toggles[b.dataset.id]);
+  });
+
+  function cmpVer(a, b) {
+    const pa = a.split('.').map(Number), pb = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) - (pb[i] || 0);
+    return 0;
+  }
+
+  function setup() {
+    $('path').textContent = `Cartella: ${st.dir}`;
+    if (st.mode === 'uninstall') {
+      $('kick').textContent = 'Disinstallazione';
+      $('lead').innerHTML = `Vuoi togliere <b>Glyphling ${st.installed || ''}</b> da questo PC? La mascotte ci resterà un po' male.`;
+      $('opts').innerHTML = opt('data', 'Cancella anche impostazioni e temi', 'Se reinstalli, ripartirai da zero.', false);
+      $('go').textContent = 'Disinstalla'; $('go').className = 'btn primary danger';
+      face = 'sad';
+      return;
+    }
+    const inst = st.installed;
+    if (!inst) {
+      $('kick').textContent = 'Installazione';
+      $('lead').innerHTML = `Una piccola mascotte a LED per il desktop: orologio, calendario, musica, timer, meteo e stato del PC in un cerchio. Versione <b>${st.version}</b>.`;
+      $('go').textContent = 'Installa';
+    } else if (cmpVer(st.version, inst) > 0) {
+      $('kick').textContent = 'Aggiornamento';
+      $('lead').innerHTML = `Aggiorno Glyphling da <b>${inst}</b> a <b>${st.version}</b>. Impostazioni, temi e posizione restano come sono.`;
+      $('go').textContent = 'Aggiorna';
+    } else {
+      $('kick').textContent = 'Già installato';
+      $('lead').innerHTML = cmpVer(st.version, inst) === 0
+        ? `Glyphling <b>${st.version}</b> è già installato. Puoi reinstallarlo senza perdere le impostazioni.`
+        : `Sul PC c'è Glyphling <b>${inst}</b>, più recente di questo setup (<b>${st.version}</b>). Se continui torni alla versione precedente.`;
+      $('go').textContent = 'Reinstalla';
+    }
+    $('opts').innerHTML = opt('launch', 'Avvia Glyphling alla fine', '', true) + opt('desktop', 'Collegamento sul desktop', 'Il menu Start lo trovi comunque.', false);
+    if (!st.has_payload) { $('go').disabled = true; showError('Questo setup è stato compilato senza l\'app dentro.'); }
+  }
+
+  function showError(msg) { $('err').hidden = false; $('err').textContent = msg; }
+
+  listen('progress', e => { value = e.payload.value; $('step').textContent = e.payload.step; });
+
+  async function run() {
+    $('err').hidden = true;
+    phase = 'work'; value = 0.02;
+    $('opts').hidden = true; $('prog').hidden = false; $('go').disabled = true; $('cancel').disabled = true;
+    try {
+      if (st.mode === 'uninstall') await invoke('uninstall', { removeData: !!toggles.data });
+      else await invoke('install', { desktop: !!toggles.desktop });
+      phase = 'done'; value = 1;
+      face = st.mode === 'uninstall' ? 'blink' : 'happy';
+      $('kick').textContent = 'Fatto';
+      $('lead').innerHTML = st.mode === 'uninstall' ? 'Glyphling è stato tolto dal PC. Ciao!' : (st.installed ? `Glyphling è aggiornato alla <b>${st.version}</b>.` : 'Glyphling è installato e pronto.');
+      $('go').textContent = st.mode === 'uninstall' ? 'Chiudi' : (toggles.launch ? 'Apri Glyphling' : 'Chiudi');
+      $('go').className = 'btn primary'; $('go').disabled = false;
+      $('cancel').hidden = true;
+    } catch (err) {
+      phase = 'error';
+      showError(String(err));
+      $('go').textContent = 'Riprova'; $('go').disabled = false; $('cancel').disabled = false;
+    }
+  }
+
+  $('go').addEventListener('click', () => {
+    if (phase === 'done') invoke('finish', { launch: st.mode !== 'uninstall' && !!toggles.launch });
+    else run();
+  });
+  $('cancel').addEventListener('click', () => win.close());
+  $('x').addEventListener('click', () => { if (phase === 'work') return; phase === 'done' ? invoke('finish', { launch: false }) : win.close(); });
+  $('min').addEventListener('click', () => win.minimize());
+  addEventListener('contextmenu', e => e.preventDefault());
+  addEventListener('keydown', e => { if (e.key === 'Enter' && !$('go').disabled) $('go').click(); if (e.key === 'Escape' && phase !== 'work') $('x').click(); });
+
+  invoke('get_state').then(s => { st = s; setup(); });
+})();
+</script>
+</body>
+</html>

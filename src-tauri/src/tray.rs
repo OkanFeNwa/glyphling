@@ -1,4 +1,4 @@
-//! Icona nell'area di notifica e il suo menu in vetro (una piccola finestra, src/menu.html).
+//! Notification area icon and its glass menu (a small window, src/menu.html).
 
 use crate::{config::Config, AppState};
 use tauri::image::Image;
@@ -22,7 +22,7 @@ pub const LEVELS: [(&str, &str); 3] = [
 ];
 
 pub fn create(app: &AppHandle) -> tauri::Result<()> {
-    // niente menu di sistema: al clic destro si apre il menu in vetro (finestra "menu")
+    // no system menu: right click opens the glass menu ("menu" window)
     TrayIconBuilder::with_id("main")
         .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
         .tooltip("Glyphling")
@@ -46,8 +46,8 @@ struct MenuOpen {
     version: String,
 }
 
-/// Apre il menu con l'angolo in basso a destra vicino al punto (pixel fisici). La pagina
-/// disegna le voci, misura il menu e chiama `place_menu` per dimensione e posizione.
+/// Opens the menu with its bottom right corner near the point (physical pixels). The page
+/// draws the items, measures the menu and calls `place_menu` for size and position.
 pub fn show_menu(app: &AppHandle, x: f64, y: f64) {
     *app.state::<AppState>().menu.lock().unwrap() = Some((x, y));
     let cfg = app.state::<AppState>().cfg.lock().unwrap().clone();
@@ -68,6 +68,7 @@ pub fn place_menu(app: &AppHandle, w: f64, h: f64) {
     let x = (ax - pw + 8.0 * sf).clamp(l, (r - pw).max(l));
     let y = (ay - ph).clamp(t, (b - ph).max(t));
     let _ = win.set_size(PhysicalSize::new(pw.round() as u32, ph.round() as u32));
+    crate::platform::set_region(&win, &[crate::hit::Part { x: 0.0, y: 0.0, w, h, r: 16.0 }]);
     let _ = win.set_position(PhysicalPosition::new(x.round() as i32, y.round() as i32));
     let _ = win.show();
     let _ = win.set_focus();
@@ -106,5 +107,5 @@ pub fn handle(app: &AppHandle, id: &str) {
     }
 }
 
-/// Il menu si ridisegna ogni volta che si apre: non c'è niente da riallineare.
+/// The menu is redrawn every time it opens: there is nothing to keep in sync.
 pub fn sync(_app: &AppHandle, _c: &Config) {}

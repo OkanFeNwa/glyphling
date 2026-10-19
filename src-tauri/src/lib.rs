@@ -1,10 +1,10 @@
-//! Glyphling: widget desktop in stile Nothing OS.
+//! Glyphling: a Nothing OS style desktop widget.
 //!
-//! Tre finestre condividono la stessa interfaccia web (`src/`):
-//! - `widget`: il cerchio e il pannello, trasparente e senza bordi;
-//! - `settings`: le impostazioni, creata solo quando serve;
-//! - `grid`: la griglia di punti mostrata durante il trascinamento.
-//! Lo stato vive qui (`Config`); ogni cambiamento viene salvato e mandato a tutte le finestre.
+//! Three windows share the same web interface (`src/`):
+//! - `widget`: the circle and the panel, transparent and borderless;
+//! - `settings`: the settings, created only when needed;
+//! - `grid`: the dot grid shown while dragging.
+//! The state lives here (`Config`); every change is saved and sent to all windows.
 
 mod config;
 mod hit;
@@ -21,11 +21,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
-/// Geometria del widget in pixel logici (deve corrispondere a src/host.css e al prototipo).
+/// Widget geometry in logical pixels (must match src/host.css and the prototype).
 pub const PAD_X: f64 = 40.0;
-pub const PAD_Y: f64 = 60.0; // spazio sopra il cerchio per l'etichetta della ghiera
+pub const PAD_Y: f64 = 60.0; // room above the circle for the dial label
 pub const D: f64 = 172.0;
-/// Larghezza del widget aperto dal bordo sinistro del cerchio alla fine del riquadro (--pw).
+/// Width of the open widget from the circle's left edge to the end of the panel (--pw).
 pub const OPEN_W: f64 = 560.0;
 pub const WIN_W: f64 = 730.0;
 const WIN_H: f64 = 288.0;
@@ -34,15 +34,15 @@ pub struct AppState {
     pub cfg: Mutex<Config>,
     pub shape: Mutex<hit::Shape>,
     pub dragging: AtomicBool,
-    /// Qualcosa sta suonando (dal thread della musica, serve al visualizer).
+    /// Something is playing (set by the music thread, used by the visualizer).
     pub playing: AtomicBool,
     pub settings_page: Mutex<Option<String>>,
-    /// Punto (pixel fisici) a cui si aggancia il menu dell'icona.
+    /// Point (physical pixels) the tray icon menu is anchored to.
     pub menu: Mutex<Option<(f64, f64)>>,
 }
 
-/// Applica una modifica alle impostazioni; se cambia qualcosa la salva, la applica
-/// alle finestre, aggiorna il menu e la manda a tutte le pagine.
+/// Applies a change to the settings; if anything changed, saves it, applies it
+/// to the windows, updates the menu and sends it to all pages.
 pub fn update(app: &AppHandle, f: impl FnOnce(&mut Config)) {
     let state = app.state::<AppState>();
     let (before, after) = {
@@ -61,7 +61,7 @@ pub fn update(app: &AppHandle, f: impl FnOnce(&mut Config)) {
     if let Some(w) = app.get_webview_window("widget") {
         if before.visible != after.visible {
             if after.visible {
-                // dopo "Mostra desktop" la finestra può essere ridotta a icona: show() da solo non basta
+                // after "Show desktop" the window may be minimized: show() alone is not enough
                 let _ = w.unminimize();
                 let _ = w.show();
                 apply_level(&w, &after.level);
@@ -75,6 +75,12 @@ pub fn update(app: &AppHandle, f: impl FnOnce(&mut Config)) {
     }
     tray::sync(app, &after);
     let _ = app.emit("config", &after);
+}
+
+/// Blurs what is behind the window (the transparent parts of the page become glass).
+fn glass(w: &WebviewWindow) {
+    use tauri::window::{Effect, EffectsBuilder};
+    let _ = w.set_effects(EffectsBuilder::new().effect(Effect::Blur).build());
 }
 
 fn apply_level(w: &WebviewWindow, level: &str) {
@@ -106,13 +112,13 @@ pub fn open_settings(app: &AppHandle, page: Option<String>) {
         return;
     }
     *app.state::<AppState>().settings_page.lock().unwrap() = page;
-    // la finestra si crea da un altro thread: crearla dentro un gestore di eventi può bloccare Windows
+    // create the window from another thread: creating it inside an event handler can deadlock on Windows
     let app = app.clone();
     std::thread::spawn(move || {
-        let _ = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("index.html".into()))
+        let built = WebviewWindowBuilder::new(&app, "settings", WebviewUrl::App("index.html".into()))
             .title("Glyphling · Impostazioni")
             .inner_size(840.0, 740.0)
-            // senza cornice di Windows: barra del titolo e pulsanti li disegna la pagina
+            // no Windows frame: the page draws the title bar and buttons
             .decorations(false)
             .transparent(true)
             .shadow(false)
@@ -120,10 +126,15 @@ pub fn open_settings(app: &AppHandle, page: Option<String>) {
             .theme(Some(tauri::Theme::Dark))
             .center()
             .build();
+        if let Ok(w) = built {
+            // rounded corners like the page's glass, with blur behind
+            platform::set_region(&w, &[hit::Part { x: 0.0, y: 0.0, w: 840.0, h: 740.0, r: 30.0 }]);
+            glass(&w);
+        }
     });
 }
 
-// ---------- comandi chiamati dall'interfaccia ----------
+// ---------- commands called by the interface ----------
 
 #[tauri::command]
 fn get_config(state: tauri::State<AppState>) -> Config {
@@ -150,7 +161,7 @@ fn set_snap(app: AppHandle, on: bool) {
     update(&app, |c| c.snap = on);
 }
 
-/// Lato da cui si apre il riquadro: right, left o auto.
+/// Side the panel opens on: right, left or auto.
 #[tauri::command]
 fn set_panel_dir(app: AppHandle, dir: String) {
     if !["right", "left", "auto"].contains(&dir.as_str()) {
@@ -161,7 +172,8 @@ fn set_panel_dir(app: AppHandle, dir: String) {
 }
 
 #[tauri::command]
-fn set_shape(state: tauri::State<AppState>, shape: hit::Shape) {
+fn set_shape(window: WebviewWindow, state: tauri::State<AppState>, shape: hit::Shape) {
+    platform::set_region(&window, &shape.parts);
     *state.shape.lock().unwrap() = shape;
 }
 
@@ -231,7 +243,7 @@ async fn set_volume(v: f32) {
     let _ = tauri::async_runtime::spawn_blocking(move || media::set_volume(v)).await;
 }
 
-/// Scarica un testo (per il calendario iCal): solo https, al massimo 5 MB.
+/// Downloads a text file (for the iCal calendar): https only, 5 MB at most.
 #[tauri::command]
 async fn fetch_text(url: String) -> Result<String, String> {
     if !url.starts_with("https://") {
@@ -256,7 +268,7 @@ struct AppInfo {
     config_dir: String,
 }
 
-/// Elenco dei dischi per le impostazioni, anche quando la modalità Sistema non è attiva.
+/// Disk list for the settings, even when the System mode is not active.
 #[tauri::command]
 async fn list_disks() -> Vec<system::Disk> {
     tauri::async_runtime::spawn_blocking(system::disk_list).await.unwrap_or_default()
@@ -284,7 +296,7 @@ fn app_info(app: AppHandle) -> AppInfo {
 
 pub fn run() {
     tauri::Builder::default()
-        // una sola copia: un secondo avvio apre le impostazioni di quella già attiva
+        // single instance: a second launch opens the settings of the running one
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| open_settings(app, None)))
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .setup(|app| {
@@ -312,6 +324,7 @@ pub fn run() {
                 .visible(false)
                 .build()?;
             snap::restore(&widget, &cfg);
+            glass(&widget);
             apply_level(&widget, &cfg.level);
             if cfg.visible {
                 widget.show()?;
@@ -331,7 +344,7 @@ pub fn run() {
             #[cfg(windows)]
             grid.set_ignore_cursor_events(true)?;
 
-            // menu dell'icona: finestra in vetro, nascosta finché non si fa clic destro sull'icona
+            // tray icon menu: glass window, hidden until the icon is right-clicked
             let menu = WebviewWindowBuilder::new(app, "menu", WebviewUrl::App("menu.html".into()))
                 .title("Glyphling · menu")
                 .decorations(false)
@@ -344,13 +357,14 @@ pub fn run() {
                 .visible(false)
                 .inner_size(300.0, 600.0)
                 .build()?;
+            glass(&menu);
             let mh = handle.clone();
             menu.on_window_event(move |ev| {
                 if let tauri::WindowEvent::Focused(false) = ev {
                     tray::hide_menu(&mh);
                 }
             });
-            // il widget deve restare visibile anche dopo "Mostra desktop" o altri giochi di Windows
+            // the widget must stay visible even after "Show desktop" or other Windows tricks
             let wd = handle.clone();
             std::thread::spawn(move || loop {
                 std::thread::sleep(std::time::Duration::from_millis(700));
@@ -374,7 +388,7 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Alt+F4 sul widget lo nasconde invece di chiudere l'app
+            // Alt+F4 on the widget hides it instead of closing the app
             if let WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "widget" {
                     api.prevent_close();
@@ -405,5 +419,5 @@ pub fn run() {
             app_info
         ])
         .run(tauri::generate_context!())
-        .expect("errore all'avvio di Glyphling");
+        .expect("error while starting Glyphling");
 }

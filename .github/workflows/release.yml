@@ -1,0 +1,54 @@
+name: Release
+
+# Push a vX.Y.Z tag to build the Windows setup and publish it as a GitHub release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri -> target
+            setup -> ../src-tauri/target
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the app
+        run: npx tauri build --no-bundle
+
+      - name: Build the setup
+        shell: pwsh
+        run: |
+          $env:GLYPHLING_PAYLOAD_DIR = "$PWD\src-tauri\target\release"
+          cargo build --release --manifest-path setup/Cargo.toml --target-dir src-tauri/target
+          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if ("v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match app version $version" }
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item src-tauri/target/release/glyphling-setup.exe "dist/Glyphling-Setup-$version.exe"
+          "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Publish the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notes = ".github/release-notes/${{ github.ref_name }}.md"
+          if (-not (Test-Path $notes)) { "Glyphling $env:VERSION" | Out-File $notes }
+          gh release create "${{ github.ref_name }}" "dist/Glyphling-Setup-$env:VERSION.exe" --title "Glyphling $env:VERSION" --notes-file $notes --prerelease

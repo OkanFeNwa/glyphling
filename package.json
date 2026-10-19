@@ -1,15 +1,13 @@
 {
-  "name": "cw",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "glyphling",
+  "version": "0.4.0",
+  "description": "Glyphling desktop widget",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "tauri": "tauri"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "UNLICENSED",
   "devDependencies": {
     "@tauri-apps/cli": "^2.12.3"
   },
@@ -17,5 +15,6 @@
     "@fontsource/doto": "^5.3.0",
     "@fontsource/space-mono": "^5.3.0",
     "@tauri-apps/api": "^2.12.4"
-  }
+  },
+  "private": true
 }

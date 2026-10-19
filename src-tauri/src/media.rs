@@ -1,5 +1,5 @@
-//! Musica: cosa sta suonando in qualunque app (Spotify, browser, VLC...), comandi,
-//! copertina e volume, tramite i controlli multimediali di Windows (GSMTC) e Core Audio.
+//! Music: what is playing in any app (Spotify, browser, VLC...), controls,
+//! cover art and volume, through Windows media controls (GSMTC) and Core Audio.
 
 use crate::AppState;
 use serde::Serialize;
@@ -16,14 +16,14 @@ pub struct Media {
     pub playing: bool,
     pub position: f64,
     pub duration: f64,
-    /// Copertina come data URL; cambia solo con il brano.
+    /// Cover art as a data URL; changes only with the track.
     pub cover: Option<String>,
-    /// Vero quando la copertina è cambiata (anche se è sparita); altrimenti `cover` non viene inviata.
+    /// True when the cover changed (even if it disappeared); otherwise `cover` is not sent.
     pub cover_changed: bool,
     pub volume: Option<f32>,
 }
 
-/// Nome leggibile dall'identificativo dell'app ("Spotify.exe", "SpotifyAB.SpotifyMusic_...!Spotify").
+/// Readable name from the app identifier ("Spotify.exe", "SpotifyAB.SpotifyMusic_...!Spotify").
 fn app_name(id: &str) -> String {
     let s = id.rsplit('!').next().unwrap_or(id);
     let s = s.trim_end_matches(".exe").trim_end_matches(".EXE");
@@ -69,7 +69,7 @@ mod imp {
         manager()?.GetCurrentSession().ok()
     }
 
-    /// Ora in tick da 100 ns dal 1601, come i tempi di WinRT.
+    /// Current time in 100 ns ticks since 1601, like WinRT times.
     fn now_ticks() -> i64 {
         let d = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
         (d.as_nanos() / 100) as i64 + 116_444_736_000_000_000
@@ -90,7 +90,7 @@ mod imp {
         Some(format!("data:{};base64,{}", ctype, base64::engine::general_purpose::STANDARD.encode(buf)))
     }
 
-    /// Stato attuale. La copertina si legge solo se il brano è cambiato rispetto a `prev`.
+    /// Current state. The cover is read only if the track changed compared to `prev`.
     pub fn read(mgr: &Mgr, prev: &Media) -> Media {
         let Ok(s) = mgr.GetCurrentSession() else { return Media { volume: prev.volume, ..Default::default() } };
         let mut m = Media { active: true, volume: prev.volume, ..Default::default() };
@@ -109,7 +109,7 @@ mod imp {
             let end = tl.EndTime().map(|t| t.Duration).unwrap_or(0);
             let start = tl.StartTime().map(|t| t.Duration).unwrap_or(0);
             let mut p = pos - start;
-            // la posizione è quella dell'ultimo aggiornamento: la porto ad adesso
+            // the position is from the last update: bring it forward to now
             if m.playing {
                 if let Ok(last) = tl.LastUpdatedTime() {
                     let gap = now_ticks() - last.UniversalTime;
@@ -201,7 +201,7 @@ pub fn spawn(app: AppHandle) {
                 let c = st.cfg.lock().unwrap();
                 c.mode == "music" && c.visible
             };
-            // in modalità Musica ogni secondo, altrimenti ogni 5 secondi solo per sapere se suona qualcosa
+            // every second in Music mode, otherwise every 5 seconds just to know if something is playing
             std::thread::sleep(Duration::from_millis(if music { 1000 } else { 5000 }));
             tick = tick.wrapping_add(1);
             if mgr.is_none() || tick % 30 == 0 {
@@ -214,13 +214,13 @@ pub fn spawn(app: AppHandle) {
             }
             let st = app.state::<AppState>();
             st.playing.store(now.playing, std::sync::atomic::Ordering::Relaxed);
-            // la posizione cambia sempre: invio solo se cambia altro o se la modalità è visibile
+            // the position always changes: send only if something else changed or the mode is visible
             let changed = Media { position: 0.0, ..now.clone() } != Media { position: 0.0, ..last.clone() };
             if changed || music {
                 let mut out = now.clone();
                 out.cover_changed = now.cover != last.cover;
                 if !out.cover_changed {
-                    out.cover = None; // la copertina viaggia solo quando cambia
+                    out.cover = None; // the cover is sent only when it changes
                 }
                 let _ = app.emit_to("widget", "media", &out);
             }

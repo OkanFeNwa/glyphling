@@ -1,4 +1,4 @@
-//! Le poche chiamate dirette a Windows. Sugli altri sistemi restituiscono un valore neutro.
+//! The few direct Windows calls. On other systems they return a neutral value.
 
 #[cfg(windows)]
 mod imp {
@@ -22,15 +22,15 @@ mod imp {
         (unsafe { GetAsyncKeyState(VK_MENU as i32) } as u16 & 0x8000) != 0
     }
 
-    /// Mostra una finestra senza rubare il focus (serve alla griglia durante il trascinamento).
+    /// Shows a window without stealing focus (used by the grid while dragging).
     pub fn show_no_activate(w: &tauri::WebviewWindow) {
         if let Ok(h) = w.hwnd() {
             unsafe { ShowWindow(h.0 as _, SW_SHOWNOACTIVATE) };
         }
     }
 
-    /// Sul livello desktop il widget appartiene alla finestra del desktop (Progman), come i
-    /// vecchi gadget: così "Mostra desktop" (Win+D o l'angolo della barra) non lo nasconde.
+    /// On the desktop level the widget is owned by the desktop window (Progman), like the
+    /// old gadgets: this way "Show desktop" (Win+D or the taskbar corner) does not hide it.
     pub fn set_desktop_owner(w: &tauri::WebviewWindow, on: bool) {
         let Ok(h) = w.hwnd() else { return };
         let class: Vec<u16> = "Progman".encode_utf16().chain(Some(0)).collect();
@@ -38,8 +38,31 @@ mod imp {
         unsafe { SetWindowLongPtrW(h.0 as _, GWLP_HWNDPARENT, owner as isize) };
     }
 
-    /// Se Windows ha ridotto a icona o nascosto il widget, lo rimette dov'era senza rubare il focus.
-    /// Restituisce true se ha dovuto ripristinarlo.
+    /// Clips the window to the shape (union of rounded rectangles, logical pixels): outside it
+    /// clicks pass through and the background blur stays inside the shape.
+    pub fn set_region(w: &tauri::WebviewWindow, parts: &[crate::hit::Part]) {
+        use windows_sys::Win32::Graphics::Gdi::{CombineRgn, CreateRoundRectRgn, DeleteObject, SetWindowRgn, HRGN, RGN_OR};
+        let (Ok(h), Ok(sf)) = (w.hwnd(), w.scale_factor()) else { return };
+        unsafe {
+            let mut rgn: HRGN = std::ptr::null_mut();
+            for p in parts {
+                let px = |v: f64| (v * sf).round() as i32;
+                let d = px(2.0 * p.r.min(p.w / 2.0).min(p.h / 2.0));
+                let r = CreateRoundRectRgn(px(p.x), px(p.y), px(p.x + p.w) + 1, px(p.y + p.h) + 1, d, d);
+                if rgn.is_null() {
+                    rgn = r;
+                } else {
+                    CombineRgn(rgn, rgn, r, RGN_OR);
+                    DeleteObject(r);
+                }
+            }
+            // after SetWindowRgn the region belongs to Windows: do not delete it
+            SetWindowRgn(h.0 as _, rgn, 1);
+        }
+    }
+
+    /// If Windows minimized or hid the widget, puts it back without stealing focus.
+    /// Returns true if it had to restore it.
     pub fn ensure_shown(w: &tauri::WebviewWindow) -> bool {
         let Ok(h) = w.hwnd() else { return false };
         let h = h.0 as _;
@@ -93,6 +116,7 @@ mod imp {
         let _ = w.show();
     }
     pub fn set_desktop_owner(_: &tauri::WebviewWindow, _: bool) {}
+    pub fn set_region(_: &tauri::WebviewWindow, _: &[crate::hit::Part]) {}
     pub fn ensure_shown(_: &tauri::WebviewWindow) -> bool {
         false
     }
