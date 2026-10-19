@@ -453,7 +453,7 @@
       const lists = document.querySelectorAll('.spage[data-p="info"] .news');
       if (lists[0]) lists[0].insertAdjacentHTML('afterbegin', `<li><span><b>${i.version}</b> · ghiera per scegliere la modalità, riquadro a destra o a sinistra, menu dell'icona e impostazioni su misura, il widget resta visibile con Mostra desktop.</span></li><li><span><b>0.2</b> · dati veri: musica, meteo, calendario Google, CPU, GPU, RAM, temperature e dischi. Font a punti.</span></li>`);
       if (lists[1]) lists[1].insertAdjacentHTML('afterbegin', `<li><span>Font a punti <b>Glyphling Dot</b>, disegnato per Glyphling (SIL Open Font License). Se sul PC è installato il font 5x7 di Nothing, si usa quello.</span></li>`);
-      if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Meteo da <b>Open-Meteo</b> (CC BY 4.0). Temperatura della CPU da <b>HWiNFO</b> o <b>LibreHardwareMonitor</b> se sono aperti, altrimenti dalla zona termica di Windows.</span></li><li><span>Icone da <b>Lucide</b> (licenza ISC).</span></li>`);
+      if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Meteo da <b>Open-Meteo</b> (CC BY 4.0). Temperatura della CPU da <b>HWiNFO</b> o <b>LibreHardwareMonitor</b> se sono aperti, altrimenti dalla zona termica di Windows.</span></li>`);
       if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Costruito con <b>Tauri</b> (licenza MIT/Apache 2.0). Impostazioni salvate in <b>${i.config_dir}</b>.</span></li>`);
     }
   }

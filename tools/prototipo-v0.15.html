@@ -225,6 +225,7 @@ button:focus-visible, .ring:focus-visible, input:focus-visible + svg { outline: 
 .info { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--mute); white-space: nowrap; }
 .info b { color: var(--ink); font-weight: 400; }
 .info canvas, .info svg { flex: none; width: 12px; height: 12px; image-rendering: pixelated; color: var(--pix); }
+.info svg.lu { width: 15px; height: 15px; }
 .cal { flex: none; width: 156px; font-size: 9px; font-variant-numeric: tabular-nums; }
 .cal .mh { display: flex; justify-content: space-between; letter-spacing: .14em; text-transform: uppercase; color: var(--mute); margin-bottom: 4px; }
 .cal .grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 1px; text-align: center; }
@@ -625,8 +626,9 @@ body.moving.free .gridov { opacity: .12; }
 .snav button:hover { background: rgba(255,255,255,.07); color: var(--ink); }
 .snav button:active { transform: scale(.96); }
 .snav button[aria-pressed="true"] { background: rgba(255,255,255,.1); border-color: rgba(255,255,255,.14); color: var(--ink); }
-.snav .ni { width: 6px; height: 6px; background: currentColor; opacity: .5; flex: none; }
-.snav button[aria-pressed="true"] .ni { background: var(--red); opacity: 1; }
+.snav .ni { width: 16px; height: 16px; display: grid; place-items: center; flex: none; opacity: .7; }
+.snav button[aria-pressed="true"] .ni { color: var(--red); opacity: 1; }
+svg.lu { display: block; flex: none; }
 .sbody { overflow: auto; min-height: 0; padding-right: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.15) transparent; }
 .sbody .spage { gap: 14px; }
 .srow { min-height: 44px; }
@@ -662,7 +664,7 @@ body.moving.free .gridov { opacity: .12; }
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
 <header>
   <h1>Companion</h1>
-  <span class="rec"><i></i>prototipo · v0.14</span>
+  <span class="rec"><i></i>prototipo · v0.15</span>
 </header>
 
 <div class="stage" id="stage">
@@ -780,7 +782,7 @@ body.moving.free .gridov { opacity: .12; }
 <div class="swin glass" role="dialog" aria-label="Impostazioni di Companion">
 <div class="swin-top"><div><b>Impostazioni</b><span>Companion</span></div>
   <button class="cp-x" id="setClose" aria-label="Chiudi impostazioni"></button></div>
-<nav class="snav" id="setTabs" role="tablist"><button data-p="gen" aria-pressed="true"><span class="ni" data-i="pos"></span>Widget</button><button data-p="col" aria-pressed="false"><span class="ni" data-i="col"></span>Colori</button><button data-p="info" aria-pressed="false"><span class="ni" data-i="info"></span>Info</button></nav>
+<nav class="snav" id="setTabs" role="tablist"><button data-p="gen" aria-pressed="true"><span class="ni" data-i="move"></span>Widget</button><button data-p="col" aria-pressed="false"><span class="ni" data-i="palette"></span>Colori</button><button data-p="info" aria-pressed="false"><span class="ni" data-i="info"></span>Info</button></nav>
 <div class="sbody">
 <div class="spage" data-p="gen">
 <div class="controls devonly" hidden>
@@ -830,7 +832,7 @@ body.moving.free .gridov { opacity: .12; }
   <div class="sgroup about">
     <canvas id="aboutCv" width="224" height="224" aria-hidden="true"></canvas>
     <div><h3>Companion</h3><p>Una piccola mascotte a LED che vive sul desktop. Orologio, calendario, musica, timer, meteo e stato del PC in un cerchio.</p>
-      <div class="ver"><span>Versione <b>0.14 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div></div>
+      <div class="ver"><span>Versione <b>0.15 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div></div>
   </div>
   <div class="kv">
     <div>Sistema<b id="infoOs">Windows 11 · x64</b></div>
@@ -841,6 +843,7 @@ body.moving.free .gridov { opacity: .12; }
   <div class="sgroup">
     <h3>Novità</h3>
     <ul class="news">
+      <li><span><b>0.15</b> · icone vettoriali vere al posto delle bitmap a pixel.</span></li>
       <li><span><b>0.14</b> · impostazioni con barra laterale, pulsanti più reattivi, cerchio che resta fermo, riquadro specchiato a sinistra.</span></li>
       <li><span><b>0.13</b> · modalità scelte ruotando la ghiera, clic destro per tornare alla mascotte, lato di apertura del riquadro.</span></li>
       <li><span><b>0.12</b> · timer classico, volume dal numero, orari meteo con AM e PM.</span></li>
@@ -854,6 +857,7 @@ body.moving.free .gridov { opacity: .12; }
     <h3>Crediti</h3>
     <ul class="news">
       <li><span>Testi in <b>Doto</b> e <b>Space Mono</b>, SIL Open Font License.</span></li>
+      <li><span>Icone <b>Lucide</b>, licenza ISC.</span></li>
       <li><span>Ispirato allo stile di <b>Nothing OS</b>. Meteo e brani in questo prototipo sono finti.</span></li>
     </ul>
   </div>
@@ -1210,7 +1214,13 @@ body.moving.free .gridov { opacity: .12; }
     rise:  ['0001000','0011100','0111110','0001000','1001001','0011100','1111111'],
     plus:  ['0001000','0001000','0001000','1111111','0001000','0001000','0001000'],
   };
+  // icone vettoriali Lucide (ISC); le bitmap 7x7 restano solo come riserva
+  const LUCIDE = {"play": "<svg class=\"lucide lucide-play\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><polygon points=\"6 3 20 12 6 21 6 3\" />", "pause": "<svg class=\"lucide lucide-pause\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><rect x=\"14\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" /><rect x=\"6\" y=\"4\" width=\"4\" height=\"16\" rx=\"1\" />", "next": "<svg class=\"lucide lucide-skip-forward\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><polygon points=\"5 4 15 12 5 20 5 4\" /><line x1=\"19\" x2=\"19\" y1=\"5\" y2=\"19\" />", "prev": "<svg class=\"lucide lucide-skip-back\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><polygon points=\"19 20 9 12 19 4 19 20\" /><line x1=\"5\" x2=\"5\" y1=\"19\" y2=\"5\" />", "reset": "<svg class=\"lucide lucide-rotate-ccw\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8\" /><path d=\"M3 3v5h5\" />", "sun": "<svg class=\"lucide lucide-sun\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><circle cx=\"12\" cy=\"12\" r=\"4\" /><path d=\"M12 2v2\" /><path d=\"M12 20v2\" /><path d=\"m4.93 4.93 1.41 1.41\" /><path d=\"m17.66 17.66 1.41 1.41\" /><path d=\"M2 12h2\" /><path d=\"M20 12h2\" /><path d=\"m6.34 17.66-1.41 1.41\" /><path d=\"m19.07 4.93-1.41 1.41\" />", "cloud": "<svg class=\"lucide lucide-cloud\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z\" />", "rain": "<svg class=\"lucide lucide-cloud-rain\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242\" /><path d=\"M16 14v6\" /><path d=\"M8 14v6\" /><path d=\"M12 16v6\" />", "moon": "<svg class=\"lucide lucide-moon\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\" />", "rise": "<svg class=\"lucide lucide-sunrise\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M12 2v8\" /><path d=\"m4.93 10.93 1.41 1.41\" /><path d=\"M2 18h2\" /><path d=\"M20 18h2\" /><path d=\"m19.07 10.93-1.41 1.41\" /><path d=\"M22 22H2\" /><path d=\"m8 6 4-4 4 4\" /><path d=\"M16 18a4 4 0 0 0-8 0\" />", "set": "<svg class=\"lucide lucide-sunset\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M12 10V2\" /><path d=\"m4.93 10.93 1.41 1.41\" /><path d=\"M2 18h2\" /><path d=\"M20 18h2\" /><path d=\"m19.07 10.93-1.41 1.41\" /><path d=\"M22 22H2\" /><path d=\"m16 6-4 4-4-4\" /><path d=\"M16 18a4 4 0 0 0-8 0\" />", "len": "<svg class=\"lucide lucide-hourglass\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M5 22h14\" /><path d=\"M5 2h14\" /><path d=\"M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22\" /><path d=\"M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2\" />", "plus": "<svg class=\"lucide lucide-plus\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M5 12h14\" /><path d=\"M12 5v14\" />", "copy": "<svg class=\"lucide lucide-copy\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\" /><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\" />", "edit": "<svg class=\"lucide lucide-sliders-horizontal\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><line x1=\"21\" x2=\"14\" y1=\"4\" y2=\"4\" /><line x1=\"10\" x2=\"3\" y1=\"4\" y2=\"4\" /><line x1=\"21\" x2=\"12\" y1=\"12\" y2=\"12\" /><line x1=\"8\" x2=\"3\" y1=\"12\" y2=\"12\" /><line x1=\"21\" x2=\"16\" y1=\"20\" y2=\"20\" /><line x1=\"12\" x2=\"3\" y1=\"20\" y2=\"20\" /><line x1=\"14\" x2=\"14\" y1=\"2\" y2=\"6\" /><line x1=\"8\" x2=\"8\" y1=\"10\" y2=\"14\" /><line x1=\"16\" x2=\"16\" y1=\"18\" y2=\"22\" />", "bin": "<svg class=\"lucide lucide-trash-2\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M3 6h18\" /><path d=\"M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6\" /><path d=\"M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2\" /><line x1=\"10\" x2=\"10\" y1=\"11\" y2=\"17\" /><line x1=\"14\" x2=\"14\" y1=\"11\" y2=\"17\" />", "updown": "<svg class=\"lucide lucide-chevrons-up-down\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"m7 15 5 5 5-5\" /><path d=\"m7 9 5-5 5 5\" />", "flag": "<svg class=\"lucide lucide-flag\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z\" /><line x1=\"4\" x2=\"4\" y1=\"22\" y2=\"15\" />", "drop": "<svg class=\"lucide lucide-pipette\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"m2 22 1-1h3l9-9\" /><path d=\"M3 21v-3l9-9\" /><path d=\"m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z\" />", "x": "<svg class=\"lucide lucide-x\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M18 6 6 18\" /><path d=\"m6 6 12 12\" />", "move": "<svg class=\"lucide lucide-move\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><path d=\"M12 2v20\" /><path d=\"m15 19-3 3-3-3\" /><path d=\"m19 9 3 3-3 3\" /><path d=\"M2 12h20\" /><path d=\"m5 9-3 3 3 3\" /><path d=\"m9 5 3-3 3 3\" />", "palette": "<svg class=\"lucide lucide-palette\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><circle cx=\"13.5\" cy=\"6.5\" r=\".5\" fill=\"currentColor\" /><circle cx=\"17.5\" cy=\"10.5\" r=\".5\" fill=\"currentColor\" /><circle cx=\"8.5\" cy=\"7.5\" r=\".5\" fill=\"currentColor\" /><circle cx=\"6.5\" cy=\"12.5\" r=\".5\" fill=\"currentColor\" /><path d=\"M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z\" />", "info": "<svg class=\"lucide lucide-info\" xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" ><circle cx=\"12\" cy=\"12\" r=\"10\" /><path d=\"M12 16v-4\" /><path d=\"M12 8h.01\" />"};
   function icon(name, size = 11) {
+    if (LUCIDE[name]) {
+      const px = Math.round(size * 1.45);
+      return `<svg class="lu" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LUCIDE[name]}</svg>`;
+    }
     const rows = ICONS[name], u = size / 7;
     let r = '';
     rows.forEach((row, y) => [...row].forEach((b, x) => { if (b === '1') r += `<rect x="${(x * u).toFixed(2)}" y="${(y * u).toFixed(2)}" width="${(u * 0.86).toFixed(2)}" height="${(u * 0.86).toFixed(2)}"/>`; }));
@@ -2127,7 +2137,7 @@ body.moving.free .gridov { opacity: .12; }
   const toHex = rgb => '#' + rgb.map(x => Math.max(0, Math.min(255, x | 0)).toString(16).padStart(2, '0')).join('');
   const cp = { k: null, h: 0, s: 0, v: 1, mode: 'rgb', recent: [] };
   try { cp.recent = JSON.parse(localStorage.getItem('companion-recent') || '[]').filter(c => /^#[0-9a-f]{6}$/i.test(c)).slice(0, 8); } catch (e) {}
-  $('cpClose').innerHTML = icon('plus', 9).replace('<svg', '<svg style="transform:rotate(45deg)"');
+  $('cpClose').innerHTML = icon('x', 10);
   ICONS.drop = ['0000011','0000111','0001110','0011100','0111000','1110000','1100000'];
   $('cpEye').innerHTML = icon('drop', 12);
   if (!('EyeDropper' in window)) $('cpEye').hidden = true;
@@ -2328,7 +2338,7 @@ body.moving.free .gridov { opacity: .12; }
   // ---------- icona nell'area di notifica ----------
   const MENU_MODES = [['idle', 'Mascotte'], ['clock', 'Orologio'], ['calendar', 'Calendario'], ['music', 'Musica'], ['timer', 'Timer'], ['weather', 'Meteo'], ['disks', 'Sistema']];
   $('trayIc').innerHTML = pxDisc(5);
-  $('setClose').innerHTML = icon('plus', 9).replace('<svg', '<svg style="transform:rotate(45deg)"');
+  $('setClose').innerHTML = icon('x', 10);
   let widgetAway = false;
   function setAway(v) { widgetAway = v; $('stage').classList.toggle('away', v); $('stage').setAttribute('aria-hidden', v); }
   function placeTip() {
@@ -2339,7 +2349,7 @@ body.moving.free .gridov { opacity: .12; }
   }
   function buildMenu() {
     const sleepItem = mode === 'idle' ? `<button role="menuitem" data-a="sleep"><span class="ck"></span>${asleep ? 'Sveglia la mascotte' : 'Fai dormire la mascotte'}</button>` : '';
-    $('tmenu').innerHTML = `<div class="mh"><b>Companion</b>v0.14</div>`
+    $('tmenu').innerHTML = `<div class="mh"><b>Companion</b>v0.15</div>`
       + `${sleepItem}<button role="menuitemcheckbox" aria-checked="${moving}" data-a="move"><span class="ck"></span>Sposta il widget</button><button role="menuitem" data-a="show"><span class="ck"></span>${widgetAway ? 'Mostra il widget' : 'Nascondi il widget'}</button>`
       + `<button role="menuitem" data-a="settings"><span class="ck"></span>Impostazioni…</button><button role="menuitem" data-a="info"><span class="ck"></span>Info su Companion</button><hr>`
       + `<button role="menuitem" disabled><span class="ck"></span>Esci</button>`;
@@ -2401,6 +2411,7 @@ body.moving.free .gridov { opacity: .12; }
     if (pg === 'info') infoUi();
     closePicker();
   }
+  document.querySelectorAll('.snav .ni').forEach(n => n.innerHTML = icon(n.dataset.i, 11));
   $('setTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setPage(b.dataset.p); });
   const started = new Date();
   function infoUi() {
