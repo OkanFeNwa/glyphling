@@ -50,12 +50,12 @@ sub("  function infoUi() {\n", "  function infoUi() {\n    if (window.__hostEven
 sub("  const pc = { cpu", "  let pcLive = false;\n  const pc = { cpu")
 sub("  function updatePc(dt) {\n", "  function updatePc(dt) {\n    if (pcLive) return;\n")
 sub("r(pc.gpu);", "(pc.gpuNa ? '--' : r(pc.gpu));")
-sub("$('pcTc').textContent = Math.round(pc.tc) + '°';", "$('pcTc').textContent = pc.tc == null ? '--' : Math.round(pc.tc) + '°';")
-sub("$('pcTg').textContent = Math.round(pc.tg) + '°';", "$('pcTg').textContent = pc.tg == null ? '--' : Math.round(pc.tg) + '°';")
+sub("$('pcTc').textContent = tC(pc.tc) + '°';", "$('pcTc').textContent = pc.tc == null ? '--' : tC(pc.tc) + '°';")
+sub("$('pcTg').textContent = tC(pc.tg) + '°';", "$('pcTg').textContent = pc.tg == null ? '--' : tC(pc.tg) + '°';")
 sub("· 9,8 di 16 GB`", "· ${pc.ramText || '9,8 di 16 GB'}`")
 sub("    else if (dkShown.length < 4) dkShown = DISKS.map(d => d.lt).filter(x => dkShown.includes(x) || x === lt);\n    dkUi();\n",
     "    else if (dkShown.length < 4) dkShown = DISKS.map(d => d.lt).filter(x => dkShown.includes(x) || x === lt);\n    dkUi();\n    if (window.__hostEvent) window.__hostEvent('disks', dkShown);\n")
-sub("    vol = Math.max(0, Math.min(1, v));\n", "    vol = Math.max(0, Math.min(1, v));\n    if (window.__hostEvent) window.__hostEvent('volume', vol);\n")
+sub("    vol = Math.max(0, Math.min(1, Math.round(v * 100) / 100));\n", "    vol = Math.max(0, Math.min(1, Math.round(v * 100) / 100));\n    if (window.__hostEvent) window.__hostEvent('volume', vol);\n")
 sub("      bands[x] += (target - bands[x]) * Math.min(1, dt * (target > bands[x] ? 18 : 6));",
     "      const lv = window.__liveBands, tg = on && lv && performance.now() - lv.at < 400 ? lv.v[x] * (0.35 + vol * 0.65) : target;\n      bands[x] += (tg - bands[x]) * Math.min(1, dt * (tg > bands[x] ? 18 : 6));")
 sub("    pos = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * tracks[ti].dur;\n",
@@ -134,10 +134,17 @@ API = """
       $('upNext').textContent = '';
       if (srcEl) srcEl.childNodes[1].nodeValue = m.app || 'Musica';
       if (m.volume != null && volShow <= 0) { vol = m.volume; $('volTxt').textContent = `vol ${Math.round(vol * 100)}%`; }
-      const cv = window.__companion._cover;
-      if (cv) cover = cv.map(r => Float32Array.from(r)); else if (changed) drawCover(7);
+      if (!window.__companion._cover && changed) drawCover(7);
     },
-    setCover(levels) { window.__companion._cover = levels; if (levels) cover = levels.map(r => Float32Array.from(r)); else drawCover(7); },
+    // real cover: a function that renders it at the circle's resolution (NH x NH values)
+    setCover(fn) { window.__companion._cover = fn; coverKey = ''; if (!fn) drawCover(7); },
+    // the format and resolution chosen in the settings window
+    reloadFmt() {
+      try { Object.assign(units, JSON.parse(localStorage.getItem('companion-units') || '{}')); } catch (e) {}
+      const r = +localStorage.getItem('companion-res');
+      if (RES[r] && r !== resPts) setRes(r);
+      calKey = ''; clockUi(new Date()); wxUi(); cdUi(); pcUi(); infoUi(); fmtUi();
+    },
     setWeather(w) {
       FC.hours = w.hours; FC.days = w.days;
       wx.i = Math.min(wx.i, FC[wx.scale].length - 1);
@@ -158,6 +165,18 @@ API = """
 """
 sub("  requestAnimationFrame(frame);\n})();\n</script>", API + "  requestAnimationFrame(frame);\n})();\n</script>")
 
+
+# 5d. real covers at every circle resolution
+sub("    const key = coverSeed + ':' + NH;\n",
+    "    const rc = window.__companion && window.__companion._cover;\n    const key = (rc ? 'real' + rc.id : coverSeed) + ':' + NH;\n")
+sub("    for (let y = 0, i = 0; y < NH; y++) for (let x = 0; x < NH; x++, i++) cover[i] = coverArt(coverSeed, LX[x], LX[y]);\n",
+    "    if (rc) { cover = rc(NH); return; }\n    for (let y = 0, i = 0; y < NH; y++) for (let x = 0; x < NH; x++, i++) cover[i] = coverArt(coverSeed, LX[x], LX[y]);\n")
+
+# 5e. format and resolution are shared with the other window
+sub("    setRes(+b.dataset.r); try { localStorage.setItem('companion-res', resPts); } catch (e) {}\n",
+    "    setRes(+b.dataset.r); try { localStorage.setItem('companion-res', resPts); } catch (e) {}\n    if (window.__hostEvent) window.__hostEvent('fmt');\n")
+sub("    try { localStorage.setItem('companion-units', JSON.stringify(units)); } catch (e) {}\n",
+    "    try { localStorage.setItem('companion-units', JSON.stringify(units)); } catch (e) {}\n    if (window.__hostEvent) window.__hostEvent('fmt');\n")
 
 # 5c. tutorial: only in the widget window, which first grows to cover the screen;
 # the tray icon is the real one in the taskbar

@@ -19,6 +19,7 @@
     else if (kind === 'disks') { store.set('glyphling-disks', JSON.stringify(v)); emit('disks-changed', { from: host }); }
     else if (kind === 'volume') sendVolume(v);
     else if (kind === 'seek') invoke('media_control', { action: 'seek', value: v });
+    else if (kind === 'fmt') emit('fmt-changed', { from: host });
   };
   // localStorage is shared by all of the app's windows
   const store = {
@@ -53,6 +54,7 @@
   shareColors();
   listen('config', e => applyCfg(e.payload));
   listen('themes-changed', e => { if (e.payload.from !== host) C.reloadThemes(); shareColors(); });
+  listen('fmt-changed', e => { if (e.payload.from !== host) C.reloadFmt(); });
 
   // ---------- widget ----------
   if (host === 'widget') {
@@ -226,30 +228,38 @@
   });
   listen('disks-changed', e => { if (e.payload.from !== host) { const w = storedDisks(); if (w) C.setShownDisks(w); } });
 
-  // the cover becomes 19x19 LEDs: 4 brightness levels, the most saturated pixels as accent
+  // the cover becomes LEDs at the circle's resolution (n x n): 4 brightness levels,
+  // the most saturated pixels as accent, a vinyl hole in the middle
+  let coverId = 0;
   function coverToLeds(url) {
     return new Promise(res => {
       const img = new Image();
       img.onload = () => {
-        const N = 19, c = (N - 1) / 2, cv = document.createElement('canvas');
-        cv.width = cv.height = N;
-        const g = cv.getContext('2d');
-        g.drawImage(img, 0, 0, N, N);
-        const px = g.getImageData(0, 0, N, N).data, cells = [];
-        for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
-          const i = (y * N + x) * 4, r = px[i] / 255, gg = px[i + 1] / 255, b = px[i + 2] / 255;
-          const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
-          cells.push({ x, y, l: 0.2126 * r + 0.7152 * gg + 0.0722 * b, s: mx ? (mx - mn) / mx * mx : 0 });
-        }
-        const inRing = p => { const d = Math.hypot(p.x - c, p.y - c); return d <= c + 0.3 && d >= 1.6; };
-        const sats = cells.filter(inRing).map(p => p.s).sort((a, b) => b - a);
-        const cut = Math.max(0.35, sats[Math.floor(sats.length * 0.04)] || 1);
-        const out = Array.from({ length: N }, () => Array(N).fill(0));
-        for (const p of cells) {
-          if (!inRing(p)) continue;
-          out[p.y][p.x] = p.s >= cut ? -1 : p.l > 0.75 ? 1 : p.l > 0.5 ? 0.7 : p.l > 0.25 ? 0.35 : 0;
-        }
-        res(out);
+        const cache = {};
+        const fn = n => {
+          if (cache[n]) return cache[n];
+          const c = (n - 1) / 2, k = c / 9, cv = document.createElement('canvas');
+          cv.width = cv.height = n;
+          const g = cv.getContext('2d');
+          g.drawImage(img, 0, 0, n, n);
+          const px = g.getImageData(0, 0, n, n).data, cells = [];
+          for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+            const i = (y * n + x) * 4, r = px[i] / 255, gg = px[i + 1] / 255, b = px[i + 2] / 255;
+            const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+            cells.push({ x, y, l: 0.2126 * r + 0.7152 * gg + 0.0722 * b, s: mx ? (mx - mn) / mx * mx : 0 });
+          }
+          const inRing = p => { const d = Math.hypot(p.x - c, p.y - c); return d <= c + 0.3 * k && d >= 1.6 * k; };
+          const sats = cells.filter(inRing).map(p => p.s).sort((a, b) => b - a);
+          const cut = Math.max(0.35, sats[Math.floor(sats.length * 0.04)] || 1);
+          const out = new Float32Array(n * n);
+          for (const p of cells) {
+            if (!inRing(p)) continue;
+            out[p.y * n + p.x] = p.s >= cut ? -1 : p.l > 0.75 ? 1 : p.l > 0.5 ? 0.7 : p.l > 0.25 ? 0.35 : 0;
+          }
+          return (cache[n] = out);
+        };
+        fn.id = ++coverId;
+        res(fn);
       };
       img.onerror = () => res(null);
       img.src = url;

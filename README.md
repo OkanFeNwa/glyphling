@@ -8,7 +8,7 @@ The full design document lives in the project's shared files, not in this reposi
 
 Installers are published on the [Releases](../../releases) page. Download `Glyphling-Setup-x.y.z.exe` and run it. The same file installs, updates in place (settings, themes and position are kept) and, as `uninstall.exe` in the install folder, removes the app. The setup is not signed yet, so Windows SmartScreen may warn on first launch ("More info" → "Run anyway").
 
-## What it does (0.7)
+## What it does (0.8)
 
 - **Widget**: transparent, frameless, clipped to its real shape (circle plus panel), with a dark glass look. Windows' own blur behind the window is not used: on some PCs it turned the transparent parts black. The panel opens to the right, to the left or automatically, and its layout mirrors when it opens to the left. Turn the dial (or the mouse wheel) to pick a mode, right click the circle to go back to the mascot.
 - **First run**: a short tutorial walks through the mascot, the dial, the panel, the tray icon and the settings (Settings > Info to see it again). While it runs the widget window briefly covers the screen to dim it and point at the tray icon.
@@ -20,6 +20,7 @@ Installers are published on the [Releases](../../releases) page. Download `Glyph
   - Weather from Open-Meteo; city chosen in Settings (Milan by default).
   - Google Calendar through the secret iCal address pasted in Settings (recurring events included).
   - CPU, RAM and disks; NVIDIA GPU usage and temperature; CPU temperature (see below).
+- **Circle**: 256 to 2048 LED points; 24/12 hour clock and °C/°F (Settings).
 - **Font**: Glyphling Dot, our own 5x7 dot font (`tools/make_font.py`). If Nothing's 5x7 font is installed on the PC it is used instead (it cannot be redistributed).
 - Easter eggs: shake the mouse left and right over the mascot, or circle around it fast.
 - Starts with Windows (optional), single instance.
