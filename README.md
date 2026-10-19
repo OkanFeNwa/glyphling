@@ -10,7 +10,7 @@ Installers are published on the [Releases](../../releases) page. Download `Glyph
 
 ## What it does (0.5)
 
-- **Widget**: transparent, frameless, clipped to its real shape (circle plus panel) with the desktop blurred behind the glass. The panel opens to the right, to the left or automatically, and its layout mirrors when it opens to the left. Turn the dial (or the mouse wheel) to pick a mode, right click the circle to go back to the mascot.
+- **Widget**: transparent, frameless, clipped to its real shape (circle plus panel), with a dark glass look. Windows' own blur behind the window is not used: on some PCs it turned the transparent parts black. The panel opens to the right, to the left or automatically, and its layout mirrors when it opens to the left. Turn the dial (or the mouse wheel) to pick a mode, right click the circle to go back to the mascot.
 - **Placement**: drag anywhere with snapping to a 24 px grid (Alt = free). The snapped point is the centre of the circle when closed, the centre of circle plus panel when open. Levels: on the desktop (survives Show desktop / Win+D), normal, always on top.
 - **Tray icon**: left click shows or hides the widget, right click opens a glass menu.
 - **Settings**: frameless glass window with sidebar navigation.

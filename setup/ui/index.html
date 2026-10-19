@@ -41,7 +41,12 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
 .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #d9d9d9; transition: transform .2s cubic-bezier(.3,1.4,.5,1), background .12s; }
 .sw[aria-checked="true"] { background: var(--red); }
 .sw[aria-checked="true"]::after { transform: translateX(20px); background: #fff; }
-.path { margin-top: auto; font-size: 10px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.path { margin-top: auto; display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--mute); }
+.path span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.path button { flex: none; appearance: none; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--ink); font: 700 9px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; cursor: pointer; transition: background .08s, transform .08s; }
+.path button:hover { background: rgba(255,255,255,.12); }
+.path button:active { transform: scale(.94); background: rgba(255,255,255,.2); }
+.path button[hidden] { display: none; }
 .actions { margin-top: 16px; display: flex; gap: 10px; align-items: center; }
 .btn { appearance: none; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--ink); font: 700 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
   padding: 14px 22px; border-radius: 999px; cursor: pointer; transition: background .08s, transform .08s, border-color .08s; }
@@ -74,7 +79,7 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
     <div class="opts fade" id="opts"></div>
     <div class="prog" id="prog" hidden><canvas id="bar" height="20"></canvas><div class="step" id="step"></div></div>
     <div class="err" id="err" hidden></div>
-    <div class="path" id="path"></div>
+    <div class="path"><span id="path"></span><button id="dirBtn" hidden>Cambia</button></div>
     <div class="actions"><button class="btn primary" id="go"></button><button class="btn" id="cancel">Annulla</button></div>
   </div>
 </div>
@@ -147,6 +152,8 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
 
   function setup() {
     $('path').textContent = `Cartella: ${st.dir}`;
+    $('path').title = st.dir;
+    $('dirBtn').hidden = st.mode === 'uninstall' || !st.has_payload;
     if (st.mode === 'uninstall') {
       $('kick').textContent = 'Disinstallazione';
       $('lead').innerHTML = `Vuoi togliere <b>Glyphling ${st.installed || ''}</b> da questo PC? La mascotte ci resterà un po' male.`;
@@ -182,7 +189,7 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
   async function run() {
     $('err').hidden = true;
     phase = 'work'; value = 0.02;
-    $('opts').hidden = true; $('prog').hidden = false; $('go').disabled = true; $('cancel').disabled = true;
+    $('opts').hidden = true; $('prog').hidden = false; $('go').disabled = true; $('cancel').disabled = true; $('dirBtn').hidden = true;
     try {
       if (st.mode === 'uninstall') await invoke('uninstall', { removeData: !!toggles.data });
       else await invoke('install', { desktop: !!toggles.desktop });
@@ -197,6 +204,7 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
       phase = 'error';
       showError(String(err));
       $('go').textContent = 'Riprova'; $('go').disabled = false; $('cancel').disabled = false;
+      if (st.mode !== 'uninstall') $('dirBtn').hidden = false;
     }
   }
 
@@ -205,6 +213,13 @@ h1 { margin: 10px 0 0; font: 900 46px/1 var(--dot); letter-spacing: .04em; text-
     else run();
   });
   $('cancel').addEventListener('click', () => win.close());
+  $('dirBtn').addEventListener('click', async () => {
+    if (phase === 'work') return;
+    try {
+      const dir = await invoke('pick_dir');
+      if (dir) { st.dir = dir; $('path').textContent = `Cartella: ${dir}`; $('path').title = dir; $('err').hidden = true; }
+    } catch (err) { showError(String(err)); }
+  });
   $('x').addEventListener('click', () => { if (phase === 'work') return; phase === 'done' ? invoke('finish', { launch: false }) : win.close(); });
   $('min').addEventListener('click', () => win.minimize());
   addEventListener('contextmenu', e => e.preventDefault());

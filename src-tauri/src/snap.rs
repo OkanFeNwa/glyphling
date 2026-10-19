@@ -224,27 +224,31 @@ pub fn sync_side(app: &AppHandle) {
             cx > wa.position.x as f64 + wa.size.width as f64 / 2.0
         }
     };
-    // with a fixed side, nudge the circle so the panel fits on screen
+    // nudge the circle so the whole shape on the chosen side (circle, and the panel when
+    // it opens) stays inside the work area, horizontally and vertically
     let mut cx = cx;
-    if cfg.panel_dir != "auto" {
-        let mon = w.current_monitor().ok().flatten().or_else(|| w.primary_monitor().ok().flatten());
-        if let Some(mon) = mon {
-            let wa = mon.work_area();
-            let (l, r) = (wa.position.x as f64, wa.position.x as f64 + wa.size.width as f64);
-            let (panel, ring, m) = ((OPEN_W - D / 2.0) * sf, R * sf, MARGIN * sf);
-            let (lo, hi) = if want { (l + panel + m, r - ring - m) } else { (l + ring + m, r - panel - m) };
-            cx = cx.clamp(lo, hi.max(lo));
-        }
+    let off_y = (PAD_Y + D / 2.0) * sf;
+    let mut cy = pos.y as f64 + off_y;
+    let mon = w.current_monitor().ok().flatten().or_else(|| w.primary_monitor().ok().flatten());
+    if let Some(mon) = mon {
+        let wa = mon.work_area();
+        let (l, r) = (wa.position.x as f64, wa.position.x as f64 + wa.size.width as f64);
+        let (t, b) = (wa.position.y as f64, wa.position.y as f64 + wa.size.height as f64);
+        let (panel, ring, m) = ((OPEN_W - D / 2.0) * sf, R * sf, MARGIN * sf);
+        let (lo, hi) = if want { (l + panel + m, r - ring - m) } else { (l + ring + m, r - panel - m) };
+        cx = cx.clamp(lo, hi.max(lo));
+        cy = cy.clamp(t + ring + m, (b - ring - m).max(t + ring + m));
     }
     let old_cx = pos.x as f64 + cx_off(cfg.left) * sf;
-    if want == cfg.left && (cx - old_cx).abs() < 0.5 {
+    let y = (cy - off_y).round() as i32;
+    if want == cfg.left && (cx - old_cx).abs() < 0.5 && y == pos.y {
         return;
     }
     let x = (cx - cx_off(want) * sf).round() as i32;
-    let _ = w.set_position(PhysicalPosition::new(x, pos.y));
+    let _ = w.set_position(PhysicalPosition::new(x, y));
     crate::update(app, |c| {
         c.left = want;
         c.x = Some(x);
-        c.y = Some(pos.y);
+        c.y = Some(y);
     });
 }

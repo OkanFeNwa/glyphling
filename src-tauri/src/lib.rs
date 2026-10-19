@@ -77,12 +77,6 @@ pub fn update(app: &AppHandle, f: impl FnOnce(&mut Config)) {
     let _ = app.emit("config", &after);
 }
 
-/// Blurs what is behind the window (the transparent parts of the page become glass).
-fn glass(w: &WebviewWindow) {
-    use tauri::window::{Effect, EffectsBuilder};
-    let _ = w.set_effects(EffectsBuilder::new().effect(Effect::Blur).build());
-}
-
 fn apply_level(w: &WebviewWindow, level: &str) {
     platform::set_desktop_owner(w, level == "desktop");
     match level {
@@ -127,9 +121,8 @@ pub fn open_settings(app: &AppHandle, page: Option<String>) {
             .center()
             .build();
         if let Ok(w) = built {
-            // rounded corners like the page's glass, with blur behind
+            // rounded corners like the page's glass
             platform::set_region(&w, &[hit::Part { x: 0.0, y: 0.0, w: 840.0, h: 740.0, r: 30.0 }]);
-            glass(&w);
         }
     });
 }
@@ -324,7 +317,6 @@ pub fn run() {
                 .visible(false)
                 .build()?;
             snap::restore(&widget, &cfg);
-            glass(&widget);
             apply_level(&widget, &cfg.level);
             if cfg.visible {
                 widget.show()?;
@@ -357,7 +349,6 @@ pub fn run() {
                 .visible(false)
                 .inner_size(300.0, 600.0)
                 .build()?;
-            glass(&menu);
             let mh = handle.clone();
             menu.on_window_event(move |ev| {
                 if let tauri::WindowEvent::Focused(false) = ev {

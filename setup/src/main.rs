@@ -24,9 +24,26 @@ const IDENTIFIER: &str = "com.okanfenwa.glyphling";
 const WIN_W: f64 = 760.0;
 const WIN_H: f64 = 460.0;
 
+/// Folder picked in the setup page; `None` means the default one.
+static CHOSEN: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
+
+/// Where Glyphling is installed now, if it is.
+fn current_dir() -> Option<PathBuf> {
+    if uninstall_mode() {
+        // the uninstaller is uninstall.exe inside the install folder
+        return std::env::current_exe().ok()?.parent().map(Path::to_path_buf);
+    }
+    win::installed_location().map(PathBuf::from).filter(|d| d.join(EXE).exists())
+}
+
 fn install_dir() -> PathBuf {
-    let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
-    base.join(PRODUCT)
+    if let Some(d) = CHOSEN.lock().unwrap().clone() {
+        return d;
+    }
+    current_dir().unwrap_or_else(|| {
+        let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
+        base.join(PRODUCT)
+    })
 }
 
 fn start_menu_link() -> Option<PathBuf> {
@@ -73,6 +90,15 @@ mod win {
 
     pub fn installed_version() -> Option<String> {
         RegKey::predef(HKEY_CURRENT_USER).open_subkey(UNINSTALL_KEY).ok()?.get_value("DisplayVersion").ok()
+    }
+
+    pub fn installed_location() -> Option<String> {
+        RegKey::predef(HKEY_CURRENT_USER).open_subkey(UNINSTALL_KEY).ok()?.get_value("InstallLocation").ok()
+    }
+
+    /// Windows' folder picker, on top of the setup window.
+    pub fn pick_folder(parent: &tauri::WebviewWindow, start: &Path) -> Option<PathBuf> {
+        rfd::FileDialog::new().set_title("Dove installo Glyphling?").set_directory(start).set_parent(parent).pick_folder()
     }
 
     pub fn write_uninstall_entry(dir: &Path, size_kb: u64) -> std::io::Result<()> {
@@ -172,6 +198,12 @@ mod win {
     pub fn installed_version() -> Option<String> {
         None
     }
+    pub fn installed_location() -> Option<String> {
+        None
+    }
+    pub fn pick_folder(_: &tauri::WebviewWindow, _: &Path) -> Option<PathBuf> {
+        None
+    }
     pub fn write_uninstall_entry(_: &Path, _: u64) -> std::io::Result<()> {
         Ok(())
     }
@@ -247,6 +279,35 @@ fn get_state() -> State {
     }
 }
 
+/// Lets the user pick another install folder. Picking "D:\Apps" installs into
+/// "D:\Apps\Glyphling"; the folder must be writable without administrator rights.
+#[tauri::command]
+async fn pick_dir(window: tauri::WebviewWindow) -> Result<Option<String>, String> {
+    let start = install_dir();
+    let start = start.parent().map(Path::to_path_buf).unwrap_or(start);
+    let picked = tauri::async_runtime::spawn_blocking(move || win::pick_folder(&window, &start)).await.map_err(|e| e.to_string())?;
+    let Some(mut dir) = picked else { return Ok(None) };
+    if !dir.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(PRODUCT)) {
+        dir.push(PRODUCT);
+    }
+    // try to write there now, so the error shows up before installing
+    let probe = dir.join(".glyphling-write-test");
+    let existed = dir.exists();
+    let ok = std::fs::create_dir_all(&dir).and_then(|_| std::fs::write(&probe, b"")).is_ok();
+    let _ = std::fs::remove_file(&probe);
+    if !ok {
+        if !existed {
+            let _ = std::fs::remove_dir(&dir);
+        }
+        return Err(format!("Non posso scrivere in {}: scegli una cartella tua, per esempio dentro Documenti o su un altro disco.", dir.display()));
+    }
+    if !existed {
+        let _ = std::fs::remove_dir(&dir); // created again when installing
+    }
+    *CHOSEN.lock().unwrap() = Some(dir.clone());
+    Ok(Some(dir.display().to_string()))
+}
+
 #[tauri::command]
 async fn install(app: AppHandle, desktop: bool) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || do_install(&app, desktop)).await.map_err(|e| e.to_string())?
@@ -279,6 +340,14 @@ fn do_install(app: &AppHandle, desktop: bool) -> Result<(), String> {
         write_retry(&un, &bytes).map_err(|e| format!("Non riesco a scrivere il disinstallatore: {e}"))?;
     }
     win::write_uninstall_entry(&dir, total / 1024).map_err(|e| format!("Non riesco a registrare l'app: {e}"))?;
+
+    // moved to another folder: the old copy goes away (settings live elsewhere and stay)
+    if let Some(old) = current_dir().filter(|d| d != &dir) {
+        for name in [EXE, "WebView2Loader.dll", "uninstall.exe"] {
+            let _ = std::fs::remove_file(old.join(name));
+        }
+        let _ = std::fs::remove_dir(&old);
+    }
 
     progress(app, "Creo i collegamenti", 0.92);
     let exe = dir.join(EXE);
@@ -351,7 +420,7 @@ fn main() {
         }
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_state, install, uninstall, finish])
+        .invoke_handler(tauri::generate_handler![get_state, pick_dir, install, uninstall, finish])
         .setup(|app| {
             let w = WebviewWindowBuilder::new(app, "setup", WebviewUrl::App("index.html".into()))
                 .title(if uninstall_mode() { "Disinstalla Glyphling" } else { "Installa Glyphling" })

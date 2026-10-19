@@ -73,7 +73,10 @@ pub fn spawn(app: AppHandle) {
             let (Ok(pos), Ok(sf)) = (w.outer_position(), w.scale_factor()) else { continue };
             let lx = (mx - pos.x) as f64 / sf;
             let ly = (my - pos.y) as f64 / sf;
-            let inside = state.shape.lock().unwrap().contains(lx, ly);
+            // while the button is held (turning the dial) the widget keeps the mouse even
+            // outside its shape, otherwise the drag would stop at the circle's edge
+            let held = ignoring == Some(false) && crate::platform::left_button_down();
+            let inside = held || state.shape.lock().unwrap().contains(lx, ly);
             if ignoring != Some(!inside) {
                 let _ = w.set_ignore_cursor_events(!inside);
                 ignoring = Some(!inside);

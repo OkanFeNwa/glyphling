@@ -1,6 +1,6 @@
 {
   "name": "glyphling",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "description": "Glyphling desktop widget",
   "scripts": {
     "tauri": "tauri"
