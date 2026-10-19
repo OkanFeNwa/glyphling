@@ -44,7 +44,7 @@ cargo build --release --manifest-path setup/Cargo.toml --target-dir src-tauri/ta
 # -> src-tauri/target/release/glyphling-setup.exe
 ```
 
-Releasing: bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `setup/Cargo.toml`, add `.github/release-notes/vX.Y.Z.md`, then push a `vX.Y.Z` tag. The workflow builds the setup and attaches it to the release.
+Releasing: bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and `setup/Cargo.toml`, add `.github/release-notes/vX.Y.Z.md`, then push to `main`. The workflow sees the new version, builds the setup and publishes release `vX.Y.Z` with it (pushing a `vX.Y.Z` tag works too).
 
 Cross-compiling from Linux works for checking the code (`--target x86_64-pc-windows-gnu`, needs mingw-w64), but a gnu build needs `WebView2Loader.dll` next to each executable, so the single-file setup must be built with MSVC (as the workflow does).
 

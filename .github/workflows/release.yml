@@ -1,9 +1,15 @@
 name: Release
 
-# Push a vX.Y.Z tag to build the Windows setup and publish it as a GitHub release.
+# Builds the Windows setup and publishes it as release vX.Y.Z, where X.Y.Z is the
+# version in src-tauri/tauri.conf.json. Runs when that file changes on main (a
+# version bump) or this workflow changes, when a v* tag is pushed, or by hand.
+# Skips versions already released.
 on:
   push:
+    branches: [main]
+    paths: ["src-tauri/tauri.conf.json", ".github/workflows/release.yml"]
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -14,41 +20,63 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Read the version
+        id: ver
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if ("${{ github.ref_type }}" -eq "tag" -and "v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match app version $version" }
+          gh release view "v$version" --repo "${{ github.repository }}" 2>$null
+          $exists = ($LASTEXITCODE -eq 0)
+          if ($exists) { Write-Host "Release v$version already exists, nothing to do." }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "build=$(-not $exists)".ToLower() | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          exit 0
+
       - uses: actions/setup-node@v4
+        if: steps.ver.outputs.build == 'true'
         with:
           node-version: 20
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.ver.outputs.build == 'true'
 
       - uses: swatinem/rust-cache@v2
+        if: steps.ver.outputs.build == 'true'
         with:
           workspaces: |
             src-tauri -> target
             setup -> ../src-tauri/target
 
       - name: Install dependencies
+        if: steps.ver.outputs.build == 'true'
         run: npm ci
 
       - name: Build the app
+        if: steps.ver.outputs.build == 'true'
         run: npx tauri build --no-bundle
 
       - name: Build the setup
+        if: steps.ver.outputs.build == 'true'
         shell: pwsh
         run: |
           $env:GLYPHLING_PAYLOAD_DIR = "$PWD\src-tauri\target\release"
           cargo build --release --manifest-path setup/Cargo.toml --target-dir src-tauri/target
-          $version = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
-          if ("v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match app version $version" }
+          $version = "${{ steps.ver.outputs.version }}"
           New-Item -ItemType Directory -Force dist | Out-Null
           Copy-Item src-tauri/target/release/glyphling-setup.exe "dist/Glyphling-Setup-$version.exe"
           "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Publish the release
+        if: steps.ver.outputs.build == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $notes = ".github/release-notes/${{ github.ref_name }}.md"
+          $tag = "v$env:VERSION"
+          $notes = ".github/release-notes/$tag.md"
           if (-not (Test-Path $notes)) { "Glyphling $env:VERSION" | Out-File $notes }
-          gh release create "${{ github.ref_name }}" "dist/Glyphling-Setup-$env:VERSION.exe" --title "Glyphling $env:VERSION" --notes-file $notes --prerelease
+          gh release create $tag "dist/Glyphling-Setup-$env:VERSION.exe" --target "${{ github.sha }}" --title "Glyphling $env:VERSION" --notes-file $notes --prerelease
