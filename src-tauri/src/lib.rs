@@ -19,7 +19,7 @@ use config::Config;
 use serde::Serialize;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent, PhysicalPosition};
 
 /// Widget geometry in logical pixels (must match src/host.css and the prototype).
 pub const PAD_X: f64 = 40.0;
@@ -39,6 +39,13 @@ pub struct AppState {
     pub settings_page: Mutex<Option<String>>,
     /// Point (physical pixels) the tray icon menu is anchored to.
     pub menu: Mutex<Option<(f64, f64)>>,
+    /// While the first-run tutorial runs, the widget window covers the whole monitor;
+    /// this is where it was before (physical pixels).
+    pub tutorial: Mutex<Option<PhysicalPosition<i32>>>,
+}
+
+pub fn in_tutorial(app: &AppHandle) -> bool {
+    app.state::<AppState>().tutorial.lock().unwrap().is_some()
 }
 
 /// Applies a change to the settings; if anything changed, saves it, applies it
@@ -75,6 +82,9 @@ pub fn update(app: &AppHandle, f: impl FnOnce(&mut Config)) {
     }
     tray::sync(app, &after);
     let _ = app.emit("config", &after);
+    if (before.mode == "idle") != (after.mode == "idle") {
+        snap::follow_state(app);
+    }
 }
 
 fn apply_level(w: &WebviewWindow, level: &str) {
@@ -154,6 +164,26 @@ fn set_snap(app: AppHandle, on: bool) {
     update(&app, |c| c.snap = on);
 }
 
+/// Two positions (circle alone, circle + panel) on or off.
+#[tauri::command]
+fn set_two_pos(app: AppHandle, on: bool) {
+    let sf = app.get_webview_window("widget").and_then(|w| w.scale_factor().ok()).unwrap_or(1.0);
+    let pos = app.get_webview_window("widget").and_then(|w| w.outer_position().ok());
+    update(&app, |c| {
+        c.two_pos = on;
+        // the current place becomes the position of both states until the user moves it
+        if let Some(p) = pos {
+            let center = ((p.x as f64 + snap::cx_off(c.left) * sf).round() as i32, (p.y as f64 + (PAD_Y + D / 2.0) * sf).round() as i32);
+            if c.mode == "idle" {
+                c.home = Some(center);
+            } else {
+                c.home = c.home.or(Some(center));
+                c.home_open = Some(center);
+            }
+        }
+    });
+}
+
 /// Side the panel opens on: right, left or auto.
 #[tauri::command]
 fn set_panel_dir(app: AppHandle, dir: String) {
@@ -166,8 +196,58 @@ fn set_panel_dir(app: AppHandle, dir: String) {
 
 #[tauri::command]
 fn set_shape(window: WebviewWindow, state: tauri::State<AppState>, shape: hit::Shape) {
-    platform::set_region(&window, &shape.parts);
+    // during the tutorial the window covers the screen and stays whole
+    if state.tutorial.lock().unwrap().is_none() {
+        platform::set_region(&window, &shape.parts);
+    }
     *state.shape.lock().unwrap() = shape;
+}
+
+#[derive(serde::Serialize)]
+struct TutorialPlace {
+    /// Where the widget's usual window sits inside the enlarged one (logical pixels).
+    dx: f64,
+    dy: f64,
+    /// The tray icon, if Windows says where it is (logical pixels, relative to the window).
+    tray: Option<[f64; 4]>,
+}
+
+/// Tutorial on: the widget window grows to cover its monitor (taskbar included, so the
+/// tray icon can be pointed at) without moving the widget on screen. Off: back as it was.
+#[tauri::command]
+fn tutorial(app: AppHandle, window: WebviewWindow, on: bool) -> Option<TutorialPlace> {
+    let state = app.state::<AppState>();
+    if !on {
+        let saved = state.tutorial.lock().unwrap().take();
+        if let Some(p) = saved {
+            let _ = window.set_size(tauri::LogicalSize::new(WIN_W, WIN_H));
+            let _ = window.set_position(p);
+            let level = state.cfg.lock().unwrap().level.clone();
+            apply_level(&window, &level);
+            let shape = state.shape.lock().unwrap().clone();
+            platform::set_region(&window, &shape.parts);
+        }
+        return None;
+    }
+    let pos = window.outer_position().ok()?;
+    let sf = window.scale_factor().ok()?;
+    let mon = window.current_monitor().ok().flatten()?;
+    let (mp, ms) = (*mon.position(), *mon.size());
+    *state.tutorial.lock().unwrap() = Some(pos);
+    platform::set_region(&window, &[]);
+    let _ = window.set_ignore_cursor_events(false);
+    platform::set_desktop_owner(&window, false);
+    let _ = window.set_always_on_bottom(false);
+    let _ = window.set_always_on_top(true);
+    let _ = window.set_position(mp);
+    let _ = window.set_size(ms);
+    let _ = window.set_focus();
+    let tray = app.tray_by_id("main").and_then(|t| t.rect().ok().flatten()).map(|r| {
+        let p = r.position.to_physical::<f64>(sf);
+        let z = r.size.to_physical::<f64>(sf);
+        [(p.x - mp.x as f64) / sf, (p.y - mp.y as f64) / sf, z.width / sf, z.height / sf]
+    });
+    Some(TutorialPlace { dx: (pos.x - mp.x) as f64 / sf, dy: (pos.y - mp.y) as f64 / sf, tray })
 }
 
 #[tauri::command]
@@ -302,6 +382,7 @@ pub fn run() {
                 playing: AtomicBool::new(false),
                 settings_page: Mutex::new(None),
                 menu: Mutex::new(None),
+                tutorial: Mutex::new(None),
             });
 
             let widget = WebviewWindowBuilder::new(app, "widget", WebviewUrl::App("index.html".into()))
@@ -390,6 +471,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_config,
             set_panel_dir,
+            set_two_pos,
+            tutorial,
             list_disks,
             set_mode,
             set_move,

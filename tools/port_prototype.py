@@ -157,6 +157,19 @@ API = """
 """
 sub("  requestAnimationFrame(frame);\n})();\n</script>", API + "  requestAnimationFrame(frame);\n})();\n</script>")
 
+# 5b. two positions: in the app the backend moves the window between the saved places
+sub("  function syncPos() {\n", "  function syncPos() {\n    if (window.__host) return;\n")
+
+# 5c. tutorial: only in the widget window, which first grows to cover the screen;
+# the tray icon is the real one in the taskbar
+sub("  function tutOpen() {",
+    "  window.__tutOpen = () => tutOpen();\n"
+    "  function tutOpen() {\n"
+    "    if (window.__host && window.__host !== 'widget') return;\n"
+    "    if (window.__hostTut && !window.__hostTutOn) { window.__hostTut(true).then(() => tutOpen()); return; }\n   ")
+sub("  function tutClose() {\n", "  function tutClose() {\n    if (window.__hostTut) window.__hostTut(false);\n")
+sub("el: () => $('trayIc')", "el: () => (window.__tutTray ? window.__tutTray() : $('trayIc'))", 2)
+
 # 6. app name: Glyphling (visible text only, internal keys stay lowercase)
 # in the app the panel side is decided by the backend, which knows the screen
 html, n = re.subn(r"(  function applyDir\([a-z]*\) \{\n)", r"\1    if (window.__host) return;\n", html, count=1)

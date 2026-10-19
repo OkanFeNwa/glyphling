@@ -127,12 +127,47 @@ fn glide(w: &WebviewWindow, to: PhysicalPosition<i32>) {
     }
 }
 
+/// Saves where the user put the widget: the window position (for the next start) and
+/// the circle center for the current state (closed, or open with two positions on).
 fn remember(app: &AppHandle, p: PhysicalPosition<i32>) {
+    let sf = app.get_webview_window("widget").and_then(|w| w.scale_factor().ok()).unwrap_or(1.0);
     let state = app.state::<AppState>();
     let mut c = state.cfg.lock().unwrap();
     c.x = Some(p.x);
     c.y = Some(p.y);
+    let center = ((p.x as f64 + cx_off(c.left) * sf).round() as i32, (p.y as f64 + (PAD_Y + D / 2.0) * sf).round() as i32);
+    if c.two_pos && c.mode != "idle" {
+        c.home_open = Some(center);
+    } else {
+        c.home = Some(center);
+    }
     config::save(app, &c);
+}
+
+/// With two positions on, the widget moves to the saved place of the new state when the
+/// panel opens or closes, then the side and the screen edges are checked again.
+pub fn follow_state(app: &AppHandle) {
+    if crate::in_tutorial(app) {
+        return;
+    }
+    let cfg = app.state::<AppState>().cfg.lock().unwrap().clone();
+    if !cfg.two_pos {
+        return;
+    }
+    let target = if cfg.mode != "idle" { cfg.home_open.or(cfg.home) } else { cfg.home };
+    let Some((cx, cy)) = target else { return };
+    let Some(w) = app.get_webview_window("widget") else { return };
+    let Ok(sf) = w.scale_factor() else { return };
+    let p = PhysicalPosition::new((cx as f64 - cx_off(cfg.left) * sf).round() as i32, (cy as f64 - (PAD_Y + D / 2.0) * sf).round() as i32);
+    let app = app.clone();
+    std::thread::spawn(move || {
+        glide(&w, p);
+        crate::update(&app, |c| {
+            c.x = Some(p.x);
+            c.y = Some(p.y);
+        });
+        sync_side(&app);
+    });
 }
 
 fn show_grid(app: &AppHandle, w: &WebviewWindow, step: u32, color: Option<String>) {
@@ -210,6 +245,9 @@ pub fn reset(app: &AppHandle) {
 /// Picks the panel side (fixed or automatic: left if the circle is in the right half
 /// of the monitor). If the side changes it moves the window, so the circle stays put.
 pub fn sync_side(app: &AppHandle) {
+    if crate::in_tutorial(app) {
+        return;
+    }
     let Some(w) = app.get_webview_window("widget") else { return };
     let (Ok(pos), Ok(sf)) = (w.outer_position(), w.scale_factor()) else { return };
     let cfg = app.state::<AppState>().cfg.lock().unwrap().clone();

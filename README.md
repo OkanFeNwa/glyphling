@@ -8,10 +8,11 @@ The full design document lives in the project's shared files, not in this reposi
 
 Installers are published on the [Releases](../../releases) page. Download `Glyphling-Setup-x.y.z.exe` and run it. The same file installs, updates in place (settings, themes and position are kept) and, as `uninstall.exe` in the install folder, removes the app. The setup is not signed yet, so Windows SmartScreen may warn on first launch ("More info" → "Run anyway").
 
-## What it does (0.5)
+## What it does (0.6)
 
 - **Widget**: transparent, frameless, clipped to its real shape (circle plus panel), with a dark glass look. Windows' own blur behind the window is not used: on some PCs it turned the transparent parts black. The panel opens to the right, to the left or automatically, and its layout mirrors when it opens to the left. Turn the dial (or the mouse wheel) to pick a mode, right click the circle to go back to the mascot.
-- **Placement**: drag anywhere with snapping to a 24 px grid (Alt = free). The snapped point is the centre of the circle when closed, the centre of circle plus panel when open. Levels: on the desktop (survives Show desktop / Win+D), normal, always on top.
+- **First run**: a short tutorial walks through the mascot, the dial, the panel, the tray icon and the settings (Settings > Info to see it again). While it runs the widget window briefly covers the screen to dim it and point at the tray icon.
+- **Placement**: drag anywhere with snapping to a 24 px grid (Alt = free). The snapped point is the centre of the circle when closed, the centre of circle plus panel when open. Optionally two positions, one for the circle alone and one for circle + panel: the widget glides between them when the panel opens or closes. The whole shape always stays on screen. Levels: on the desktop (survives Show desktop / Win+D), normal, always on top.
 - **Tray icon**: left click shows or hides the widget, right click opens a glass menu.
 - **Settings**: frameless glass window with sidebar navigation.
 - **Real data**:

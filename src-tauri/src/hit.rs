@@ -69,6 +69,10 @@ pub fn spawn(app: AppHandle) {
             if state.dragging.load(Ordering::Relaxed) || !w.is_visible().unwrap_or(false) {
                 continue;
             }
+            if crate::in_tutorial(&app) {
+                ignoring = None; // the tutorial covers the screen and takes every click
+                continue;
+            }
             let Some((mx, my)) = crate::platform::cursor_pos() else { continue };
             let (Ok(pos), Ok(sf)) = (w.outer_position(), w.scale_factor()) else { continue };
             let lx = (mx - pos.x) as f64 / sf;

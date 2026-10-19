@@ -262,7 +262,7 @@ button:focus-visible, .ring:focus-visible, input:focus-visible + svg { outline: 
   width: var(--d); height: var(--d);
   border-radius: 50%;
   background: var(--shell);
-  box-shadow: 0 0 0 1px #2c2c2c, 0 0 0 7px #0e0e0e, 0 0 0 8px #262626, 0 18px 40px rgba(0,0,0,.6);
+  box-shadow: 0 0 0 1px #2c2c2c, 0 0 0 7px #0e0e0e, 0 0 0 8px #262626;
   z-index: 3;
   cursor: pointer;
   touch-action: none;
@@ -384,7 +384,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .ctrls button:active, .ghost:active, .seg button:active, .pa:active, .preset:active, .chip:active, .slots button:active, .disk:active, .tabs button:active, .cp-mode:active, .cp-eye:active, .cp-x:active { transform: scale(.94); }
 .ctrls button.main:hover { box-shadow: 0 0 18px color-mix(in srgb, var(--pix) 35%, transparent); }
 .ring { transition: transform .25s cubic-bezier(.3,1.4,.5,1); }
-.ring.press { transform: scale(.965); }
+.ring.press { transform: none; }
 .preset:hover { transform: translateY(-2px); }
 .pcard.entering { animation: pop .4s cubic-bezier(.2,.9,.3,1.25); }
 .pcard.leaving { transition: opacity .25s, transform .25s; opacity: 0; transform: scale(.8); }
@@ -658,12 +658,32 @@ svg.lu { display: block; flex: none; }
 .tmenu.glass { background: linear-gradient(180deg, rgba(40,40,40,.95), rgba(20,20,20,.96)); }
 .widget.left .slots, .widget.left .dchips { direction: rtl; }
 .widget.left .slots button, .widget.left .dchips button { direction: ltr; }
+
+/* ---------- v0.16: ghiera piatta, due posizioni, tutorial ---------- */
+.halo { display: none; }
+.mb-seg { margin-left: 4px; }
+.mb-seg[hidden] { display: none; }
+.tut { position: fixed; inset: 0; z-index: 60; pointer-events: auto; }
+.tut[hidden] { display: none; }
+.tut-hole { position: fixed; border-radius: 999px; box-shadow: 0 0 0 9999px rgba(0,0,0,.62); outline: 1px solid color-mix(in srgb, var(--red) 70%, transparent); outline-offset: 6px; transition: left .45s cubic-bezier(.2,.8,.2,1), top .45s cubic-bezier(.2,.8,.2,1), width .45s cubic-bezier(.2,.8,.2,1), height .45s cubic-bezier(.2,.8,.2,1), border-radius .45s; pointer-events: none; }
+.tut-card { position: fixed; width: 300px; box-sizing: border-box; padding: 18px; border-radius: 22px; display: flex; flex-direction: column; gap: 10px; transition: left .45s cubic-bezier(.2,.8,.2,1), top .45s cubic-bezier(.2,.8,.2,1); background: linear-gradient(160deg, rgba(40,40,40,.96), rgba(18,18,18,.97)) !important; }
+.tut-card .k { font-size: 9px; letter-spacing: .16em; text-transform: uppercase; color: var(--mute); display: flex; justify-content: space-between; }
+.tut-card h4 { margin: 0; font-family: var(--dot); font-weight: 900; font-size: 18px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink); }
+.tut-card p { margin: 0; font-size: 11px; line-height: 1.6; color: var(--mute); }
+.tut-card p b { color: var(--ink); font-weight: 400; }
+.tut-card .tb { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.tut-card .dots { display: flex; gap: 4px; margin-right: auto; }
+.tut-card .dots i { width: 5px; height: 5px; background: #3a3a3a; transition: background .2s; }
+.tut-card .dots i.on { background: var(--red); }
+.tut-card .ghost.pri { color: #fff; background: var(--red); border-color: var(--red); }
+.tut-card .ghost.pri:hover { filter: brightness(1.15); background: var(--red); }
+.tut-body { animation: fadeUp .3s cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; gap: 8px; }
 </style>
 
 <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
 <header>
   <h1>Glyphling</h1>
-  <span class="rec"><i></i>prototipo · v0.15</span>
+  <span class="rec"><i></i>prototipo · v0.16</span>
 </header>
 
 <div class="stage" id="stage">
@@ -808,6 +828,7 @@ svg.lu { display: block; flex: none; }
   <div class="srow"><div><b>Apertura del riquadro</b><small>Da che lato si apre il riquadro. Automatica sceglie il lato con più spazio, in base a dove sta il widget.</small></div><span class="seg3" id="dirSeg"><button data-d="right" aria-pressed="false">Destra</button><button data-d="left" aria-pressed="false">Sinistra</button><button data-d="auto" aria-pressed="true">Auto</button></span></div>
   <div class="srow"><div><b>Sposta il widget</b><small>Trascinalo dove vuoi sul desktop. Lo trovi anche nel menù dell'icona.</small></div><button class="sw-t" id="swMove" role="switch" aria-checked="false" aria-label="Sposta il widget"></button></div>
   <div class="srow"><div><b>Aggancia alla griglia</b><small>Si allinea a una griglia da 24 px. Tieni premuto <kbd>Alt</kbd> mentre trascini per muoverlo libero.</small></div><button class="sw-t" id="swSnap" role="switch" aria-checked="true" aria-label="Aggancia alla griglia"></button></div>
+  <div class="srow"><div><b>Due posizioni</b><small>Una posizione per il solo cerchio e una per cerchio + riquadro. Quando si apre il riquadro il widget si sposta da solo.</small></div><button class="sw-t" id="swTwo" role="switch" aria-checked="false" aria-label="Due posizioni"></button></div>
   <div class="srow"><div><b>Riporta al centro</b><small>Rimette il widget nella posizione iniziale.</small></div><button class="ghost" id="posReset">Centra</button></div>
 </div>
 </div>
@@ -831,7 +852,8 @@ svg.lu { display: block; flex: none; }
   <div class="sgroup about">
     <canvas id="aboutCv" width="224" height="224" aria-hidden="true"></canvas>
     <div><h3>Glyphling</h3><p>Una piccola mascotte a LED che vive sul desktop. Orologio, calendario, musica, timer, meteo e stato del PC in un cerchio.</p>
-      <div class="ver"><span>Versione <b>0.15 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div></div>
+      <div class="ver"><span>Versione <b>0.16 prototipo</b></span><span>Canale <b>anteprima</b></span><span id="infoUpd">Aggiornamenti <b>controlla</b></span></div>
+      <div class="ver"><button class="ghost" id="tutAgain">Rivedi il tutorial</button></div></div>
   </div>
   <div class="kv">
     <div>Sistema<b id="infoOs">Windows 11 · x64</b></div>
@@ -842,6 +864,7 @@ svg.lu { display: block; flex: none; }
   <div class="sgroup">
     <h3>Novità</h3>
     <ul class="news">
+      <li><span><b>0.16</b> · tutorial al primo avvio, ghiera piatta, due posizioni (solo cerchio e con riquadro).</span></li>
       <li><span><b>0.15</b> · icone vettoriali vere al posto delle bitmap a pixel.</span></li>
       <li><span><b>0.14</b> · impostazioni con barra laterale, pulsanti più reattivi, cerchio che resta fermo, riquadro specchiato a sinistra.</span></li>
       <li><span><b>0.13</b> · modalità scelte ruotando la ghiera, clic destro per tornare alla mascotte, lato di apertura del riquadro.</span></li>
@@ -866,7 +889,8 @@ svg.lu { display: block; flex: none; }
 </div>
 
 <div class="gridov" aria-hidden="true"></div>
-<div class="movebar glass-s" id="movebar" hidden><span><b>Spostamento attivo</b> · trascina il widget · <span id="mbSnap">Alt per muoverlo libero</span></span><button class="ghost" id="moveDone">Fatto</button></div>
+<div class="tut" id="tut" hidden role="dialog" aria-label="Tutorial"><div class="tut-hole" id="tutHole"></div><div class="tut-card glass" id="tutCard"></div></div>
+<div class="movebar glass-s" id="movebar" hidden><span><b>Spostamento attivo</b> · trascina il widget · <span id="mbSnap">Alt per muoverlo libero</span></span><span class="seg3 mb-seg" id="mbState" hidden><button data-s="idle" aria-pressed="true">Solo ghiera</button><button data-s="open" aria-pressed="false">Ghiera + riquadro</button></span><button class="ghost" id="moveDone">Fatto</button></div>
 
 <div class="tip glass-s" id="tip">Clic destro sull'icona per le impostazioni</div>
 <div class="tmenu glass" id="tmenu" hidden role="menu" aria-label="Glyphling"></div>
@@ -1815,6 +1839,8 @@ svg.lu { display: block; flex: none; }
     syncDisc();
     syncCtx();
     requestAnimationFrame(() => { dotsBar($('barCv'), pos / tracks[ti].dur, true); if (m === 'disks') { dkUi(); pcUi(); } if (m === 'timer') tabUi(); });
+    if (m !== 'idle') window.__lastOpen = m;
+    if (window.__syncPos) window.__syncPos();
   }
   document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
   $('ctxBtn').addEventListener('click', () => {
@@ -2358,7 +2384,7 @@ svg.lu { display: block; flex: none; }
   }
   function buildMenu() {
     const sleepItem = mode === 'idle' ? `<button role="menuitem" data-a="sleep"><span class="ck"></span>${asleep ? 'Sveglia la mascotte' : 'Fai dormire la mascotte'}</button>` : '';
-    $('tmenu').innerHTML = `<div class="mh"><b>Glyphling</b>v0.15</div>`
+    $('tmenu').innerHTML = `<div class="mh"><b>Glyphling</b>v0.16</div>`
       + `${sleepItem}<button role="menuitemcheckbox" aria-checked="${moving}" data-a="move"><span class="ck"></span>Sposta il widget</button><button role="menuitem" data-a="show"><span class="ck"></span>${widgetAway ? 'Mostra il widget' : 'Nascondi il widget'}</button>`
       + `<button role="menuitem" data-a="settings"><span class="ck"></span>Impostazioni…</button><button role="menuitem" data-a="info"><span class="ck"></span>Info su Glyphling</button><hr>`
       + `<button role="menuitem" disabled><span class="ck"></span>Esci</button>`;
@@ -2440,12 +2466,55 @@ svg.lu { display: block; flex: none; }
   try { const sv = JSON.parse(localStorage.getItem('companion-pos') || 'null'); if (sv && isFinite(sv.x) && isFinite(sv.y)) pos2 = sv; } catch (e) {}
   try { if (localStorage.getItem('companion-snap') === '0') snap = false; } catch (e) {}
   function applyPos() { if (window.__host) return; $('scaler').style.translate = `${pos2.x}px ${pos2.y}px`; }
-  function clampPos(p) {
-    const r = $('widget').getBoundingClientRect(), cur = pos2;
+  // tutta la superficie cliccabile resta nello schermo: cerchio e, se aperto, anche il riquadro
+  function clampPos(p, open, left) {
+    const w = $('widget'), r = w.getBoundingClientRect(), cur = pos2;
+    if (open === undefined) open = w.classList.contains('open');
+    if (left === undefined) left = w.classList.contains('left');
+    const ext = open ? 474 * (r.width / 172) : 0;
     const baseL = r.left - cur.x, baseT = r.top - cur.y;
-    return { x: Math.round(Math.max(8 - baseL, Math.min(innerWidth - 8 - r.width - baseL, p.x))), y: Math.round(Math.max(8 - baseT, Math.min(innerHeight - 56 - r.height - baseT, p.y))) };
+    const minX = 16 - baseL + (open && left ? ext : 0);
+    const maxX = innerWidth - 16 - r.width - baseL - (open && !left ? ext : 0);
+    return { x: Math.round(Math.max(minX, Math.min(maxX, p.x))), y: Math.round(Math.max(16 - baseT, Math.min(innerHeight - 64 - r.height - baseT, p.y))) };
   }
-  function savePos() { try { localStorage.setItem('companion-pos', JSON.stringify(pos2)); } catch (e) {} }
+  let twoPos = false, posOpen = null;
+  try { twoPos = localStorage.getItem('companion-twopos') === '1'; const o = JSON.parse(localStorage.getItem('companion-pos-open') || 'null'); if (o && isFinite(o.x) && isFinite(o.y)) posOpen = o; } catch (e) {}
+  let posIdle = null;
+  const posKey = () => twoPos && mode !== 'idle' ? 'open' : 'idle';
+  function savePos() {
+    try {
+      if (posKey() === 'open') { posOpen = { ...pos2 }; localStorage.setItem('companion-pos-open', JSON.stringify(pos2)); }
+      else { posIdle = { ...pos2 }; localStorage.setItem('companion-pos', JSON.stringify(pos2)); }
+    } catch (e) {}
+  }
+  // al cambio di stato il widget va alla posizione di quello stato, sempre dentro lo schermo
+  function syncPos() {
+    if (window.__host) return;
+    if (posIdle === null) posIdle = { ...pos2 };
+    const target = posKey() === 'open' ? (posOpen || posIdle) : posIdle;
+    applyDir();
+    if (panelDir === 'auto') {
+      const r = $('ring').getBoundingClientRect();
+      $('widget').classList.toggle('left', r.left + r.width / 2 + (target.x - pos2.x) > innerWidth / 2);
+    }
+    pos2 = clampPos(target, mode !== 'idle'); applyPos();
+    $('mbState').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === (mode === 'idle' ? 'idle' : 'open')));
+  }
+  window.__syncPos = syncPos;
+  $('swTwo').addEventListener('click', () => {
+    twoPos = !twoPos; $('swTwo').setAttribute('aria-checked', twoPos);
+    try { localStorage.setItem('companion-twopos', twoPos ? '1' : '0'); } catch (e) {}
+    if (twoPos && !posOpen) posOpen = { ...(posIdle || pos2) };
+    $('mbState').hidden = !twoPos;
+    syncPos();
+  });
+  $('swTwo').setAttribute('aria-checked', twoPos);
+  $('mbState').hidden = !twoPos;
+  let lastOpenMode = 'clock';
+  $('mbState').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.s === 'idle') setMode('idle'); else setMode(window.__lastOpen || lastOpenMode);
+  });
   function setMoving(v) {
     if (window.__hostEvent && v !== moving) queueMicrotask(() => window.__hostEvent('move', v));
     moving = v;
@@ -2480,6 +2549,10 @@ svg.lu { display: block; flex: none; }
     document.body.classList.toggle('free', free);
     let p = { x: mv.o.x + e.clientX - mv.x, y: mv.o.y + e.clientY - mv.y };
     if (!free) p = { x: Math.round(p.x / GRID) * GRID, y: Math.round(p.y / GRID) * GRID };
+    if (panelDir === 'auto') {      // in automatico il lato cambia mentre trascini, così il riquadro trova sempre spazio
+      const r = $('ring').getBoundingClientRect();
+      $('widget').classList.toggle('left', r.left + r.width / 2 + (p.x - pos2.x) > innerWidth / 2);
+    }
     pos2 = clampPos(p); applyPos();
   }, true);
   const endMv = e => { if (!mv) return; e.stopPropagation(); mv = null; $('scaler').classList.remove('dragging'); document.body.classList.remove('free'); savePos(); setTimeout(applyDir, 380); };
@@ -2516,6 +2589,7 @@ svg.lu { display: block; flex: none; }
       if (dx) { pos2 = clampPos({ x: pos2.x + dx, y: pos2.y }); applyPos(); savePos(); }
     }
     document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === panelDir));
+    if ($('widget').classList.contains('open')) { const c = clampPos(pos2); if (c.x !== pos2.x || c.y !== pos2.y) { pos2 = c; applyPos(); } }
   }
   $('dirSeg').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
@@ -2523,6 +2597,74 @@ svg.lu { display: block; flex: none; }
     applyDir(true);
   });
   window.addEventListener('resize', () => applyDir());
+
+  // ---------- tutorial al primo avvio ----------
+  const TUT = [
+    { t: 'Ciao!', el: () => $('ring'), p: 'Questa è la tua mascotte. Vive nel cerchio, segue il puntatore e <b>sorride se la clicchi</b>. Se la lasci stare per un po\' si addormenta.' },
+    { t: 'Ruota la ghiera', el: () => $('ring'), demo: 'pick', p: '<b>Trascina in cerchio</b> sulla ghiera, oppure usa la <b>rotellina</b>, per scegliere una modalità: orologio, calendario, musica, timer, meteo, sistema. Lascia e si apre.' },
+    { t: 'Il riquadro', el: () => $('panel'), demo: 'music', p: 'Ogni modalità apre un riquadro con i suoi comandi. La ghiera continua a lavorare: qui per esempio <b>girarla cambia il volume</b>, e lo fa anche la rotellina.' },
+    { t: 'Torna a casa', el: () => $('ring'), demo: 'home', p: 'Da qualsiasi modalità, il <b>clic destro sul cerchio</b> ti riporta alla mascotte. Anche <b>Esc</b> funziona.' },
+    { t: 'L\'icona', el: () => (window.__tutTray ? window.__tutTray() : $('trayIc')), p: 'Nell\'area di notifica trovi l\'icona di Glyphling. <b>Clic destro</b> per il menù: spostare il widget, nasconderlo, aprire le impostazioni.' },
+    { t: 'Fatto su misura', el: () => (window.__tutTray ? window.__tutTray() : $('trayIc')), p: 'Nelle <b>impostazioni</b> scegli i colori, i dischi da mostrare, il lato in cui si apre il riquadro e, se vuoi, <b>due posizioni</b>: una col solo cerchio e una col riquadro aperto.' },
+    { t: 'Tutto pronto', el: () => $('ring'), p: 'Puoi rivedere questo tutorial quando vuoi da <b>Impostazioni › Info</b>.' },
+  ];
+  let tutI = 0, tutDemo = null;
+  function tutPlace() {
+    const st = TUT[tutI], el = st.el(); if (!el) return;
+    const r = el.getBoundingClientRect(), pad = el.id === 'panel' ? 4 : 8, round = el.id === 'panel' ? '30px' : '999px';
+    const h = $('tutHole');
+    Object.assign(h.style, { left: (r.left - pad) + 'px', top: (r.top - pad) + 'px', width: (r.width + pad * 2) + 'px', height: (r.height + pad * 2) + 'px', borderRadius: round });
+    const c = $('tutCard'), cw = 300, ch = c.offsetHeight || 200;
+    let x = r.left + r.width / 2 - cw / 2, y = r.bottom + 24;
+    if (y + ch > innerHeight - 60) y = r.top - ch - 24;
+    if (y < 12) { y = Math.max(12, r.top + r.height / 2 - ch / 2); x = r.right + 24; if (x + cw > innerWidth - 12) x = r.left - cw - 24; }
+    c.style.left = Math.max(12, Math.min(innerWidth - cw - 12, x)) + 'px';
+    c.style.top = Math.max(12, Math.min(innerHeight - ch - 12, y)) + 'px';
+  }
+  function tutStop() { if (tutDemo) { clearInterval(tutDemo); tutDemo = null; } }
+  function tutShow() {
+    tutStop();
+    const st = TUT[tutI];
+    if (st.demo === 'music') { setMode('music'); }
+    else if (st.demo === 'home' || st.demo === 'pick' || tutI === 0) { if (mode !== 'idle') setMode('idle'); }
+    if (st.demo === 'pick') {
+      let k = 0;
+      tutDemo = setInterval(() => { if (k++ < 6) pickStep(1); else { mpk.on = 0; $('pickLbl').classList.remove('on'); k = 0; } }, 700);
+    } else { mpk.on = 0; $('pickLbl').classList.remove('on'); }
+    $('tutCard').innerHTML = `<div class="tut-body"><div class="k"><span>Tutorial</span><span>${tutI + 1} di ${TUT.length}</span></div><h4>${st.t}</h4><p>${st.p}</p></div>
+      <div class="tb"><span class="dots">${TUT.map((_, i) => `<i class="${i === tutI ? 'on' : ''}"></i>`).join('')}</span>
+      ${tutI > 0 ? '<button class="ghost" data-t="back">Indietro</button>' : '<button class="ghost" data-t="skip">Salta</button>'}
+      <button class="ghost pri" data-t="next">${tutI === TUT.length - 1 ? 'Inizia' : 'Avanti'}</button></div>`;
+    requestAnimationFrame(() => { tutPlace(); setTimeout(tutPlace, 650); });
+    $('tutCard').querySelector('[data-t="next"]').focus({ preventScroll: true });
+  }
+  window.__tutOpen = () => tutOpen();
+  function tutOpen() {
+    if (window.__host && window.__host !== 'widget') return;
+    if (window.__hostTut && !window.__hostTutOn) { window.__hostTut(true).then(() => tutOpen()); return; }
+    closeSettings(); closeMenu(); setMoving(false); setAway(false); $('tip').hidden = true; tutI = 0; $('tut').hidden = false; tutShow(); }
+  function tutClose() {
+    if (window.__hostTut) window.__hostTut(false);
+    tutStop(); $('tut').hidden = true; mpk.on = 0; $('pickLbl').classList.remove('on');
+    if (mode !== 'idle') setMode('idle');
+    try { localStorage.setItem('companion-tutorial', 'done'); } catch (e) {}
+  }
+  $('tutCard').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.t === 'next') { if (tutI < TUT.length - 1) { tutI++; tutShow(); } else tutClose(); }
+    else if (b.dataset.t === 'back') { tutI--; tutShow(); }
+    else tutClose();
+  });
+  document.addEventListener('keydown', e => {
+    if ($('tut').hidden) return;
+    if (e.key === 'Escape') { e.stopImmediatePropagation(); tutClose(); }
+    if (e.key === 'ArrowRight') $('tutCard').querySelector('[data-t="next"]').click();
+    if (e.key === 'ArrowLeft' && tutI > 0) { tutI--; tutShow(); }
+  }, true);
+  window.addEventListener('resize', () => { if (!$('tut').hidden) tutPlace(); });
+  $('tutAgain').addEventListener('click', tutOpen);
+  let tutSeen = false; try { tutSeen = localStorage.getItem('companion-tutorial') === 'done'; } catch (e) {}
+  if (!tutSeen) setTimeout(tutOpen, 1400);
   applyDir();
   tbClock(); setInterval(tbClock, 5000);
   placeTip();

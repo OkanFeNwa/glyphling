@@ -73,3 +73,9 @@ html.h-widget .ring { box-shadow: 0 0 0 1px #2c2c2c, 0 0 0 7px #0e0e0e, 0 0 0 8p
 html.h-widget .bezel-wrap { box-shadow: none !important; }
 html.h-widget .panel.glass { box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 -1px 0 rgba(255,255,255,.05) !important; }
 html.h-widget .pick-lbl { box-shadow: none !important; }
+
+/* tutorial: the window covers the monitor and the page's usual box is moved where the widget was */
+html.tut-host body { position: absolute; left: var(--tx, 0); top: var(--ty, 0); width: 730px; height: 288px; margin: 0; overflow: visible; }
+html.tut-host, html.tut-host body { overflow: visible; }
+#tutTray { position: fixed; pointer-events: none; border-radius: 6px; }
+html.h-widget #mbState { display: none !important; }

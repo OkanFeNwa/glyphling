@@ -38,6 +38,7 @@
     const wEl = $('widget');
     if (wEl && wEl.classList.contains('left') !== !!c.left) wEl.classList.toggle('left', !!c.left);
     document.querySelectorAll('#dirSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.d === (c.panel_dir || 'auto')));
+    if ($('swTwo')) $('swTwo').setAttribute('aria-checked', !!c.two_pos);
     if (host === 'widget') sendShape();
   }
   invoke('get_config').then(applyCfg);
@@ -118,6 +119,38 @@
   }
   function sendShape() { if (window.sendShape) window.sendShape(); }
 
+  // ---------- first-run tutorial ----------
+  // The page's tutorial dims the whole screen and points at the tray icon, so while it
+  // runs the widget window covers the monitor; the widget is shifted to stay in place.
+  if (host === 'widget') {
+    let tray = null;
+    window.__hostTut = async on => {
+      if (!on) {
+        window.__hostTutOn = false;
+        document.documentElement.classList.remove('tut-host');
+        await invoke('tutorial', { on: false });
+        sendShape();
+        return;
+      }
+      const p = await invoke('tutorial', { on: true });
+      if (!p) return;                        // no monitor info: show it inside the window
+      document.body.style.setProperty('--tx', p.dx + 'px');
+      document.body.style.setProperty('--ty', p.dy + 'px');
+      document.documentElement.classList.add('tut-host');
+      tray = p.tray;
+      window.__hostTutOn = true;
+    };
+    // stand-in for the tray icon: the real one, or the bottom right corner of the screen
+    window.__tutTray = () => {
+      let el = $('tutTray');
+      if (!el) { el = document.createElement('div'); el.id = 'tutTray'; document.body.appendChild(el); }
+      const [x, y, w, h] = tray || [innerWidth - 140, innerHeight - 44, 32, 32];
+      Object.assign(el.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
+      return el;
+    };
+    listen('tutorial-start', () => window.__tutOpen && window.__tutOpen());
+  }
+
   // ---------- Settings window ----------
   if (host === 'settings') {
     $('posReset').addEventListener('click', e => { e.stopImmediatePropagation(); invoke('reset_position'); }, true);
@@ -134,6 +167,17 @@
       invoke('get_autostart').then(on => sw.setAttribute('aria-checked', on));
       sw.addEventListener('click', () => invoke('set_autostart', { on: sw.getAttribute('aria-checked') !== 'true' }).then(on => sw.setAttribute('aria-checked', on)));
     }
+    // two positions: saved and applied by the backend
+    $('swTwo').addEventListener('click', e => {
+      e.stopImmediatePropagation();
+      invoke('set_two_pos', { on: $('swTwo').getAttribute('aria-checked') !== 'true' });
+    }, true);
+    // the tutorial runs in the widget window
+    $('tutAgain').addEventListener('click', e => {
+      e.stopImmediatePropagation();
+      emit('tutorial-start');
+      T.window.getCurrentWindow().close();
+    }, true);
     $('dirSeg').addEventListener('click', e => {
       const b = e.target.closest('button'); if (!b) return;
       e.stopImmediatePropagation();

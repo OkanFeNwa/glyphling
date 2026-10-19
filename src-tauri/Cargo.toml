@@ -1,6 +1,6 @@
 [package]
 name = "glyphling"
-version = "0.5.3"
+version = "0.6.0"
 description = "Glyphling: a dot-matrix desktop companion"
 edition = "2021"
 

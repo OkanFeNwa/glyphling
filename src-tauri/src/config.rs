@@ -24,6 +24,11 @@ pub struct Config {
     pub panel_dir: String,
     /// Current side: true if the panel opens to the left (the circle sits on the right of the window).
     pub left: bool,
+    /// Two positions: one for the circle alone and one for circle + panel.
+    pub two_pos: bool,
+    /// Saved circle centers (physical pixels) for the closed and the open state.
+    pub home: Option<(i32, i32)>,
+    pub home_open: Option<(i32, i32)>,
 }
 
 impl Default for Config {
@@ -39,6 +44,9 @@ impl Default for Config {
             y: None,
             panel_dir: "auto".into(),
             left: false,
+            two_pos: false,
+            home: None,
+            home_open: None,
         }
     }
 }

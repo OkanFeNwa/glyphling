@@ -57,6 +57,7 @@ mod imp {
                 }
             }
             // after SetWindowRgn the region belongs to Windows: do not delete it
+            // (no parts: a null region, which means the whole window)
             SetWindowRgn(h.0 as _, rgn, 1);
         }
     }
