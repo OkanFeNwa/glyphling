@@ -155,14 +155,13 @@ mod win {
         let _ = std::process::Command::new("cmd").args(["/C", &cmd]).creation_flags(NO_WINDOW).spawn();
     }
 
-    /// Clips the window to rounded corners so the blur behind it follows the glass.
-    pub fn round(w: &tauri::WebviewWindow, radius: f64) {
-        use windows_sys::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
-        let (Ok(h), Ok(sf), Ok(size)) = (w.hwnd(), w.scale_factor(), w.inner_size()) else { return };
-        let d = (2.0 * radius * sf).round() as i32;
+    /// Asks Windows 11 for its own antialiased rounded corners (Windows 10 keeps square ones).
+    pub fn round(w: &tauri::WebviewWindow) {
+        use windows_sys::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND};
+        let Ok(h) = w.hwnd() else { return };
+        let pref = DWMWCP_ROUND;
         unsafe {
-            let rgn = CreateRoundRectRgn(0, 0, size.width as i32 + 1, size.height as i32 + 1, d, d);
-            SetWindowRgn(h.0 as _, rgn, 1);
+            DwmSetWindowAttribute(h.0 as _, DWMWA_WINDOW_CORNER_PREFERENCE as u32, &pref as *const _ as *const _, std::mem::size_of_val(&pref) as u32);
         }
     }
 }
@@ -191,7 +190,7 @@ mod win {
     pub fn shortcut(_: &Path, _: &Path) {}
     pub fn launch(_: &Path) {}
     pub fn delete_later(_: &Path) {}
-    pub fn round(_: &tauri::WebviewWindow, _: f64) {}
+    pub fn round(_: &tauri::WebviewWindow) {}
 }
 
 // ---------- payload ----------
@@ -236,24 +235,6 @@ fn write_retry(path: &Path, data: &[u8]) -> std::io::Result<()> {
 }
 
 // ---------- commands ----------
-
-/// Clips the window to the glass's rounded corners, turns on the blur behind it and
-/// shows it. Done once the page is drawn: before that the transparent window would
-/// show black where nothing is painted yet.
-fn reveal(w: &tauri::WebviewWindow) {
-    win::round(w, 28.0);
-    use tauri::window::{Effect, EffectsBuilder};
-    let _ = w.set_effects(EffectsBuilder::new().effect(Effect::Blur).build());
-    let _ = w.show();
-    let _ = w.set_focus();
-}
-
-#[tauri::command]
-fn ready(window: tauri::WebviewWindow) {
-    if !window.is_visible().unwrap_or(false) {
-        reveal(&window);
-    }
-}
 
 #[tauri::command]
 fn get_state() -> State {
@@ -370,27 +351,25 @@ fn main() {
         }
     }
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_state, install, uninstall, finish, ready])
+        .invoke_handler(tauri::generate_handler![get_state, install, uninstall, finish])
         .setup(|app| {
             let w = WebviewWindowBuilder::new(app, "setup", WebviewUrl::App("index.html".into()))
                 .title(if uninstall_mode() { "Disinstalla Glyphling" } else { "Installa Glyphling" })
                 .inner_size(WIN_W, WIN_H)
+                // an opaque window: a transparent one showed black edges on some PCs
                 .decorations(false)
-                .transparent(true)
                 .shadow(false)
                 .resizable(false)
                 .theme(Some(tauri::Theme::Dark))
-                .visible(false)
+                .background_color(tauri::window::Color(18, 18, 18, 255))
                 .center()
                 .build()?;
-            // if the page never calls `ready`, show the window anyway
-            let late = w.clone();
-            std::thread::spawn(move || {
-                std::thread::sleep(std::time::Duration::from_secs(3));
-                if !late.is_visible().unwrap_or(true) {
-                    reveal(&late);
-                }
-            });
+            // on some PCs the window first came up with a Windows title bar and the page
+            // smaller than the window: drop the frame again and resize so the page fills it
+            let _ = w.set_decorations(false);
+            let _ = w.set_size(tauri::LogicalSize::new(WIN_W, WIN_H));
+            let _ = w.center();
+            win::round(&w);
             Ok(())
         })
         .run(tauri::generate_context!())
