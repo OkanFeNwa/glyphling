@@ -403,7 +403,8 @@ pub fn spawn(app: AppHandle) {
             st.playing.store(now.playing, std::sync::atomic::Ordering::Relaxed);
             // the position always changes: send only if something else changed or the mode is visible
             let changed = Media { position: 0.0, ..now.clone() } != Media { position: 0.0, ..last.clone() };
-            if changed || music {
+            // the position only moves while playing: with nothing to show, send nothing new
+            if changed || (music && now.playing) {
                 let mut out = now.clone();
                 out.cover_changed = now.cover != last.cover;
                 if !out.cover_changed {

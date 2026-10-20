@@ -1985,9 +1985,9 @@ svg.lu { display: block; flex: none; }
   }
   function clockUi(now) {
     const hh = now.getHours();
-    $('clTime').firstChild.nodeValue = units.h12 ? `${hh % 12 || 12}:${p2(now.getMinutes())}` : `${p2(hh)}:${p2(now.getMinutes())}`;
+    { const t = $('clTime').firstChild, v = units.h12 ? `${hh % 12 || 12}:${p2(now.getMinutes())}` : `${p2(hh)}:${p2(now.getMinutes())}`; if (t.nodeValue !== v) t.nodeValue = v; }
     $('clAp').textContent = units.h12 ? (hh < 12 ? ' AM' : ' PM') : '';
-    $('clSec').textContent = `:${p2(now.getSeconds())}`;
+    { const e = $('clSec'), v = `:${p2(now.getSeconds())}`; if (e.textContent !== v) e.textContent = v; }
     if (mode === 'clock') fitClock();
     const key = now.toDateString();
     if (key === calKey) return;
@@ -2905,6 +2905,7 @@ svg.lu { display: block; flex: none; }
   // ---------- loop ----------
   let last = performance.now(), t = 0, pcSlow = 1;
   let frameNo = 0;
+  const setTxt = (el, v) => { if (el.textContent !== v) el.textContent = v; };
   function frame(nowMs) {
     const real = Math.min(0.05, (nowMs - last) / 1000);
     const dt = real * (reduce ? 0.4 : 1);
@@ -2956,9 +2957,9 @@ svg.lu { display: block; flex: none; }
     compose();
     if (NH < 51 || (frameNo++ & 1) === 0) draw();
 
-    $('tNow').textContent = fmt(pos);
+    setTxt($('tNow'), fmt(pos));
     const mm = Math.max(0, tm.left);
-    $('tmTime').textContent = `${p2(Math.floor(mm / 60))}:${p2(Math.floor(mm % 60))}`;
+    setTxt($('tmTime'), `${p2(Math.floor(mm / 60))}:${p2(Math.floor(mm % 60))}`);
     if (volEdit) dotsBar($('barCv'), vol, true, true); else dotsBar($('barCv'), pos / tracks[ti].dur, true);
     clockUi(now);
     if (mode === 'disks') { pcSlow += real; if (pcSlow > 0.25) { pcSlow = 0; pcUi(); } }
@@ -3415,7 +3416,8 @@ svg.lu { display: block; flex: none; }
     setMedia(m) {
       const srcEl = document.querySelector('.view[data-v="music"] .src');
       if (!m.active) {
-        tracks.splice(0, tracks.length, { title: 'Niente in riproduzione', artist: 'Apri Spotify o un altro lettore', album: '', dur: 1, seed: 5, live: true });
+        if (tracks[0] && tracks[0].none) return;   // already showing "nothing playing": do not redraw every second
+        tracks.splice(0, tracks.length, { title: 'Niente in riproduzione', artist: 'Apri Spotify o un altro lettore', album: '', dur: 1, seed: 5, live: true, none: true });
         ti = 0; pos = 0; window.__companion._seed = null;
         if (playing) { playing = false; setPlayIcon(); syncDisc(); }
         loadTrack(); $('upNext').textContent = ''; if (srcEl) srcEl.childNodes[1].nodeValue = 'Musica';

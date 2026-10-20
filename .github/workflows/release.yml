@@ -3,7 +3,7 @@ name: Release
 # Builds the Windows setup and publishes it as release vX.Y.Z, where X.Y.Z is the
 # version in src-tauri/tauri.conf.json. Runs when that file changes on main (a
 # version bump) or this workflow changes, when a v* tag is pushed, or by hand.
-# Skips versions already released.
+# Skips versions already released. Pre-releases only for 0.x versions.
 on:
   push:
     branches: [main]

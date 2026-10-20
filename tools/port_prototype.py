@@ -135,7 +135,8 @@ API = """
     setMedia(m) {
       const srcEl = document.querySelector('.view[data-v="music"] .src');
       if (!m.active) {
-        tracks.splice(0, tracks.length, { title: 'Niente in riproduzione', artist: 'Apri Spotify o un altro lettore', album: '', dur: 1, seed: 5, live: true });
+        if (tracks[0] && tracks[0].none) return;   // already showing "nothing playing": do not redraw every second
+        tracks.splice(0, tracks.length, { title: 'Niente in riproduzione', artist: 'Apri Spotify o un altro lettore', album: '', dur: 1, seed: 5, live: true, none: true });
         ti = 0; pos = 0; window.__companion._seed = null;
         if (playing) { playing = false; setPlayIcon(); syncDisc(); }
         loadTrack(); $('upNext').textContent = ''; if (srcEl) srcEl.childNodes[1].nodeValue = 'Musica';
@@ -220,6 +221,15 @@ sub("      const v = src[sy * NH + sx];\n      if (v === 0) continue;\n",
 # at 2048 points the canvas repaints at 30 fps
 sub("    compose();\n    draw();\n", "    compose();\n    if (NH < 51 || (frameNo++ & 1) === 0) draw();\n")
 sub("  function frame(nowMs) {\n", "  let frameNo = 0;\n  function frame(nowMs) {\n")
+
+# text that did not change is not rewritten every frame (it made the panel redraw for nothing)
+sub("  function frame(nowMs) {\n", "  const setTxt = (el, v) => { if (el.textContent !== v) el.textContent = v; };\n  function frame(nowMs) {\n")
+sub("    $('tNow').textContent = fmt(pos);", "    setTxt($('tNow'), fmt(pos));")
+sub("    $('tmTime').textContent = `${p2(Math.floor(mm / 60))}:${p2(Math.floor(mm % 60))}`;", "    setTxt($('tmTime'), `${p2(Math.floor(mm / 60))}:${p2(Math.floor(mm % 60))}`);")
+sub("    $('clSec').textContent = `:${p2(now.getSeconds())}`;", "    { const e = $('clSec'), v = `:${p2(now.getSeconds())}`; if (e.textContent !== v) e.textContent = v; }")
+
+sub("    $('clTime').firstChild.nodeValue = units.h12 ? `${hh % 12 || 12}:${p2(now.getMinutes())}` : `${p2(hh)}:${p2(now.getMinutes())}`;\n    $('clAp').textContent",
+    "    { const t = $('clTime').firstChild, v = units.h12 ? `${hh % 12 || 12}:${p2(now.getMinutes())}` : `${p2(hh)}:${p2(now.getMinutes())}`; if (t.nodeValue !== v) t.nodeValue = v; }\n    $('clAp').textContent")
 
 # 5e. format and resolution are shared with the other window
 sub("    setRes(+b.dataset.r); try { localStorage.setItem('companion-res', resPts); } catch (e) {}\n",
