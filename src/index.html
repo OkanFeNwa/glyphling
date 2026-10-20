@@ -2001,6 +2001,7 @@ I18N.start();
     { title: 'Vetro Nero', artist: 'Ottavia & The Grid', album: 'Lastre', dur: 187, seed: 11 },
     { title: 'Ore Piccole', artist: 'Kōzō Field', album: 'Notturni', dur: 246, seed: 27 },
   ];
+  if (window.__host) document.querySelector('.view[data-v="music"]').classList.add('empty');
   if (window.__host) tracks.splice(0, tracks.length, { title: 'Niente in riproduzione', artist: 'Apri Spotify o un altro lettore', album: '', dur: 1, seed: 5, live: true, none: true });
   let ti = 0, pos = window.__host ? 0 : 41, playing = !window.__host, vol = 0.64, volShow = 0;
   function setVol(v) {
@@ -2207,7 +2208,7 @@ I18N.start();
     const up = () => { el.removeEventListener('pointermove', mv); el.removeEventListener('pointerup', up); };
     el.addEventListener('pointermove', mv); el.addEventListener('pointerup', up);
   });
-  $('play').addEventListener('click', () => { playing = !playing; setPlayIcon(); syncDisc(); });
+  $('play').addEventListener('click', () => { if (tracks[ti].none) return; playing = !playing; setPlayIcon(); syncDisc(); });
   $('next').addEventListener('click', () => { ti = (ti + 1) % tracks.length; pos = 0; loadTrack(); });
   $('prev').addEventListener('click', () => {
     if (pos > 3) pos = 0; else { ti = (ti + tracks.length - 1) % tracks.length; pos = 0; }
@@ -3573,8 +3574,10 @@ I18N.start();
     else fade = Math.min(1, fade + dt * 3.6);
 
     if (playing) {
-      pos += real;
-      if (pos >= tracks[ti].dur) { ti = (ti + 1) % tracks.length; pos = 0; loadTrack(); }
+      if (tracks[ti].none) { playing = false; setPlayIcon(); }
+      else if (tracks[ti].live) pos = Math.min(pos + real, tracks[ti].dur);
+      else { pos += real;
+      if (pos >= tracks[ti].dur) { ti = (ti + 1) % tracks.length; pos = 0; loadTrack(); } }
     }
     if (sw.run) {
       sw.t += real;
@@ -4080,10 +4083,12 @@ I18N.start();
         if (tracks[0] && tracks[0].none) return;   // already showing "nothing playing": do not redraw every second
         tracks.splice(0, tracks.length, { title: 'Niente in riproduzione', artist: 'Apri Spotify o un altro lettore', album: '', dur: 1, seed: 5, live: true, none: true });
         ti = 0; pos = 0; window.__companion._seed = null;
+        document.querySelector('.view[data-v="music"]').classList.add('empty');
         if (playing) { playing = false; setPlayIcon(); syncDisc(); }
         loadTrack(); $('upNext').textContent = ''; if (srcEl) srcEl.childNodes[1].nodeValue = 'Musica';
         return;
       }
+      document.querySelector('.view[data-v="music"]').classList.remove('empty');
       const old = tracks[0];
       const changed = !old || !old.live || old.title !== m.title || old.artist !== m.artist;
       tracks.splice(0, tracks.length, { title: m.title || '—', artist: m.artist || m.app, album: m.album, dur: Math.max(1, m.duration || 1), seed: window.__companion._seed || 7, live: true });

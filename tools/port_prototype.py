@@ -279,6 +279,19 @@ sub("const bottom = wx.scale === 'days' ? `${tC(s.max)}°/${tC(s.min)}°` : `${t
 
 sub("swapText($('artist'), `${tr.artist} · ${tr.album}`, 50);", "swapText($('artist'), tr.album ? `${tr.artist} · ${tr.album}` : tr.artist, 50);")
 
+# 5i. the "nothing playing" card is a fixed empty state, not a 1 second track: no clock, no end-of-track
+# loop, no play toggle; a live track (duration unknown or reported by the player) never skips by itself
+sub("      pos += real;\n      if (pos >= tracks[ti].dur) { ti = (ti + 1) % tracks.length; pos = 0; loadTrack(); }",
+    "      if (tracks[ti].none) { playing = false; setPlayIcon(); }\n"
+    "      else if (tracks[ti].live) pos = Math.min(pos + real, tracks[ti].dur);\n"
+    "      else { pos += real;\n      if (pos >= tracks[ti].dur) { ti = (ti + 1) % tracks.length; pos = 0; loadTrack(); } }")
+sub("  $('play').addEventListener('click', () => { playing = !playing;", "  $('play').addEventListener('click', () => { if (tracks[ti].none) return; playing = !playing;")
+sub("  if (window.__host) tracks.splice(0, tracks.length, { title: 'Niente in riproduzione'",
+    "  if (window.__host) document.querySelector('.view[data-v=\"music\"]').classList.add('empty');\n"
+    "  if (window.__host) tracks.splice(0, tracks.length, { title: 'Niente in riproduzione'")
+sub("        ti = 0; pos = 0; window.__companion._seed = null;\n", "        ti = 0; pos = 0; window.__companion._seed = null;\n        document.querySelector('.view[data-v=\"music\"]').classList.add('empty');\n")
+sub("      const old = tracks[0];\n      const changed", "      document.querySelector('.view[data-v=\"music\"]').classList.remove('empty');\n      const old = tracks[0];\n      const changed")
+
 # 6. app name: Glyphling (visible text only, internal keys stay lowercase)
 html = html.replace("Companion", "Glyphling")
 html = html.replace(" Meteo e brani in questo prototipo sono finti.", "")

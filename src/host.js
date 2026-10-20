@@ -398,7 +398,7 @@
       const m = e.payload;
       if (m.cover_changed) C.setCover(m.cover ? await coverToLeds(m.cover) : null);
       C.setMedia(m);
-      const ms = $('musSrc'); if (ms) ms.textContent = m.active && m.app ? m.app : 'Nessuna app';
+      const ms = $('musSrc'), nm = m.active && m.app ? m.app : 'Nessuna app'; if (ms && ms.textContent !== nm && ms.dataset.src !== nm) { ms.textContent = nm; ms.dataset.src = nm; }
     });
     listen('spectrum', e => { window.__liveBands = { v: e.payload, at: performance.now() }; });
     $('play').addEventListener('click', () => invoke('media_control', { action: 'toggle' }), true);
