@@ -9,7 +9,7 @@ Glyphling is a small LED mascot that lives in a circle on your desktop. It follo
 
 > Glyphling is an independent project and is not affiliated with Nothing. The look is inspired by dot-matrix displays; the app ships its own dot font.
 
-<!-- PROMO: the presentation video/GIF goes here, e.g. ![Glyphling in action](docs/media/glyphling-promo.gif) -->
+<p align="center"><img src="docs/media/glyphling-promo.gif" alt="Glyphling in action" width="640"></p>
 
 ## Contents
 
