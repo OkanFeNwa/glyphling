@@ -96,7 +96,7 @@ mod imp {
     };
     use windows::Storage::Streams::{DataReader, IRandomAccessStreamReference};
     use windows::Win32::Media::Audio::{
-        eConsole, eRender, AudioSessionStateActive, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
+        eConsole, eRender, AudioSessionStateActive, IAudioSessionControl2, DEVICE_STATE_ACTIVE, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
         MMDeviceEnumerator,
     };
     use windows::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
@@ -251,25 +251,113 @@ mod imp {
         exe_name(pid).map(|n| super::compact(n.trim_end_matches(".exe").trim_end_matches(".EXE")))
     }
 
-    fn sessions_of_default_device() -> Vec<(u32, windows::Win32::Media::Audio::IAudioSessionControl)> {
+    /// Audio sessions of every active output device: (device number, is default, pid, session).
+    /// An app can play on any device, and the mixer shows them all.
+    fn all_sessions() -> Vec<(usize, bool, u32, windows::Win32::Media::Audio::IAudioSessionControl)> {
         let mut out = vec![];
         com_init();
         unsafe {
             let Ok(en) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return out };
-            let Ok(dev) = en.GetDefaultAudioEndpoint(eRender, eConsole) else { return out };
-            let Ok(mgr) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None) else { return out };
-            let Ok(list) = mgr.GetSessionEnumerator() else { return out };
-            for i in 0..list.GetCount().unwrap_or(0) {
-                let Ok(c) = list.GetSession(i) else { continue };
-                let Ok(c2) = c.cast::<IAudioSessionControl2>() else { continue };
-                let pid = c2.GetProcessId().unwrap_or(0);
-                // pid 0 is the system sounds session; never touch it or ourselves
-                if pid != 0 && pid != std::process::id() {
-                    out.push((pid, c));
+            let default_id = en.GetDefaultAudioEndpoint(eRender, eConsole).ok().and_then(|d| d.GetId().ok()).and_then(|i| i.to_string().ok());
+            let Ok(devs) = en.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE) else { return out };
+            for d in 0..devs.GetCount().unwrap_or(0) {
+                let Ok(dev) = devs.Item(d) else { continue };
+                let is_default = dev.GetId().ok().and_then(|i| i.to_string().ok()) == default_id && default_id.is_some();
+                let Ok(mgr) = dev.Activate::<IAudioSessionManager2>(CLSCTX_ALL, None) else { continue };
+                let Ok(list) = mgr.GetSessionEnumerator() else { continue };
+                for i in 0..list.GetCount().unwrap_or(0) {
+                    let Ok(c) = list.GetSession(i) else { continue };
+                    let Ok(c2) = c.cast::<IAudioSessionControl2>() else { continue };
+                    let pid = c2.GetProcessId().unwrap_or(0);
+                    // pid 0 is the system sounds session; never touch it or ourselves
+                    if pid != 0 && pid != std::process::id() {
+                        out.push((d as usize, is_default, pid, c));
+                    }
                 }
             }
         }
         out
+    }
+
+    fn sessions_of_default_device() -> Vec<(u32, windows::Win32::Media::Audio::IAudioSessionControl)> {
+        all_sessions().into_iter().map(|(_, _, pid, c)| (pid, c)).collect()
+    }
+
+    fn is_target(stem: &str, keys: &Option<Vec<String>>, id: &str) -> bool {
+        match keys {
+            Some(keys) => stem.len() >= 3 && keys.iter().any(|k| *k == stem || (k.len() >= 3 && (stem.contains(k.as_str()) || k.contains(stem)))),
+            None => stem.len() >= 3 && id.contains(stem),
+        }
+    }
+
+    /// Text report for Settings: every session in the mixer, which ones the volume slider
+    /// would move, and (with `test`) a real write/readback on those.
+    pub fn volume_diag(test: bool) -> String {
+        let keys = super::VOLKEYS.lock().unwrap().clone();
+        let source = super::LAST.lock().unwrap().clone();
+        let id = super::compact(&source);
+        let mut out = vec![];
+        out.push(format!("App seguita: {}", if source.is_empty() { "nessuna".into() } else { super::app_name(&source) }));
+        out.push(match &keys {
+            Some(k) if k.is_empty() => "Il volume non abbassa nessuna app (interruttori Volume spenti)".to_string(),
+            Some(k) => format!("Il volume abbassa: {}", k.join(", ")),
+            None => "Lista vuota: il volume abbassa l'app seguita".to_string(),
+        });
+        let all = all_sessions();
+        if all.is_empty() {
+            out.push("Nessuna sessione audio trovata su nessun dispositivo di uscita.".into());
+        }
+        let mut matched = vec![];
+        for (dev, def, pid, c) in &all {
+            let stem = exe_stem(*pid).unwrap_or_default();
+            let name = exe_name(*pid).unwrap_or_else(|| format!("pid {pid}"));
+            let hit = is_target(&stem, &keys, &id);
+            let (vol, muted, state) = match c.cast::<ISimpleAudioVolume>() {
+                Ok(v) => unsafe {
+                    (v.GetMasterVolume().map(|x| format!("{}%", (x * 100.0).round())).unwrap_or("?".into()), v.GetMute().map(|m| m.as_bool()).unwrap_or(false),
+                     c.GetState().map(|st| if st == AudioSessionStateActive { "attiva" } else { "inattiva" }).unwrap_or("?"))
+                },
+                Err(_) => ("?".into(), false, "?"),
+            };
+            out.push(format!(
+                "Dispositivo {}{} · {} · {} · volume {}{}{}",
+                dev + 1,
+                if *def { " (predefinito)" } else { "" },
+                name,
+                state,
+                vol,
+                if muted { " · muto" } else { "" },
+                if hit { " · MUOVE QUESTO" } else { "" }
+            ));
+            if hit {
+                if let Ok(v) = c.cast::<ISimpleAudioVolume>() {
+                    matched.push((name, v));
+                }
+            }
+        }
+        if matched.is_empty() {
+            out.push("Nessuna sessione corrisponde: il cursore del volume non muove nulla.".into());
+        } else if test {
+            for (name, v) in &matched {
+                unsafe {
+                    let v0 = v.GetMasterVolume().unwrap_or(0.5);
+                    let v1 = if v0 > 0.5 { v0 - 0.2 } else { v0 + 0.2 };
+                    let w = v.SetMasterVolume(v1, std::ptr::null());
+                    std::thread::sleep(std::time::Duration::from_millis(500));
+                    let back = v.GetMasterVolume().unwrap_or(-1.0);
+                    let _ = v.SetMasterVolume(v0, std::ptr::null());
+                    out.push(format!(
+                        "Prova su {}: scritto {}%, riletto {}% ({}), poi rimesso a {}%",
+                        name,
+                        (v1 * 100.0).round(),
+                        (back * 100.0).round(),
+                        if w.is_err() { "scrittura rifiutata" } else if (back - v1).abs() < 0.02 { "ok" } else { "l'app lo ha cambiato" },
+                        (v0 * 100.0).round()
+                    ));
+                }
+            }
+        }
+        out.join("\n")
     }
 
     /// Apps with an audio session in the Windows mixer: (key, file name).
@@ -299,11 +387,7 @@ mod imp {
         }
         sessions_of_default_device()
             .into_iter()
-            .filter(|(pid, _)| match (exe_stem(*pid), &keys) {
-                (Some(stem), Some(keys)) => stem.len() >= 3 && keys.iter().any(|k| *k == stem || (k.len() >= 3 && (stem.contains(k.as_str()) || k.contains(stem.as_str())))),
-                (Some(stem), None) => stem.len() >= 3 && id.contains(&stem),
-                _ => false,
-            })
+            .filter(|(pid, _)| exe_stem(*pid).is_some_and(|stem| is_target(&stem, &keys, &id)))
             .filter_map(|(_, c)| c.cast::<ISimpleAudioVolume>().ok())
             .collect()
     }
@@ -346,9 +430,12 @@ mod imp {
     pub fn audio_apps() -> Vec<(String, String, bool)> {
         vec![]
     }
+    pub fn volume_diag(_: bool) -> String {
+        "Disponibile solo su Windows.".into()
+    }
 }
 
-pub use imp::{audio_apps, com_init, control, sessions};
+pub use imp::{audio_apps, com_init, control, sessions, volume_diag};
 
 /// Readable name of the app being followed (empty when none).
 pub fn now_app() -> String {

@@ -218,6 +218,21 @@
       sw.addEventListener('click', () => invoke('set_autostart', { on: sw.getAttribute('aria-checked') !== 'true' }).then(on => sw.setAttribute('aria-checked', on)));
     }
     // cover colors: theme or neutral white
+    // volume check: lists the mixer sessions, which ones the slider moves, and tries one
+    const nowRow = $('srcNow') && $('srcNow').closest('.srow');
+    if (nowRow) {
+      nowRow.insertAdjacentHTML('afterend', `<div class="srow src-row"><div><b>Controllo del volume</b><small>Mostra le app che Windows ha nel mixer, quali di queste abbassa il cursore e prova a muoverle un momento.</small>
+        <div class="vd-btns"><button class="ghost" id="vdShow">Mostra le sessioni</button><button class="ghost" id="vdTest">Prova volume</button></div>
+        <pre class="vd-out" id="vdOut" hidden></pre></div></div>`);
+      const run = test => {
+        $('vdOut').hidden = false; $('vdOut').textContent = test ? 'Prova in corso...' : 'Leggo il mixer...';
+        $('vdShow').disabled = $('vdTest').disabled = true;
+        invoke('volume_diag', { test }).then(t => { $('vdOut').textContent = t || 'Nessun risultato.'; }).catch(e => { $('vdOut').textContent = String(e); })
+          .finally(() => { $('vdShow').disabled = $('vdTest').disabled = false; });
+      };
+      $('vdShow').addEventListener('click', () => run(false));
+      $('vdTest').addEventListener('click', () => run(true));
+    }
     // CPU temperature: offers the optional sensor (LibreHardwareMonitor), only with consent
     const genPage = document.querySelector('.spage[data-p="gen"]');
     const dk = $('dkPick') && $('dkPick').closest('.sgroup');

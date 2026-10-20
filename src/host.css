@@ -101,3 +101,7 @@ html.h-widget .evpop { background: rgba(26,26,26,.97) !important; }
 .approw .rm { width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 16px; line-height: 1; }
 .ml-h { display: block; margin-top: 10px; }
 #mlPick { margin-top: 10px; }
+
+/* volume check output */
+.vd-btns { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.vd-out { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.1); font: 10.5px/1.6 var(--mono, ui-monospace, monospace); white-space: pre-wrap; word-break: break-word; user-select: text; max-height: 220px; overflow: auto; }
