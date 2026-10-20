@@ -10,7 +10,7 @@ Installers are published on the [Releases](../../releases) page. Download `Glyph
 
 Glyphling checks the GitHub releases by itself (Settings > Info can turn that off), tells you when a new version exists and, only when you agree, downloads the setup and installs it in place.
 
-## What it does (0.9)
+## What it does
 
 - **Widget**: transparent, frameless, clipped to its real shape (circle plus panel), with a dark glass look. Windows' own blur behind the window is not used: on some PCs it turned the transparent parts black. The panel opens to the right, to the left or automatically, and its layout mirrors when it opens to the left. Turn the dial (or the mouse wheel) to pick a mode, right click the circle to go back to the mascot.
 - **First run**: a short tutorial walks through the mascot, the dial, the panel, the tray icon and the settings (Settings > Info to see it again). While it runs the widget window briefly covers the screen to dim it and point at the tray icon.

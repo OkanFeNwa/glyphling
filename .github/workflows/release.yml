@@ -79,4 +79,6 @@ jobs:
           $tag = "v$env:VERSION"
           $notes = ".github/release-notes/$tag.md"
           if (-not (Test-Path $notes)) { "Glyphling $env:VERSION" | Out-File $notes }
-          gh release create $tag "dist/Glyphling-Setup-$env:VERSION.exe" --target "${{ github.sha }}" --title "Glyphling $env:VERSION" --notes-file $notes --prerelease
+          $flags = @()
+          if ($env:VERSION -like "0.*") { $flags += "--prerelease" }   # 1.0 and later are normal releases
+          gh release create $tag "dist/Glyphling-Setup-$env:VERSION.exe" --target "${{ github.sha }}" --title "Glyphling $env:VERSION" --notes-file $notes @flags
