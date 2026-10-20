@@ -9,6 +9,13 @@ use tauri::{AppHandle, Manager};
 pub struct MusicApp {
     pub key: String,
     pub name: String,
+    /// The volume slider lowers this app.
+    #[serde(default = "yes")]
+    pub vol: bool,
+}
+
+fn yes() -> bool {
+    true
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
@@ -46,8 +53,6 @@ pub struct Config {
     pub auto_update: bool,
     /// Last version Settings was opened for (so it is announced once).
     pub update_notified: String,
-    /// Process the volume slider acts on (e.g. "spotify"); empty = the music app being followed.
-    pub volume_target: String,
     /// Apps the music mode listens to and controls; empty = any app.
     pub music_list: Vec<MusicApp>,
 }
@@ -72,7 +77,6 @@ impl Default for Config {
             sensor_offered: false,
             auto_update: true,
             update_notified: String::new(),
-            volume_target: String::new(),
             music_list: vec![],
         }
     }

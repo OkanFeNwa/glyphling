@@ -217,12 +217,7 @@ sub("      const v = src[sy * NH + sx];\n      if (v === 0) continue;\n",
     "      }\n"
     "      if (v === 0) continue;\n")
 
-# 5h. smoother at 2048 points: the glow is drawn small and scaled up (no full-size blur filter
-# every frame), and the canvas is repainted at 30 fps at that size
-sub("if (glowCv.width !== W) { glowCv.width = W; glowCv.height = W; }", "const GW = Math.ceil(W * 0.25); if (glowCv.width !== GW) { glowCv.width = GW; glowCv.height = GW; }")
-sub("gctx.fillRect(X, Y, s, s);", "gctx.fillRect(X * 0.25, Y * 0.25, s * 0.25, s * 0.25);")
-sub("      ctx.filter = `blur(${(cell * 1.3).toFixed(1)}px)`;\n      ctx.globalAlpha = 0.6;\n      ctx.drawImage(glowCv, 0, 0);\n",
-    "      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';\n      ctx.globalAlpha = 0.8;\n      ctx.drawImage(glowCv, 0, 0, W, W);\n")
+# at 2048 points the canvas repaints at 30 fps
 sub("    compose();\n    draw();\n", "    compose();\n    if (NH < 51 || (frameNo++ & 1) === 0) draw();\n")
 sub("  function frame(nowMs) {\n", "  let frameNo = 0;\n  function frame(nowMs) {\n")
 
@@ -245,10 +240,14 @@ sub("  function tutClose() {\n", "  function tutClose() {\n    window.__hostTutR
 sub("  if (!tutSeen) setTimeout(tutOpen, 1400);", "  if (!tutSeen && !window.__host) setTimeout(tutOpen, 1400);")
 sub("el: () => $('trayIc')", "el: () => (window.__tutTray ? window.__tutTray() : $('trayIc'))", 2)
 
-# 5g. music source: the filter is applied by the backend, which knows the real media sessions
-sub("    const now = RUNNING.find(allowed);\n", "    const now = window.__host ? (window.__nowApp || '') : RUNNING.find(allowed);\n")
-sub("    $('volTxt').title = now ?", "    if (window.__hostSrc) window.__hostSrc(src);\n    $('volTxt').title = now ?")
-sub("  srcUi();\n  $('swCov')", "  window.__srcRefresh = srcUi;\n  srcUi();\n  $('swCov')")
+# 5g. music source: the app lists come from Windows (audio sessions), never from a timer
+sub("  const AUDIO_NOW = [['Spotify', true]", "  const AUDIO_NOW = window.__host ? [] : [['Spotify', true]")
+sub("    const done = list => { if (list) runSnap = list; b.classList.remove('spin'); srcUi(); };",
+    "    const done = list => {\n"
+    "      if (list) { runSnap = list; if (window.__host) AUDIO_NOW.splice(0, AUDIO_NOW.length, ...list.map(x => x.slice())); }\n"
+    "      b.classList.remove('spin'); srcUi();\n"
+    "    };")
+sub("  window.__srcRefresh = srcUi;\n", "  window.__srcRefresh = srcUi;\n  window.__srcRunning = () => $('srcRefresh').click();\n")
 
 # 6. app name: Glyphling (visible text only, internal keys stay lowercase)
 html = html.replace("Companion", "Glyphling")

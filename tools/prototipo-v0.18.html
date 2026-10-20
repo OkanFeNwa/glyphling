@@ -684,6 +684,32 @@ svg.lu { display: block; flex: none; }
 .tut-body { animation: fadeUp .3s cubic-bezier(.2,.8,.2,1); display: flex; flex-direction: column; gap: 8px; }
 
 .src-row { align-items: flex-start; }
+.srclist { list-style: none; margin: 10px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.srclist li { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); font-size: 11px; color: var(--ink); animation: fadeUp .25s cubic-bezier(.2,.8,.2,1) backwards; }
+.srclist li .ic { width: 22px; height: 22px; border-radius: 7px; background: rgba(255,255,255,.08); display: grid; place-items: center; font: 900 12px/1 var(--dot); flex: none; }
+.srclist li .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srclist li .st { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--mute); flex: none; }
+.srclist li.on .st { color: var(--ink); }
+.srclist li.on .st::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--red); margin-right: 6px; box-shadow: 0 0 6px var(--red); }
+.srclist li button { appearance: none; border: 0; background: none; color: var(--mute); width: 22px; height: 22px; border-radius: 7px; cursor: pointer; font-size: 14px; line-height: 1; padding: 0; flex: none; transition: background .12s, color .12s; }
+.srclist li button:hover { background: rgba(255,255,255,.12); color: var(--ink); }
+.srclist .empty { color: var(--mute); border-style: dashed; justify-content: center; }
+.srcsub { display: flex; align-items: center; justify-content: space-between; font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--mute); margin: 4px 0 6px; }
+.srcsub .rfs { padding: 5px 10px; font-size: 9px; }
+.srcsub .rfs.spin::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; border: 1.5px solid currentColor; border-top-color: transparent; animation: rot .6s linear infinite; vertical-align: -1px; }
+@keyframes rot { to { transform: rotate(360deg); } }
+.srclist li .vt { appearance: none; flex: none; width: auto; height: 20px; padding: 0 8px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: transparent; color: var(--mute); font: 700 8px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; cursor: pointer; }
+.srclist li .vt[aria-pressed="true"] { background: rgba(255,255,255,.16); border-color: transparent; color: var(--ink); }
+.srclist li .vt:hover { background: rgba(255,255,255,.1); }
+.srclist li .ex { font-size: 9px; color: var(--mute); letter-spacing: .06em; flex: none; }
+.srclist li button.rmc { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(255,255,255,.16); }
+.srcbtns { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 10px; }
+.srcpick { display: flex; flex-direction: column; gap: 4px; margin: 0 0 10px; padding: 6px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); }
+.srcpick[hidden] { display: none; }
+.srcpick button { appearance: none; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; font: 400 11px/1.2 var(--mono); }
+.srcpick button:hover { background: rgba(255,255,255,.08); }
+.srcpick button small { margin-left: auto; font-size: 9px; color: var(--mute); letter-spacing: .08em; text-transform: uppercase; }
+.srcpick .none { color: var(--mute); font-size: 10px; padding: 8px 10px; }
 .chiplist { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .chiplist .ghost { display: inline-flex; align-items: center; gap: 6px; }
 .chiplist .ghost.off { opacity: .5; }
@@ -779,7 +805,7 @@ svg.lu { display: block; flex: none; }
       <div class="panel glass" id="panel">
 
         <div class="view" data-v="music">
-          <div class="src"><i></i>Spotify<span class="sp" id="upNext"></span></div>
+          <div class="src"><i></i><span id="musSrc">Spotify</span><span class="sp" id="upNext"></span></div>
           <div class="title" id="title">—</div>
           <div class="sub" id="artist">—</div>
           <div class="prog">
@@ -922,9 +948,11 @@ svg.lu { display: block; flex: none; }
 </div>
 <div class="sgroup">
   <h3>Musica</h3>
-  <div class="srow"><div><b>App da ascoltare</b><small>Il widget ascolta una sola app alla volta, quella che sta riproducendo, e il volume regola soltanto lei. Scegli come filtrare le app.</small></div><span class="seg3" id="srcMode"><button data-s="all">Tutte</button><button data-s="white">Solo queste</button><button data-s="black">Escludi queste</button></span></div>
-  <div class="srow src-row"><div><b>App</b><small id="srcNote"></small><div class="chiplist" id="srcList"></div>
-    <form class="srcadd" id="srcAdd" autocomplete="off"><input id="srcName" maxlength="24" placeholder="Altra app, ad esempio MusicBee" aria-label="Nome dell'app da aggiungere"><button class="ghost" type="submit">Aggiungi</button></form></div></div>
+  <div class="srow src-row"><div><b>App musicali</b><small id="srcNote">Solo queste app vengono mostrate e controllate. Se la lista è vuota vale qualsiasi app che sta riproducendo. Con l'interruttore "Volume" scegli quali abbassa il cursore del volume.</small>
+    <ul class="srclist" id="srcList" aria-label="App musicali"></ul>
+    <div class="srcsub"><span>In esecuzione ora</span><button class="ghost rfs" id="srcRefresh" type="button" aria-label="Aggiorna l'elenco delle app">Aggiorna</button></div>
+    <div class="chiplist" id="srcRun" aria-label="App con audio in esecuzione"></div>
+    <div class="srcbtns"><button class="ghost" id="srcBrowse" type="button">Scegli un programma…</button><input type="file" id="srcFile" accept=".exe" hidden></div></div></div>
   <div class="srow"><div><b>In ascolto ora</b><small id="srcNow"></small></div></div>
 </div>
 <div class="sgroup">
@@ -1197,53 +1225,76 @@ svg.lu { display: block; flex: none; }
       }
   }
   let plainCover = false;   // vero mentre si vede la copertina e l'opzione dei colori del tema è spenta
-  const glowCv = document.createElement('canvas'), gctx = glowCv.getContext('2d');
+  const glowCv = document.createElement('canvas'), gctx = glowCv.getContext('2d'), glowCv2 = document.createElement('canvas'), gctx2 = glowCv2.getContext('2d');
 
+  // i LED spenti sono la maggior parte e non cambiano: si disegnano una volta sola su un livello in cache
+  const offCv = document.createElement('canvas'), octx = offCv.getContext('2d');
+  let offKey = '';
+  function offLayer(W, n, cell, off, s, r) {
+    const key = `${W}|${n}|${TH.off}`;
+    if (key === offKey) return;
+    offKey = key; offCv.width = W; offCv.height = W;
+    octx.fillStyle = TH.off;
+    octx.beginPath();
+    for (let y = 0, i = 0; y < n; y++) for (let x = 0; x < n; x++, i++) {
+      if (!hin[i]) continue;
+      const X = off + x * cell + (cell - s) / 2, Y = off + y * cell + (cell - s) / 2;
+      octx.roundRect ? octx.roundRect(X, Y, s, s, r) : octx.rect(X, Y, s, s);
+    }
+    octx.fill();
+  }
   function draw() {
     const W = px, n = NH, cell = W / (n + 1.6 * KH), off = (W - cell * n) / 2, s = cell * 0.78, r = cell * 0.16;
-    // con tanti punti il bagliore si fa in un colpo solo, sfocando una copia dei punti accesi
-    const soft = n > N;
+    // con tanti punti il bagliore si fa in un colpo solo, sfocando a metà risoluzione una copia dei punti accesi
+    const soft = n > N, gs = 0.5;
     ctx.clearRect(0, 0, W, W);
-    if (soft) { if (glowCv.width !== W) { glowCv.width = W; glowCv.height = W; } gctx.clearRect(0, 0, W, W); }
+    offLayer(W, n, cell, off, s, r);
+    ctx.drawImage(offCv, 0, 0);
+    if (soft) {
+      const gW = Math.ceil(W * gs);
+      if (glowCv.width !== gW) { glowCv.width = gW; glowCv.height = gW; glowCv2.width = gW; glowCv2.height = gW; }
+      gctx.clearRect(0, 0, gW, gW);
+    }
     const plain = plainCover;
     const [r0, g0, b0] = TH.offRgb, [r1, g1, b1] = TH.pixRgb, [r2, g2, b2] = TH.redRgb;
+    let any = false;
     for (let y = 0, i = 0; y < n; y++) for (let x = 0; x < n; x++, i++) {
       if (!hin[i]) continue;
       const v = Math.max(0, Math.min(1, ob[i]));
+      if (v <= 0.02) continue;
       const X = off + x * cell + (cell - s) / 2, Y = off + y * cell + (cell - s) / 2;
-      let glow = null;
+      let glow;
       const ci = rowMap[y] >= 0 ? rowMap[y] * n + x : -1;
-      if (plain && v > 0.02 && ci >= 0 && hcolOn[ci]) {
+      if (plain && ci >= 0 && hcolOn[ci]) {
         // copertina con i suoi colori originali: il tono viene dall'immagine, non dal tema
         const cr0 = hcol[ci * 3], cg0 = hcol[ci * 3 + 1], cb0 = hcol[ci * 3 + 2], k = 0.12 + v * 0.88;
         ctx.fillStyle = `rgb(${Math.round(r0 + (cr0 - r0) * k)},${Math.round(g0 + (cg0 - g0) * k)},${Math.round(b0 + (cb0 - b0) * k)})`;
         glow = `rgba(${cr0},${cg0},${cb0},${v * 0.6})`;
         if (!soft) { ctx.shadowColor = glow; ctx.shadowBlur = cell * 0.9 * v; }
-      } else if (v > 0.02 && orr[i]) {
+      } else if (orr[i]) {
         ctx.fillStyle = `rgba(${r2},${g2},${b2},${0.35 + v * 0.65})`;
         glow = `rgba(${r2},${g2},${b2},${v * 0.8})`;
         if (!soft) { ctx.shadowColor = glow; ctx.shadowBlur = cell * 1.1 * v; }
-      } else if (v > 0.02) {
+      } else {
         const k = 0.12 + v * 0.88;
         ctx.fillStyle = `rgb(${Math.round(r0 + (r1 - r0) * k)},${Math.round(g0 + (g1 - g0) * k)},${Math.round(b0 + (b1 - b0) * k)})`;
         glow = `rgba(${r1},${g1},${b1},${v * 0.55})`;
         if (!soft) { ctx.shadowColor = glow; ctx.shadowBlur = cell * 0.9 * v; }
-      } else {
-        ctx.fillStyle = TH.off;
-        ctx.shadowBlur = 0;
       }
       ctx.beginPath();
       ctx.roundRect ? ctx.roundRect(X, Y, s, s, r) : ctx.rect(X, Y, s, s);
       ctx.fill();
-      if (soft && glow) { gctx.fillStyle = glow; gctx.fillRect(X, Y, s, s); }
+      if (soft) { gctx.fillStyle = glow; gctx.fillRect(X * gs, Y * gs, s * gs, s * gs); any = true; }
     }
     ctx.shadowBlur = 0;
-    if (soft) {
+    if (soft && any) {
+      gctx2.clearRect(0, 0, glowCv2.width, glowCv2.height);
+      gctx2.filter = `blur(${(cell * 1.3 * gs).toFixed(1)}px)`;
+      gctx2.drawImage(glowCv, 0, 0);
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
-      ctx.filter = `blur(${(cell * 1.3).toFixed(1)}px)`;
       ctx.globalAlpha = 0.6;
-      ctx.drawImage(glowCv, 0, 0);
+      ctx.drawImage(glowCv2, 0, 0, W, W);
       ctx.restore();
     }
   }
@@ -3115,41 +3166,60 @@ svg.lu { display: block; flex: none; }
   }));
   phUi();
   // ---------- sorgente musicale ----------
-  const KNOWN_APPS = ['Spotify', 'YouTube Music', 'Apple Music', 'Amazon Music', 'Deezer', 'Tidal', 'VLC', 'foobar2000', 'iTunes', 'Winamp'];
-  const RUNNING = ['Spotify', 'YouTube Music', 'VLC'];     // finto: nell'app vera sono le sessioni multimediali di Windows
-  const src = { mode: 'all', picked: ['Spotify'], custom: [] };
-  try { Object.assign(src, JSON.parse(localStorage.getItem('companion-src') || '{}')); } catch (e) {}
-  const allowed = a => src.mode === 'all' || (src.mode === 'white') === src.picked.includes(a);
+  // lista scelta dall'utente: solo queste app vengono mostrate e controllate; lista vuota = qualsiasi app che suona
+  // finto: nell'app vera sono le sessioni audio e multimediali di Windows
+  const AUDIO_NOW = [['Spotify', true], ['YouTube Music', true], ['VLC', false], ['Discord', false], ['Firefox', false]];
+  const exeOf = n => n.replace(/\s+/g, '') + '.exe';
+  const src = { apps: [{ name: 'Spotify', exe: 'Spotify.exe', vol: true }] };
+  let runSnap = AUDIO_NOW.map(x => x.slice());   // elenco delle app con audio: si aggiorna solo a mano, non da solo
+  try {
+    const v = JSON.parse(localStorage.getItem('companion-src') || '{}');
+    if (Array.isArray(v.apps)) src.apps = v.apps.map(a => typeof a === 'string' ? { name: a, exe: exeOf(a) } : a).filter(a => a && typeof a.name === 'string').map(a => ({ ...a, vol: a.vol !== false })).slice(0, 12);
+  } catch (e) {}
+  const playingNow = n => AUDIO_NOW.some(([x, p]) => x === n && p);
+  const activeApp = () => src.apps.length ? (src.apps.find(a => playingNow(a.name)) || {}).name || null : (AUDIO_NOW.find(x => x[1]) || [])[0] || null;
+  // app che abbassa il cursore del volume: quelle della lista con l'interruttore acceso; con lista vuota, quella in ascolto
+  const volApps = () => src.apps.length ? src.apps.filter(a => a.vol).map(a => a.name) : (activeApp() ? [activeApp()] : []);
+  function addApp(name, exe) {
+    name = String(name || '').trim().replace(/\.exe$/i, '').slice(0, 40); if (!name) return false;
+    const known = AUDIO_NOW.map(x => x[0]).find(x => x.toLowerCase() === name.toLowerCase());
+    name = known || name;
+    if (src.apps.some(a => a.name.toLowerCase() === name.toLowerCase())) return false;
+    src.apps.push({ name, exe: exe || exeOf(name), vol: true }); srcSave(); return true;
+  }
   function srcUi() {
-    document.querySelectorAll('#srcMode button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === src.mode));
-    const esc = t => t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const dis = src.mode === 'all';
-    $('srcList').innerHTML = KNOWN_APPS.map(a => `<button class="ghost${dis ? ' off' : ''}" data-a="${esc(a)}" aria-pressed="${src.picked.includes(a)}" ${dis ? 'disabled' : ''}>${esc(a)}</button>`).join('')
-      + src.custom.map(a => `<button class="ghost${dis ? ' off' : ''}" data-a="${esc(a)}" aria-pressed="${src.picked.includes(a)}" ${dis ? 'disabled' : ''}>${esc(a)}<span class="rm" data-rm="${esc(a)}" role="button" aria-label="Rimuovi ${esc(a)}" title="Rimuovi">×</span></button>`).join('');
-    $('srcNote').textContent = dis ? 'Con "Tutte" non serve scegliere: vale la prima app che sta riproducendo.'
-      : src.mode === 'white' ? 'Solo le app evidenziate vengono ascoltate.' : 'Le app evidenziate vengono ignorate, tutte le altre sono ascoltate.';
-    const now = RUNNING.find(allowed);
-    $('srcNow').textContent = now ? `${now}. Il volume del cerchio regola solo questa app.` : 'Nessuna app permessa sta riproducendo.';
-    $('volTxt').title = now ? `Volume di ${now}` : 'Nessuna app in ascolto';
+    const act = activeApp();
+    $('srcList').innerHTML = src.apps.length
+      ? src.apps.map(a => `<li class="${a.name === act ? 'on' : ''}"><span class="ic">${esc(a.name[0].toUpperCase())}</span><span class="nm">${esc(a.name)}</span><span class="ex">${esc(a.exe)}</span><span class="st">${a.name === act ? 'in ascolto' : playingNow(a.name) ? 'suona' : 'ferma'}</span><button class="vt" data-vt="${esc(a.name)}" aria-pressed="${a.vol}" title="Il cursore del volume abbassa quest'app">Volume</button><button class="rmc" data-rm="${esc(a.name)}" aria-label="Rimuovi ${esc(a.name)}" title="Rimuovi">×</button></li>`).join('')
+      : '<li class="empty">Lista vuota: vale qualsiasi app che sta riproducendo</li>';
+    const free = runSnap.filter(([n]) => !src.apps.some(a => a.name === n));
+    $('srcRun').innerHTML = free.length ? free.map(([n, p]) => `<button class="ghost" data-a="${esc(n)}" title="${p ? 'Sta riproducendo' : 'Audio aperto'}">+ ${esc(n)}</button>`).join('') : '<span class="none">Nessun\'altra app con audio in questo momento.</span>';
+    const va = volApps();
+    $('srcNow').textContent = act ? `${act}. Il volume del cerchio abbassa: ${va.length ? va.join(', ') : 'nessuna app (accendi "Volume" su una riga)'}.` : 'Nessuna app sta riproducendo.';
+    $('volTxt').title = va.length ? `Volume di ${va.join(', ')}` : 'Nessuna app da abbassare';
+    const ms = $('musSrc'); if (ms) ms.textContent = act || 'Nessuna app';
+    if (window.__hostSrc) window.__hostSrc(src);
   }
   function srcSave() { try { localStorage.setItem('companion-src', JSON.stringify(src)); } catch (e) {} srcUi(); }
-  $('srcMode').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { src.mode = b.dataset.s; srcSave(); } });
+  window.__srcRefresh = srcUi;
   $('srcList').addEventListener('click', e => {
-    const rm = e.target.closest('[data-rm]');
-    if (rm) { const a = rm.dataset.rm; src.custom = src.custom.filter(x => x !== a); src.picked = src.picked.filter(x => x !== a); srcSave(); return; }
-    const b = e.target.closest('button[data-a]'); if (!b || b.disabled) return;
-    const a = b.dataset.a;
-    src.picked = src.picked.includes(a) ? src.picked.filter(x => x !== a) : [...src.picked, a];
-    srcSave();
+    const rm = e.target.closest('[data-rm]'); if (!rm) return;
+    src.apps = src.apps.filter(x => x.name !== rm.dataset.rm); srcSave();
   });
-  $('srcAdd').addEventListener('submit', e => {
-    e.preventDefault();
-    const v = $('srcName').value.trim().slice(0, 24); if (!v) return;
-    if (![...KNOWN_APPS, ...src.custom].some(x => x.toLowerCase() === v.toLowerCase())) src.custom.push(v);
-    const name = [...KNOWN_APPS, ...src.custom].find(x => x.toLowerCase() === v.toLowerCase());
-    if (!src.picked.includes(name)) src.picked.push(name);
-    $('srcName').value = ''; srcSave();
+  $('srcRun').addEventListener('click', e => { const b = e.target.closest('button[data-a]'); if (b) addApp(b.dataset.a); });
+  $('srcList').addEventListener('click', e => {
+    const t = e.target.closest('[data-vt]'); if (!t) return;
+    const a = src.apps.find(x => x.name === t.dataset.vt); if (a) { a.vol = !a.vol; srcSave(); }
   });
+  // l'elenco delle app con audio non si aggiorna da solo: cambia solo quando premi Aggiorna
+  $('srcRefresh').addEventListener('click', () => {
+    const b = $('srcRefresh'); b.classList.add('spin');
+    const done = list => { if (list) runSnap = list; b.classList.remove('spin'); srcUi(); };
+    if (window.__hostRunning) window.__hostRunning(done); else setTimeout(() => done(AUDIO_NOW.map(x => x.slice())), 450);
+  });
+  // nell'app vera apre la finestra di Windows per scegliere un programma
+  $('srcBrowse').addEventListener('click', () => { if (window.__hostBrowse) window.__hostBrowse(a => addApp(a)); else $('srcFile').click(); });
+  $('srcFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) addApp(f.name, f.name); e.target.value = ''; });
   srcUi();
   $('swCov').addEventListener('click', () => { units.cover = !units.cover; saveUnits(); });
   function saveUnits() {

@@ -33,12 +33,12 @@ pub struct Filter {
 }
 
 static FILTER: std::sync::Mutex<Option<Filter>> = std::sync::Mutex::new(None);
-/// Process (compact exe name) the volume slider acts on; empty = the app being followed.
-static TARGET: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+/// Apps (compact exe names) the volume slider lowers; `None` = the app being followed.
+static VOLKEYS: std::sync::Mutex<Option<Vec<String>>> = std::sync::Mutex::new(None);
 static LAST: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
 
-pub fn set_target(t: &str) {
-    *TARGET.lock().unwrap() = compact(t);
+pub fn set_vol_keys(keys: Option<Vec<String>>) {
+    *VOLKEYS.lock().unwrap() = keys;
 }
 
 pub fn set_filter(mode: &str, apps: &[String]) {
@@ -96,7 +96,7 @@ mod imp {
     };
     use windows::Storage::Streams::{DataReader, IRandomAccessStreamReference};
     use windows::Win32::Media::Audio::{
-        eConsole, eRender, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
+        eConsole, eRender, AudioSessionStateActive, IAudioSessionControl2, IAudioSessionManager2, IMMDeviceEnumerator, ISimpleAudioVolume,
         MMDeviceEnumerator,
     };
     use windows::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
@@ -145,13 +145,13 @@ mod imp {
     }
 
     /// Apps with a media session right now: (key, readable name).
-    pub fn sessions() -> Vec<(String, String)> {
+    pub fn sessions() -> Vec<(String, String, bool)> {
         let Some(m) = manager() else { return vec![] };
         let Ok(list) = m.GetSessions() else { return vec![] };
         list.into_iter()
             .map(|s| {
                 let id = id_of(&s);
-                (super::key_of(&id), super::app_name(&id))
+                (super::key_of(&id), super::app_name(&id), is_playing(&s))
             })
             .collect()
     }
@@ -273,13 +273,15 @@ mod imp {
     }
 
     /// Apps with an audio session in the Windows mixer: (key, file name).
-    pub fn audio_apps() -> Vec<(String, String)> {
-        let mut out: Vec<(String, String)> = vec![];
-        for (pid, _) in sessions_of_default_device() {
+    pub fn audio_apps() -> Vec<(String, String, bool)> {
+        let mut out: Vec<(String, String, bool)> = vec![];
+        for (pid, c) in sessions_of_default_device() {
+            let active = unsafe { c.GetState().map(|st| st == AudioSessionStateActive).unwrap_or(false) };
             if let Some(n) = exe_name(pid) {
                 let k = super::compact(n.trim_end_matches(".exe").trim_end_matches(".EXE"));
-                if !out.iter().any(|(x, _)| *x == k) {
-                    out.push((k, n));
+                match out.iter_mut().find(|(x, _, _)| *x == k) {
+                    Some(o) => o.2 |= active,
+                    None => out.push((k, n, active)),
                 }
             }
         }
@@ -290,17 +292,17 @@ mod imp {
     /// or else the processes whose name matches the followed media app (browsers have several).
     /// Nothing else is ever touched, never the system volume.
     fn app_volumes(source: &str) -> Vec<ISimpleAudioVolume> {
-        let target = super::TARGET.lock().unwrap().clone();
+        let keys = super::VOLKEYS.lock().unwrap().clone();
         let id = super::compact(source);
-        if target.is_empty() && id.is_empty() {
+        if keys.is_none() && id.is_empty() {
             return vec![];
         }
         sessions_of_default_device()
             .into_iter()
-            .filter(|(pid, _)| match exe_stem(*pid) {
-                Some(stem) if !target.is_empty() => stem == target,
-                Some(stem) => stem.len() >= 3 && id.contains(&stem),
-                None => false,
+            .filter(|(pid, _)| match (exe_stem(*pid), &keys) {
+                (Some(stem), Some(keys)) => stem.len() >= 3 && keys.iter().any(|k| *k == stem || (k.len() >= 3 && (stem.contains(k.as_str()) || k.contains(stem.as_str())))),
+                (Some(stem), None) => stem.len() >= 3 && id.contains(&stem),
+                _ => false,
             })
             .filter_map(|(_, c)| c.cast::<ISimpleAudioVolume>().ok())
             .collect()
@@ -338,10 +340,10 @@ mod imp {
         None
     }
     pub fn set_volume(_: &str, _: f32) {}
-    pub fn sessions() -> Vec<(String, String)> {
+    pub fn sessions() -> Vec<(String, String, bool)> {
         vec![]
     }
-    pub fn audio_apps() -> Vec<(String, String)> {
+    pub fn audio_apps() -> Vec<(String, String, bool)> {
         vec![]
     }
 }

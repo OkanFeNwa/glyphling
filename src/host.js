@@ -56,12 +56,28 @@
   shareColors();
   listen('config', e => applyCfg(e.payload));
   listen('themes-changed', e => { if (e.payload.from !== host) C.reloadThemes(); shareColors(); });
-  // the prototype's chip selector is replaced by a real list (see the Settings block below)
-  window.__hostSrc = () => {};
-  if (host === 'settings') {
-    const poll = () => invoke('music_now').then(n => { if (n !== window.__nowApp) { window.__nowApp = n; window.__srcRefresh && window.__srcRefresh(); } }).catch(() => {});
-    poll(); setInterval(poll, 2000);
-  }
+  // music source: the lists live in the page (companion-src); the backend gets the allow list and
+  // the volume flags. Only the Settings window pushes it, so a stale widget cannot overwrite it.
+  // The running-apps list is read only when asked (Aggiorna), never on a timer.
+  const pretty = n => { n = String(n).replace(/\.exe$/i, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
+  window.__hostSrc = src => {
+    if (host !== 'settings') return;
+    const list = src.apps.map(a => ({ key: String(a.exe || a.name).replace(/\.exe$/i, ''), name: a.name, vol: a.vol !== false }));
+    invoke('set_music_list', { list });
+  };
+  window.__hostRunning = cb => {
+    Promise.all([invoke('music_sessions'), invoke('audio_apps')]).then(([m, a]) => {
+      const out = [];
+      for (const [k, n, playing] of [...(m || []), ...(a || [])]) {
+        const name = pretty(n), at = out.find(o => o[0].toLowerCase() === name.toLowerCase());
+        if (at) at[1] = at[1] || playing; else if (k) out.push([name, !!playing]);
+      }
+      out.sort((x, y) => (y[1] ? 1 : 0) - (x[1] ? 1 : 0));
+      cb(out);
+    }).catch(() => cb(null));
+  };
+  window.__hostBrowse = cb => invoke('pick_music_exe').then(a => { if (a) cb(a.name); }).catch(() => {});
+  if (host === 'settings') setTimeout(() => { window.__srcRefresh && window.__srcRefresh(); window.__srcRunning && window.__srcRunning(); }, 300);
   listen('fmt-changed', e => { if (e.payload.from !== host) C.reloadFmt(); });
 
   // ---------- widget ----------
@@ -202,58 +218,6 @@
       sw.addEventListener('click', () => invoke('set_autostart', { on: sw.getAttribute('aria-checked') !== 'true' }).then(on => sw.setAttribute('aria-checked', on)));
     }
     // cover colors: theme or neutral white
-    // music apps: a real list; the music mode listens to and controls only these (empty = any app)
-    const modeRow = $('srcMode') && $('srcMode').closest('.srow'), chipRow = $('srcList') && $('srcList').closest('.srow');
-    if (modeRow && chipRow) {
-      modeRow.hidden = true; chipRow.hidden = true;
-      chipRow.insertAdjacentHTML('afterend', `<div class="srow src-row"><div><b>App musicali</b><small id="mlNote"></small>
-        <div class="applist" id="mlList"></div>
-        <small class="ml-h">In esecuzione ora</small><div class="chiplist" id="mlRun"></div>
-        <button class="ghost" id="mlPick">Scegli un programma…</button></div></div>`);
-      let list = [], running = [];
-      const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-      const pretty = n => { n = String(n).replace(/\.exe$/i, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
-      const save = () => { invoke('set_music_list', { list }); draw(); };
-      const add = (key, name) => { if (key && !list.some(a => a.key === key)) { list.push({ key, name }); save(); } };
-      const draw = () => {
-        $('mlNote').textContent = list.length ? 'Il widget mostra e controlla solo queste app.' : 'Lista vuota: il widget ascolta qualsiasi app. Aggiungi la tua per limitarlo.';
-        $('mlList').innerHTML = list.map(a => `<div class="approw"><b>${esc(a.name)}</b><small>${esc(a.key)}</small><button class="ghost rm" data-k="${esc(a.key)}" aria-label="Rimuovi ${esc(a.name)}">×</button></div>`).join('');
-        const rest = running.filter(r => !list.some(a => a.key === r[0]));
-        $('mlRun').innerHTML = rest.length ? rest.map(([k, n]) => `<button class="ghost" data-k="${esc(k)}" data-n="${esc(n)}">+ ${esc(n)}</button>`).join('') : '<small>Nessuna app in riproduzione.</small>';
-      };
-      const poll = () => Promise.all([invoke('music_sessions'), invoke('audio_apps')]).then(([m, a]) => {
-        const out = [];
-        for (const [k, n] of [...(m || []), ...(a || [])]) if (k && !out.some(o => o[0] === k)) out.push([k, pretty(n)]);
-        running = out; draw();
-      }).catch(() => {});
-      invoke('get_config').then(c => { list = c.music_list || []; draw(); });
-      poll(); setInterval(poll, 3000);
-      $('mlList').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) { list = list.filter(a => a.key !== b.dataset.k); save(); } });
-      $('mlRun').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) add(b.dataset.k, b.dataset.n); });
-      $('mlPick').addEventListener('click', () => invoke('pick_music_exe').then(a => { if (a) add(a.key, pretty(a.name)); }).catch(() => {}));
-    }
-    // volume target: which mixer entry the circle's volume lowers
-    const nowRow = $('srcNow') && $('srcNow').closest('.srow');
-    if (nowRow) {
-      nowRow.insertAdjacentHTML('afterend', `<div class="srow src-row"><div><b>App del volume</b><small id="volNote"></small><div class="chiplist" id="volList"></div></div></div>`);
-      let target = '', apps = [];
-      const esc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-      const draw = () => {
-        const list = [...apps];
-        if (target && !list.some(a => a[0] === target)) list.push([target, target + ' (non attiva)']);
-        $('volList').innerHTML = `<button class="ghost" data-k="" aria-pressed="${target === ''}">Automatico</button>`
-          + list.map(([k, n]) => `<button class="ghost" data-k="${esc(k)}" aria-pressed="${k === target}">${esc(n)}</button>`).join('');
-        $('volNote').textContent = target ? 'Il cursore del volume abbassa solo questa app nel mixer di Windows.'
-          : 'Automatico: abbassa l\'app musicale in ascolto. Scegline una per decidere tu quale voce del mixer regolare.';
-      };
-      const poll = () => invoke('audio_apps').then(a => { apps = a || []; draw(); }).catch(() => {});
-      invoke('get_config').then(c => { target = c.volume_target || ''; draw(); });
-      poll(); setInterval(poll, 3000);
-      $('volList').addEventListener('click', e => {
-        const b = e.target.closest('button[data-k]'); if (!b) return;
-        target = b.dataset.k; draw(); invoke('set_volume_target', { target });
-      });
-    }
     // CPU temperature: offers the optional sensor (LibreHardwareMonitor), only with consent
     const genPage = document.querySelector('.spage[data-p="gen"]');
     const dk = $('dkPick') && $('dkPick').closest('.sgroup');
@@ -413,6 +377,7 @@
       const m = e.payload;
       if (m.cover_changed) C.setCover(m.cover ? await coverToLeds(m.cover) : null);
       C.setMedia(m);
+      const ms = $('musSrc'); if (ms) ms.textContent = m.active && m.app ? m.app : 'Nessuna app';
     });
     listen('spectrum', e => { window.__liveBands = { v: e.payload, at: performance.now() }; });
     $('play').addEventListener('click', () => invoke('media_control', { action: 'toggle' }), true);

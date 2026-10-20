@@ -194,7 +194,7 @@ fn set_tutorial_done(app: AppHandle) {
 fn set_music_list(app: AppHandle, list: Vec<config::MusicApp>) {
     let list: Vec<config::MusicApp> = list
         .into_iter()
-        .map(|a| config::MusicApp { key: media::compact(&a.key), name: a.name.chars().take(40).collect() })
+        .map(|a| config::MusicApp { key: media::compact(&a.key), name: a.name.chars().take(40).collect(), vol: a.vol })
         .filter(|a| a.key.len() >= 2)
         .take(32)
         .collect();
@@ -205,6 +205,8 @@ fn set_music_list(app: AppHandle, list: Vec<config::MusicApp>) {
 fn apply_music_list(list: &[config::MusicApp]) {
     let keys: Vec<String> = list.iter().map(|a| a.key.clone()).collect();
     media::set_filter(if keys.is_empty() { "all" } else { "allow" }, &keys);
+    // volume: the listed apps with the toggle on; with an empty list, the app being followed
+    media::set_vol_keys(if list.is_empty() { None } else { Some(list.iter().filter(|a| a.vol).map(|a| a.key.clone()).collect()) });
 }
 
 /// Lets the user pick a program (.exe) to add to the music list.
@@ -219,7 +221,7 @@ async fn pick_music_exe(window: WebviewWindow) -> Option<config::MusicApp> {
     tauri::async_runtime::spawn_blocking(move || {
         let f = rfd::FileDialog::new().set_title("Scegli il programma").add_filter("Programma", &["exe"]).set_parent(&window).pick_file()?;
         let stem = f.file_stem()?.to_string_lossy().to_string();
-        Some(config::MusicApp { key: media::compact(&stem), name: stem })
+        Some(config::MusicApp { key: media::compact(&stem), name: stem, vol: true })
     })
     .await
     .ok()
@@ -309,17 +311,9 @@ fn sensor_offer(app: AppHandle) -> &'static str {
     "done"
 }
 
-/// Process the volume slider acts on; empty = the followed music app.
-#[tauri::command]
-fn set_volume_target(app: AppHandle, target: String) {
-    let t = media::compact(&target);
-    media::set_target(&t);
-    update(&app, |c| c.volume_target = t);
-}
-
 /// Apps that have an audio session in the Windows mixer: (key, file name).
 #[tauri::command]
-async fn audio_apps() -> Vec<(String, String)> {
+async fn audio_apps() -> Vec<(String, String, bool)> {
     tauri::async_runtime::spawn_blocking(|| {
         media::com_init();
         media::audio_apps()
@@ -336,7 +330,7 @@ fn music_now() -> String {
 
 /// Apps that have a media session right now (for adding a custom app): (key, name).
 #[tauri::command]
-async fn music_sessions() -> Vec<(String, String)> {
+async fn music_sessions() -> Vec<(String, String, bool)> {
     tauri::async_runtime::spawn_blocking(|| {
         media::com_init();
         media::sessions()
@@ -536,7 +530,6 @@ pub fn run() {
             let handle = app.handle().clone();
             let cfg = config::load(&handle);
             apply_music_list(&cfg.music_list);
-            media::set_target(&cfg.volume_target);
             app.manage(AppState {
                 cfg: Mutex::new(cfg.clone()),
                 shape: Mutex::new(hit::Shape::default()),
@@ -642,7 +635,6 @@ pub fn run() {
             pick_music_exe,
             music_sessions,
             music_now,
-            set_volume_target,
             audio_apps,
             sensor_state,
             start_sensor,
