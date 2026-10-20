@@ -101,3 +101,7 @@ html.h-widget .evpop { background: rgba(26,26,26,.97) !important; }
 .approw .rm { width: 28px; height: 28px; padding: 0; border-radius: 50%; font-size: 16px; line-height: 1; }
 .ml-h { display: block; margin-top: 10px; }
 #mlPick { margin-top: 10px; }
+
+/* updates row in Info: the check button sits apart from the divider below */
+.upd-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 22px; }
+.upd-line small { color: var(--mute); font-size: 11px; }

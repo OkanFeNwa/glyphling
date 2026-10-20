@@ -97,6 +97,7 @@ pub fn check(app: &AppHandle, notify: bool) -> Result<Option<Update>, String> {
     let found = find()?;
     let st = app.state::<AppState>();
     *st.update.lock().unwrap() = found.clone();
+    *st.update_checked.lock().unwrap() = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).ok().map(|d| d.as_secs());
     let _ = app.emit("update", &found);
     if let (Some(u), true) = (&found, notify) {
         let mut first = false;

@@ -251,28 +251,39 @@
     // updates: checked from GitHub; installs over the current copy
     const tutBtn = $('tutAgain');
     if (tutBtn) {
-      tutBtn.closest('.ver').insertAdjacentHTML('afterend', `<div class="ver upd-row"><button class="ghost" id="updBtn">Cerca aggiornamenti</button><span id="updNote"></span></div>
+      tutBtn.closest('.ver').insertAdjacentHTML('afterend', `<div class="upd-line"><button class="ghost" id="updBtn">Cerca aggiornamenti</button><small id="updNote" hidden></small></div>
         <div class="srow"><div><b>Cerca aggiornamenti da solo</b><small>Controlla ogni qualche ora e ti avvisa una volta quando esce una versione nuova. Non installa nulla senza il tuo ok.</small></div><button class="sw-t" id="swUpd" role="switch" aria-checked="true" aria-label="Cerca aggiornamenti da solo"></button></div>`);
-      let found = null, busy = false, msg = '';
+      let found = null, checked = null, auto = true, busy = false, msg = '';
+      const hm = t => new Date(t * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // the "Aggiornamenti" badge shows the real state of the automatic check
+      window.__updBadge = () => {
+        const u = $('infoUpd'); if (!u) return;
+        u.innerHTML = found ? `Aggiornamenti <b>${found.version} disponibile</b>`
+          : !auto ? 'Aggiornamenti <b>automatici disattivi</b>'
+          : checked ? `Aggiornamenti <b>automatici · ultimo controllo ${hm(checked)}</b>` : 'Aggiornamenti <b>automatici attivi</b>';
+      };
       const upd = () => {
         const n = $('updNote');
-        n.textContent = msg || (found ? `Disponibile la ${found.version}` : '');
+        const text = msg || (found ? `Disponibile la ${found.version}` : '');
+        n.textContent = text; n.hidden = !text;
         $('updBtn').disabled = busy;
         $('updBtn').textContent = found ? (busy ? 'Aggiorno...' : `Aggiorna alla ${found.version}`) : (busy ? 'Controllo...' : 'Cerca aggiornamenti');
-        const u = $('infoUpd'); if (u) u.innerHTML = found ? `Aggiornamenti <b>${found.version} disponibile</b>` : 'Aggiornamenti <b>nessuno</b>';
+        window.__updBadge();
       };
-      invoke('update_state').then(u => { found = u; upd(); });
-      invoke('get_config').then(c => $('swUpd').setAttribute('aria-checked', c.auto_update !== false));
-      listen('update', e => { found = e.payload; upd(); });
+      const load = () => invoke('update_state').then(s => { found = s.found; checked = s.checked; upd(); });
+      load();
+      invoke('get_config').then(c => { auto = c.auto_update !== false; $('swUpd').setAttribute('aria-checked', auto); upd(); });
+      listen('update', e => { found = e.payload; load(); });
       $('swUpd').addEventListener('click', () => {
         const on = $('swUpd').getAttribute('aria-checked') !== 'true';
         $('swUpd').setAttribute('aria-checked', on);
+        auto = on; upd();
         invoke('set_auto_update', { on });
       });
       $('updBtn').addEventListener('click', () => {
         busy = true; msg = ''; upd();
         const p = found ? invoke('install_update') : invoke('check_update').then(u => { found = u; if (!u) msg = 'Sei già all\'ultima versione.'; });
-        p.catch(m => { msg = String(m); }).finally(() => { busy = false; upd(); });
+        p.catch(m => { msg = String(m); }).finally(() => { busy = false; load(); });
       });
       upd();
     }
@@ -624,7 +635,8 @@
     $('infoOs').textContent = i.os;
     $('infoPos').textContent = i.position;
     const ver = document.querySelector('.about .ver');
-    if (ver) ver.innerHTML = `<span>Versione <b>${i.version}</b></span><span>Canale <b>prova</b></span><span id="infoUpd">Aggiornamenti <b>non ancora attivi</b></span>`;
+    if (ver) ver.innerHTML = `<span>Versione <b>${i.version}</b></span><span>Canale <b>${/^0\./.test(i.version) ? 'prova' : 'stabile'}</b></span><span id="infoUpd">Aggiornamenti <b>…</b></span>`;
+    if (window.__updBadge) window.__updBadge();
     if (!newsAdded) {
       newsAdded = true;
       const lists = document.querySelectorAll('.spage[data-p="info"] .news');

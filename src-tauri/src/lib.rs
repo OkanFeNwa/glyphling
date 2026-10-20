@@ -45,6 +45,8 @@ pub struct AppState {
     /// this is where it was before (physical pixels).
     pub tutorial: Mutex<Option<PhysicalPosition<i32>>>,
     pub update: Mutex<Option<updater::Update>>,
+    /// When the last update check finished (seconds since 1970).
+    pub update_checked: Mutex<Option<u64>>,
 }
 
 pub fn in_tutorial(app: &AppHandle) -> bool {
@@ -228,10 +230,17 @@ async fn pick_music_exe(window: WebviewWindow) -> Option<config::MusicApp> {
     .flatten()
 }
 
-/// Newer version found so far, if any.
+#[derive(serde::Serialize)]
+struct UpdateState {
+    found: Option<updater::Update>,
+    /// Seconds since 1970 of the last finished check, if there was one this run.
+    checked: Option<u64>,
+}
+
+/// Newer version found so far (if any) and when the last check happened.
 #[tauri::command]
-fn update_state(state: tauri::State<AppState>) -> Option<updater::Update> {
-    state.update.lock().unwrap().clone()
+fn update_state(state: tauri::State<AppState>) -> UpdateState {
+    UpdateState { found: state.update.lock().unwrap().clone(), checked: *state.update_checked.lock().unwrap() }
 }
 
 /// Manual check from Settings.
@@ -539,6 +548,7 @@ pub fn run() {
                 menu: Mutex::new(None),
                 tutorial: Mutex::new(None),
                 update: Mutex::new(None),
+                update_checked: Mutex::new(None),
             });
 
             let widget = WebviewWindowBuilder::new(app, "widget", WebviewUrl::App("index.html".into()))
