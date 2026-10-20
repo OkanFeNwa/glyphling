@@ -290,76 +290,6 @@ mod imp {
         }
     }
 
-    /// Text report for Settings: every session in the mixer, which ones the volume slider
-    /// would move, and (with `test`) a real write/readback on those.
-    pub fn volume_diag(test: bool) -> String {
-        let keys = super::VOLKEYS.lock().unwrap().clone();
-        let source = super::LAST.lock().unwrap().clone();
-        let id = super::compact(&source);
-        let mut out = vec![];
-        out.push(format!("App seguita: {}", if source.is_empty() { "nessuna".into() } else { super::app_name(&source) }));
-        out.push(match &keys {
-            Some(k) if k.is_empty() => "Il volume non abbassa nessuna app (interruttori Volume spenti)".to_string(),
-            Some(k) => format!("Il volume abbassa: {}", k.join(", ")),
-            None => "Lista vuota: il volume abbassa l'app seguita".to_string(),
-        });
-        let all = all_sessions();
-        if all.is_empty() {
-            out.push("Nessuna sessione audio trovata su nessun dispositivo di uscita.".into());
-        }
-        let mut matched = vec![];
-        for (dev, def, pid, c) in &all {
-            let stem = exe_stem(*pid).unwrap_or_default();
-            let name = exe_name(*pid).unwrap_or_else(|| format!("pid {pid}"));
-            let hit = is_target(&stem, &keys, &id);
-            let (vol, muted, state) = match c.cast::<ISimpleAudioVolume>() {
-                Ok(v) => unsafe {
-                    (v.GetMasterVolume().map(|x| format!("{}%", (x * 100.0).round())).unwrap_or("?".into()), v.GetMute().map(|m| m.as_bool()).unwrap_or(false),
-                     c.GetState().map(|st| if st == AudioSessionStateActive { "attiva" } else { "inattiva" }).unwrap_or("?"))
-                },
-                Err(_) => ("?".into(), false, "?"),
-            };
-            out.push(format!(
-                "Dispositivo {}{} · {} · {} · volume {}{}{}",
-                dev + 1,
-                if *def { " (predefinito)" } else { "" },
-                name,
-                state,
-                vol,
-                if muted { " · muto" } else { "" },
-                if hit { " · MUOVE QUESTO" } else { "" }
-            ));
-            if hit {
-                if let Ok(v) = c.cast::<ISimpleAudioVolume>() {
-                    matched.push((name, v));
-                }
-            }
-        }
-        if matched.is_empty() {
-            out.push("Nessuna sessione corrisponde: il cursore del volume non muove nulla.".into());
-        } else if test {
-            for (name, v) in &matched {
-                unsafe {
-                    let v0 = v.GetMasterVolume().unwrap_or(0.5);
-                    let v1 = if v0 > 0.5 { v0 - 0.2 } else { v0 + 0.2 };
-                    let w = v.SetMasterVolume(v1, std::ptr::null());
-                    std::thread::sleep(std::time::Duration::from_millis(500));
-                    let back = v.GetMasterVolume().unwrap_or(-1.0);
-                    let _ = v.SetMasterVolume(v0, std::ptr::null());
-                    out.push(format!(
-                        "Prova su {}: scritto {}%, riletto {}% ({}), poi rimesso a {}%",
-                        name,
-                        (v1 * 100.0).round(),
-                        (back * 100.0).round(),
-                        if w.is_err() { "scrittura rifiutata" } else if (back - v1).abs() < 0.02 { "ok" } else { "l'app lo ha cambiato" },
-                        (v0 * 100.0).round()
-                    ));
-                }
-            }
-        }
-        out.join("\n")
-    }
-
     /// Apps with an audio session in the Windows mixer: (key, file name).
     pub fn audio_apps() -> Vec<(String, String, bool)> {
         let mut out: Vec<(String, String, bool)> = vec![];
@@ -430,12 +360,9 @@ mod imp {
     pub fn audio_apps() -> Vec<(String, String, bool)> {
         vec![]
     }
-    pub fn volume_diag(_: bool) -> String {
-        "Disponibile solo su Windows.".into()
-    }
 }
 
-pub use imp::{audio_apps, com_init, control, sessions, volume_diag};
+pub use imp::{audio_apps, com_init, control, sessions};
 
 /// Readable name of the app being followed (empty when none).
 pub fn now_app() -> String {

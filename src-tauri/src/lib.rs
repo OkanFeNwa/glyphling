@@ -322,17 +322,6 @@ async fn audio_apps() -> Vec<(String, String, bool)> {
     .unwrap_or_default()
 }
 
-/// Report on the mixer sessions and what the volume slider would move; with `test`, moves them.
-#[tauri::command]
-async fn volume_diag(test: bool) -> String {
-    tauri::async_runtime::spawn_blocking(move || {
-        media::com_init();
-        media::volume_diag(test)
-    })
-    .await
-    .unwrap_or_default()
-}
-
 /// Name of the app the music mode is following right now.
 #[tauri::command]
 fn music_now() -> String {
@@ -646,7 +635,6 @@ pub fn run() {
             pick_music_exe,
             music_sessions,
             music_now,
-            volume_diag,
             audio_apps,
             sensor_state,
             start_sensor,
