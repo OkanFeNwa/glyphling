@@ -1,6 +1,8 @@
 // Translations for the texts that only exist in the desktop app (host.js). The prototype's own
 // table (I18N in index.html) takes these as extra rows: [Italian, English, Spanish, French].
 window.__hostRows = [
+  ['Meteo non disponibile', 'Weather not available', 'Tiempo no disponible', 'Météo indisponible'],
+  ['Controlla la connessione', 'Check your connection', 'Comprueba la conexión', 'Vérifiez la connexion'],
   ['Avvio', 'Startup', 'Inicio', 'Démarrage'],
   ['Avvia con Windows', 'Start with Windows', 'Iniciar con Windows', 'Démarrer avec Windows'],
   ["Glyphling parte da solo quando accedi e si mette dove l'avevi lasciato.", 'Glyphling starts by itself when you sign in and goes back where you left it.', 'Glyphling se inicia solo al iniciar sesión y vuelve donde lo dejaste.', 'Glyphling démarre tout seul à l’ouverture de session et revient là où vous l’aviez laissé.'],

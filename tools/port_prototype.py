@@ -259,6 +259,26 @@ sub("    const done = list => { if (list) runSnap = list; b.classList.remove('sp
     "    };")
 sub("  window.__srcRefresh = srcUi;\n", "  window.__srcRefresh = srcUi;\n  window.__srcRunning = () => $('srcRefresh').click();\n")
 
+# 5h. no demo data in the app: nothing playing and no forecast until real data arrives
+sub("  let ti = 0, pos = 41, playing = true, vol = 0.64,",
+    "  if (window.__host) tracks.splice(0, tracks.length, { title: 'Niente in riproduzione', artist: 'Apri Spotify o un altro lettore', album: '', dur: 1, seed: 5, live: true, none: true });\n"
+    "  let ti = 0, pos = window.__host ? 0 : 41, playing = !window.__host, vol = 0.64,")
+sub('<span id="musSrc">Spotify</span>', '<span id="musSrc">Nessuna app</span>')
+sub("  const FC = buildForecast();",
+    "  function naForecast() {\n"
+    "    const now = new Date(), h0 = now.getHours();\n"
+    "    const hours = Array.from({ length: 24 }, (_, i) => ({ h: i === 0 ? null : (h0 + i) % 24, rel: 'oggi', label: 'ora', when: 'adesso', key: 'cloud', temp: null, hum: null, wind: null, range: null, na: true }));\n"
+    "    const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i); return { label: i === 0 ? 'oggi' : DSHORT[d.getDay()], date: d.getDate(), when: i === 0 ? 'oggi' : i === 1 ? 'domani' : `${DAYS[d.getDay()]} ${d.getDate()}`, key: 'cloud', temp: null, min: null, max: null, hum: null, wind: null, na: true }; });\n"
+    "    return { hours, days };\n"
+    "  }\n"
+    "  const FC = window.__host ? naForecast() : buildForecast();")
+sub("    $('wxTemp').textContent = tC(it.temp) + '°';", "    $('wxTemp').textContent = it.na ? '--°' : tC(it.temp) + '°';")
+sub("    $('wxCond').textContent = it.cond || WXC[it.key].cond;", "    $('wxCond').textContent = it.na ? 'Meteo non disponibile' : (it.cond || WXC[it.key].cond);")
+sub("    $('wxRange').textContent = wx.scale === 'days'", "    $('wxRange').textContent = it.na ? 'Controlla la connessione' : wx.scale === 'days'")
+sub("const bottom = wx.scale === 'days' ? `${tC(s.max)}°/${tC(s.min)}°` : `${tC(s.temp)}°`;", "const bottom = s.na ? '--' : wx.scale === 'days' ? `${tC(s.max)}°/${tC(s.min)}°` : `${tC(s.temp)}°`;")
+
+sub("swapText($('artist'), `${tr.artist} · ${tr.album}`, 50);", "swapText($('artist'), tr.album ? `${tr.artist} · ${tr.album}` : tr.artist, 50);")
+
 # 6. app name: Glyphling (visible text only, internal keys stay lowercase)
 html = html.replace("Companion", "Glyphling")
 html = html.replace(" Meteo e brani in questo prototipo sono finti.", "")
