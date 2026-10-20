@@ -3,6 +3,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="fonts.css">
 <script src="host-pre.js"></script>
+<script src="host-i18n.js"></script>
 <style>
 /* Layout: un solo oggetto al centro della scrivania; il cerchio LED in vetro è l'ancora e il comando, il pannello in vetro cresce verso destra attaccato a lui. */
 :root {
@@ -956,6 +957,7 @@ svg.lu { display: block; flex: none; }
 </div>
 <div class="sgroup">
   <h3>Formato</h3>
+  <div class="srow"><div><b>Lingua</b><small>Lingua dell'interfaccia. Il cambio ricarica l'app.</small></div><span class="seg3" id="langSeg"></span></div>
   <div class="srow"><div><b>Ora</b><small>Orologio, alba e tramonto, impegni, timer e previsioni del meteo.</small></div><span class="seg3" id="hSeg"><button data-h="24">24 ore</button><button data-h="12">12 ore</button></span></div>
   <div class="srow"><div><b>Temperatura</b><small>Meteo e temperature di CPU e GPU.</small></div><span class="seg3" id="tSeg"><button data-t="c">°C</button><button data-t="f">°F</button></span></div>
 </div>
@@ -1000,6 +1002,7 @@ svg.lu { display: block; flex: none; }
   <div class="sgroup">
     <h3>Novità</h3>
     <ul class="news">
+      <li><span><b>0.18</b> · lingua dell'app (inglese, italiano, spagnolo, francese), coccole col tasto destro, solletico, sbadigli, bolla del sonno e giramento di testa col mouse.</span></li>
       <li><span><b>0.18</b> · tasto destro sui giorni del calendario per aggiungere eventi, promemoria e attività; il Pomodoro diventa Focus con durate regolabili; app musicali filtrabili.</span></li>
       <li><span><b>0.18</b> · risoluzione del cerchio a 512, 1024 o 2048 punti, copertine disegnate, volume all'1% (5% con Shift), ore 12/24 e °C/°F, dischi come selettore, vomito più breve. Disegni rifatti per ogni risoluzione e cambio brano morbido.</span></li>
       <li><span><b>0.17</b> · il cerchio è il centro del widget, comportamento ai bordi, posizioni rapide, nuove animazioni del riquadro e due sorprese.</span></li>
@@ -1069,6 +1072,491 @@ svg.lu { display: block; flex: none; }
 
 <footer>Brani, meteo e dischi sono inventati. Ora, calendario, fase lunare, alba e tramonto sono calcolati davvero, per Milano. Il font Nothing 5×7 allegato ha una licenza che vieta l'uso come webfont, quindi qui i testi usano Doto (dot-matrix, Google Fonts) e il cerchio disegna i suoi pixel da solo.</footer>
 
+<script>
+/* i18n: l'interfaccia e' scritta in italiano; per le altre lingue ogni frammento di testo (nodi di testo e
+   aria-label / title / placeholder) viene tradotto al volo, anche quando e' generato dal codice. Cambiare lingua
+   ricarica la pagina. Nell'app vera: stesse chiavi nei file di risorse (Tauri/Kotlin). */
+const I18N = (() => {
+  const LANGS = [['en', 'English'], ['it', 'Italiano'], ['es', 'Español'], ['fr', 'Français']];
+  let lang = 'en';
+  try { const s = localStorage.getItem('companion-lang'); if (LANGS.some(l => l[0] === s)) lang = s; } catch (e) {}
+  const X = { en: 1, es: 2, fr: 3 }[lang] || 0;
+  const LOC = { en: 'en-GB', it: 'it-IT', es: 'es-ES', fr: 'fr-FR' }[lang];
+  const months = {
+    it: ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'],
+    en: ['January','February','March','April','May','June','July','August','September','October','November','December'],
+    es: ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'],
+    fr: ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'],
+  }[lang];
+  const days = {
+    it: ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'],
+    en: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+    es: ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'],
+    fr: ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'],
+  }[lang];
+  const dshort = {
+    it: ['dom','lun','mar','mer','gio','ven','sab'],
+    en: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    es: ['dom','lun','mar','mié','jue','vie','sáb'],
+    fr: ['dim','lun','mar','mer','jeu','ven','sam'],
+  }[lang];
+  // iniziali dei giorni nel calendario (settimana da lunedi)
+  const wd = { it: 'LMMGVSD', en: 'MTWTFSS', es: 'LMXJVSD', fr: 'LMMJVSD' }[lang].split('');
+  const dec = lang === 'en' ? '.' : ',';
+
+  // [italiano, inglese, spagnolo, francese]
+  const ROWS = [
+    // ---- generale
+    ['prototipo · v0.18', 'prototype · v0.18', 'prototipo · v0.18', 'prototype · v0.18'],
+    ['Sessione', 'Session', 'Sesión', 'Session'],
+    ['Cronometro', 'Stopwatch', 'Cronómetro', 'Chronomètre'],
+    ['Ore', 'Hours', 'Horas', 'Heures'],
+    ['Giorni', 'Days', 'Días', 'Jours'],
+    ['adesso', 'now', 'ahora', 'maintenant'],
+    ['ora', 'now', 'ahora', 'maintenant'],
+    ['oggi', 'today', 'hoy', 'aujourd’hui'],
+    ['domani', 'tomorrow', 'mañana', 'demain'],
+    ['ieri', 'yesterday', 'ayer', 'hier'],
+    ['Nuvoloso', 'Cloudy', 'Nublado', 'Nuageux'],
+    ['Sereno', 'Clear', 'Despejado', 'Dégagé'],
+    ['Pioggia leggera', 'Light rain', 'Lluvia ligera', 'Pluie légère'],
+    ['Ora locale', 'Local time', 'Hora local', 'Heure locale'],
+    ['Primo quarto', 'First quarter', 'Cuarto creciente', 'Premier quartier'],
+    ['Luna nuova', 'New moon', 'Luna nueva', 'Nouvelle lune'],
+    ['Falce crescente', 'Waxing crescent', 'Creciente', 'Croissant'],
+    ['Gibbosa crescente', 'Waxing gibbous', 'Gibosa creciente', 'Gibbeuse croissante'],
+    ['Luna piena', 'Full moon', 'Luna llena', 'Pleine lune'],
+    ['Gibbosa calante', 'Waning gibbous', 'Gibosa menguante', 'Gibbeuse décroissante'],
+    ['Ultimo quarto', 'Last quarter', 'Cuarto menguante', 'Dernier quartier'],
+    ['Falce calante', 'Waning crescent', 'Menguante', 'Dernier croissant'],
+    ['Alba', 'Sunrise', 'Amanecer', 'Lever'],
+    ['Tramonto', 'Sunset', 'Atardecer', 'Coucher'],
+    ['Luce', 'Daylight', 'Luz', 'Jour'],
+    ['Milano ·', 'Milan ·', 'Milán ·', 'Milan ·'],
+    ['Sistema', 'System', 'Sistema', 'Système'],
+    ['Giochi', 'Games', 'Juegos', 'Jeux'],
+    ['Foto e video', 'Photos and videos', 'Fotos y vídeos', 'Photos et vidéos'],
+    ['Chiavetta USB', 'USB stick', 'Memoria USB', 'Clé USB'],
+    ['Backup', 'Backup', 'Copias', 'Sauvegarde'],
+    ['Mascotte', 'Mascot', 'Mascota', 'Mascotte'],
+    ['Mascotte che dorme', 'Sleeping mascot', 'Mascota durmiendo', 'Mascotte endormie'],
+    ['Orologio', 'Clock', 'Reloj', 'Horloge'],
+    ['Calendario', 'Calendar', 'Calendario', 'Calendrier'],
+    ['Musica', 'Music', 'Música', 'Musique'],
+    ['Meteo', 'Weather', 'Tiempo', 'Météo'],
+    ['Visualizer musicale e volume', 'Music visualizer and volume', 'Visualizador de música y volumen', 'Visualiseur musical et volume'],
+    ['Timer, focus e cronometro', 'Timer, focus and stopwatch', 'Temporizador, foco y cronómetro', 'Minuteur, focus et chronomètre'],
+    ['Sistema e dischi', 'System and disks', 'Sistema y discos', 'Système et disques'],
+    // ---- musica, timer
+    ['Regola il volume', 'Adjust volume', 'Ajustar el volumen', 'Régler le volume'],
+    ['Brano precedente', 'Previous track', 'Pista anterior', 'Piste précédente'],
+    ['Brano successivo', 'Next track', 'Pista siguiente', 'Piste suivante'],
+    ['Pausa', 'Pause', 'Pausa', 'Pause'],
+    ['Riproduci', 'Play', 'Reproducir', 'Lecture'],
+    ['Avvia', 'Start', 'Iniciar', 'Démarrer'],
+    ['Sessioni', 'Sessions', 'Sesiones', 'Sessions'],
+    ['Durata del focus', 'Focus length', 'Duración del foco', 'Durée du focus'],
+    ['Ricomincia', 'Restart', 'Reiniciar', 'Recommencer'],
+    ['Salta alla fase successiva', 'Skip to next phase', 'Saltar a la fase siguiente', 'Passer à la phase suivante'],
+    ['Aggiungi un minuto', 'Add one minute', 'Añadir un minuto', 'Ajouter une minute'],
+    ['Segna un giro', 'Mark a lap', 'Marcar una vuelta', 'Marquer un tour'],
+    ['Pausa breve', 'Short break', 'Descanso corto', 'Pause courte'],
+    ['Pausa lunga', 'Long break', 'Descanso largo', 'Pause longue'],
+    ['Riposa gli occhi · poi sessione', 'Rest your eyes · then session', 'Descansa la vista · luego sesión', 'Reposez vos yeux · puis session'],
+    ['Premi la bandierina per segnare un giro', 'Press the flag to mark a lap', 'Pulsa la bandera para marcar una vuelta', 'Appuyez sur le drapeau pour marquer un tour'],
+    ['Tempo scaduto', 'Time is up', 'Tiempo agotado', 'Temps écoulé'],
+    ['· premi play per ripartire', '· press play to restart', '· pulsa play para reiniciar', '· appuyez sur lecture pour relancer'],
+    ['Finisce alle', 'Ends at', 'Termina a las', 'Se termine à'],
+    ['Ruota la', 'Turn the', 'Gira el', 'Tournez la'],
+    ['ghiera', 'bezel', 'aro', 'lunette'],
+    ['o scegli i minuti', 'or pick the minutes', 'o elige los minutos', 'ou choisissez les minutes'],
+    // ---- meteo / calendario
+    ['Meno un minuto', 'One minute less', 'Un minuto menos', 'Une minute de moins'],
+    ['Più un minuto', 'One minute more', 'Un minuto más', 'Une minute de plus'],
+    ['Mese precedente', 'Previous month', 'Mes anterior', 'Mois précédent'],
+    ['Mese successivo', 'Next month', 'Mes siguiente', 'Mois suivant'],
+    ['Nuovo evento sul giorno scelto', 'New event on the chosen day', 'Nuevo evento en el día elegido', 'Nouvel événement le jour choisi'],
+    ['Nuovo evento. Puoi anche cliccare un giorno col tasto destro', 'New event. You can also right-click a day', 'Nuevo evento. También puedes hacer clic derecho en un día', 'Nouvel événement. Vous pouvez aussi faire un clic droit sur un jour'],
+    ['Stand-up del team', 'Team stand-up', 'Reunión diaria del equipo', 'Point d’équipe'],
+    ['Pranzo con Giulia', 'Lunch with Giulia', 'Comida con Giulia', 'Déjeuner avec Giulia'],
+    ['Palestra', 'Gym', 'Gimnasio', 'Salle de sport'],
+    ['Cena da Marco', 'Dinner at Marco’s', 'Cena en casa de Marco', 'Dîner chez Marco'],
+    ['Compleanno di Sara', 'Sara’s birthday', 'Cumpleaños de Sara', 'Anniversaire de Sara'],
+    ['Dentista', 'Dentist', 'Dentista', 'Dentiste'],
+    ['Call con il cliente', 'Client call', 'Llamada con el cliente', 'Appel client'],
+    ['Spesa settimanale', 'Weekly groceries', 'Compra semanal', 'Courses de la semaine'],
+    ['Partita di calcetto', 'Five-a-side match', 'Partido de fútbol 7', 'Match de foot'],
+    ['Revisione prototipo widget', 'Widget prototype review', 'Revisión del prototipo del widget', 'Revue du prototype du widget'],
+    ['tutto il dì', 'all day', 'todo el día', 'toute la journée'],
+    ['Tutto il giorno', 'All day', 'Todo el día', 'Toute la journée'],
+    ['promemoria', 'reminder', 'recordatorio', 'rappel'],
+    ['attività', 'task', 'tarea', 'tâche'],
+    ['Evento', 'Event', 'Evento', 'Événement'],
+    ['Promemoria', 'Reminder', 'Recordatorio', 'Rappel'],
+    ['Attività', 'Task', 'Tarea', 'Tâche'],
+    ['Ripeti', 'Repeat', 'Repetir', 'Répéter'],
+    ['Mai', 'Never', 'Nunca', 'Jamais'],
+    ['Giorno', 'Day', 'Día', 'Jour'],
+    ['Sett.', 'Week', 'Sem.', 'Sem.'],
+    ['Mese', 'Month', 'Mes', 'Mois'],
+    ['Annulla', 'Cancel', 'Cancelar', 'Annuler'],
+    ['Salva', 'Save', 'Guardar', 'Enregistrer'],
+    ['Nuovo impegno', 'New entry', 'Nueva entrada', 'Nouvelle entrée'],
+    ['Chiudi', 'Close', 'Cerrar', 'Fermer'],
+    ['Tipo', 'Type', 'Tipo', 'Type'],
+    ['Titolo', 'Title', 'Título', 'Titre'],
+    ['Aggiungi un titolo', 'Add a title', 'Añade un título', 'Ajoutez un titre'],
+    ['Ora di inizio', 'Start time', 'Hora de inicio', 'Heure de début'],
+    ['Colore', 'Colour', 'Color', 'Couleur'],
+    ['Scrivi un titolo', 'Write a title', 'Escribe un título', 'Écrivez un titre'],
+    ['Ora non valida, ad esempio 09:30', 'Invalid time, for example 09:30', 'Hora no válida, por ejemplo 09:30', 'Heure invalide, par exemple 09:30'],
+    // ---- sistema
+    ['Dischi sulla ghiera, massimo 4:', 'Disks on the bezel, up to 4:', 'Discos en el aro, máximo 4:', 'Disques sur la lunette, 4 au maximum :'],
+    ['Stato del widget', 'Widget status', 'Estado del widget', 'État du widget'],
+    // ---- indizi
+    ['La mascotte', 'The mascot', 'La mascota', 'La mascotte'],
+    ['segue il', 'follows the', 'sigue el', 'suit le'],
+    ['La mascotte segue il', 'The mascot follows the', 'La mascota sigue el', 'La mascotte suit le'],
+    ['puntatore', 'pointer', 'puntero', 'pointeur'],
+    ['e sbatte le palpebre;', 'and blinks;', 'y parpadea;', 'et cligne des yeux ;'],
+    ['clicca il cerchio', 'click the circle', 'haz clic en el círculo', 'cliquez sur le cercle'],
+    ['per farla sorridere.', 'to make it smile.', 'para hacerla sonreír.', 'pour la faire sourire.'],
+    ['Ruota la ghiera', 'Turn the bezel', 'Gira el aro', 'Tournez la lunette'],
+    ['per scegliere una modalità; da qualunque modalità il', 'to pick a mode; from any mode a', 'para elegir un modo; desde cualquier modo el', 'pour choisir un mode ; depuis n’importe quel mode un'],
+    ['clic destro', 'right-click', 'clic derecho', 'clic droit'],
+    ['sul cerchio torna qui. Se non tocchi nulla per 12 secondi le palpebre calano piano e', 'on the circle brings you back here. If you touch nothing for 12 seconds the eyelids slowly close and', 'en el círculo te trae de vuelta. Si no tocas nada durante 12 segundos los párpados bajan despacio y', 'sur le cercle vous ramène ici. Si vous ne touchez à rien pendant 12 secondes, les paupières se ferment doucement et'],
+    ['si addormenta', 'it falls asleep', 'se duerme', 'elle s’endort'],
+    ['dorme', 'is asleep', 'está dormida', 'dort'],
+    ['La mascotte', 'The mascot', 'La mascota', 'La mascotte'],
+    ['. Muovi il mouse, premi un tasto o Sveglia per svegliarla.', '. Move the mouse, press a key or hit Wake up to wake her.', '. Mueve el ratón, pulsa una tecla o pulsa Despertar para despertarla.', '. Bougez la souris, appuyez sur une touche ou sur Réveiller pour la réveiller.'],
+    ['Orologio a due lancette con l\'ora del tuo dispositivo. Attiva la', 'Two-hand clock with your device time. Turn on the', 'Reloj de dos agujas con la hora de tu dispositivo. Activa el', 'Horloge à deux aiguilles avec l’heure de votre appareil. Activez la'],
+    ['lancetta dei secondi', 'seconds hand', 'segundero', 'trotteuse'],
+    ['col pulsante o cliccando il cerchio. Luna, alba e tramonto sono calcolati per Milano.', 'with the button or by clicking the circle. Moon, sunrise and sunset are calculated for Milan.', 'con el botón o haciendo clic en el círculo. La luna, el amanecer y el atardecer se calculan para Milán.', 'avec le bouton ou en cliquant sur le cercle. La lune, le lever et le coucher du soleil sont calculés pour Milan.'],
+    ['La ghiera è il mese:', 'The bezel is the month:', 'El aro es el mes:', 'La lunette est le mois :'],
+    ['trascinala in senso orario o antiorario', 'drag it clockwise or anticlockwise', 'arrástralo en sentido horario o antihorario', 'faites-la glisser dans le sens horaire ou antihoraire'],
+    ['per scorrere i giorni (anche rotellina e frecce). I tratti accesi sono i giorni con impegni. Gli impegni qui sono finti; nell\'app vera arrivano da Google Calendar.', 'to move through the days (the wheel and arrows work too). Lit segments are days with entries. The entries here are fake; in the real app they come from Google Calendar.', 'para recorrer los días (también con la rueda y las flechas). Los tramos encendidos son días con entradas. Las entradas de aquí son falsas; en la app real vienen de Google Calendar.', 'pour parcourir les jours (la molette et les flèches marchent aussi). Les traits allumés sont les jours avec des entrées. Les entrées ici sont fausses ; dans la vraie appli elles viennent de Google Agenda.'],
+    ['Trascina in cerchio', 'Drag in a circle', 'Arrastra en círculo', 'Faites glisser en cercle'],
+    ['o usa la rotellina sul cerchio per il', 'or use the wheel on the circle for the', 'o usa la rueda sobre el círculo para el', 'ou utilisez la molette sur le cercle pour le'],
+    ['volume', 'volume', 'volumen', 'volume'],
+    [': diventa un anello con la percentuale. Un clic mostra la copertina, disegnata con gli stessi LED, che gira.', ': it becomes a ring with the percentage. A click shows the cover art, drawn with the same LEDs, spinning.', ': se convierte en un anillo con el porcentaje. Un clic muestra la carátula, dibujada con los mismos LED, girando.', ' : il devient un anneau avec le pourcentage. Un clic affiche la pochette, dessinée avec les mêmes LED, qui tourne.'],
+    ['diventa un anello con la percentuale. Un clic mostra la copertina, disegnata con gli stessi LED, che gira.', 'it becomes a ring with the percentage. A click shows the cover art, drawn with the same LEDs, spinning.', 'se convierte en un anillo con el porcentaje. Un clic muestra la carátula, dibujada con los mismos LED, girando.', 'il devient un anneau avec le pourcentage. Un clic affiche la pochette, dessinée avec les mêmes LED, qui tourne.'],
+    ['Timer:', 'Timer:', 'Temporizador:', 'Minuteur :'],
+    ['ruota la ghiera', 'turn the bezel', 'gira el aro', 'tournez la lunette'],
+    ['per scegliere i minuti (oppure i tasti rapidi), poi clicca il cerchio per partire. La ghiera scorre i secondi, l\'anello interno si svuota; alla fine lampeggia.', 'to pick the minutes (or use the quick buttons), then click the circle to start. The bezel runs through the seconds, the inner ring empties; it flashes at the end.', 'para elegir los minutos (o usa los botones rápidos), luego haz clic en el círculo para empezar. El aro recorre los segundos, el anillo interior se vacía; al final parpadea.', 'pour choisir les minutes (ou utilisez les boutons rapides), puis cliquez sur le cercle pour démarrer. La lunette défile les secondes, l’anneau intérieur se vide ; il clignote à la fin.'],
+    ['Cronometro: la', 'Stopwatch: the', 'Cronómetro: el', 'Chronomètre : la'],
+    ['fa il giro dei secondi, l\'anello interno e le cifre contano i', 'goes round the seconds, the inner ring and the digits count the', 'da la vuelta a los segundos, el anillo interior y las cifras cuentan los', 'fait le tour des secondes, l’anneau intérieur et les chiffres comptent les'],
+    ['minuti', 'minutes', 'minutos', 'minutes'],
+    ['. I giri segnati restano come punti in accento. Clicca il cerchio per avviare o fermare.', '. Marked laps stay as accent dots. Click the circle to start or stop.', '. Las vueltas marcadas quedan como puntos de acento. Haz clic en el círculo para iniciar o parar.', '. Les tours marqués restent en points d’accent. Cliquez sur le cercle pour démarrer ou arrêter.'],
+    ['Focus: la', 'Focus: the', 'Foco: el', 'Focus : la'],
+    ['scorre i secondi, il', 'runs through the seconds, the', 'recorre los segundos, el', 'défile les secondes, le'],
+    ['quadrante', 'dial', 'cuadrante', 'cadran'],
+    ['al centro mostra i minuti, con l\'anello interno che si svuota. A timer fermo ruota la ghiera o scegli i minuti per cambiare la durata. Clicca il cerchio per la demo accelerata.', 'in the middle shows the minutes, with the inner ring emptying. When stopped, turn the bezel or pick the minutes to change the length. Click the circle for the fast demo.', 'en el centro muestra los minutos, con el anillo interior vaciándose. Con el temporizador parado gira el aro o elige los minutos para cambiar la duración. Haz clic en el círculo para la demo acelerada.', 'au centre affiche les minutes, avec l’anneau intérieur qui se vide. À l’arrêt, tournez la lunette ou choisissez les minutes pour changer la durée. Cliquez sur le cercle pour la démo accélérée.'],
+    ['Trascina la ghiera', 'Drag the bezel', 'Arrastra el aro', 'Faites glisser la lunette'],
+    ['in senso orario per andare avanti nelle previsioni e antiorario per tornare indietro (anche clic sui lati, rotellina e frecce). Scegli Ore o Giorni nel pannello.', 'clockwise to move forward in the forecast and anticlockwise to go back (clicking the sides, the wheel and arrows work too). Pick Hours or Days in the panel.', 'en sentido horario para avanzar en la previsión y antihorario para retroceder (también con clic en los lados, la rueda y las flechas). Elige Horas o Días en el panel.', 'dans le sens horaire pour avancer dans les prévisions et antihoraire pour reculer (clic sur les côtés, molette et flèches aussi). Choisissez Heures ou Jours dans le panneau.'],
+    ['Nel pannello CPU, GPU, RAM e temperature. I dischi stanno sulla', 'The panel shows CPU, GPU, RAM and temperatures. The disks sit on the', 'En el panel: CPU, GPU, RAM y temperaturas. Los discos están en el', 'Le panneau affiche CPU, GPU, RAM et températures. Les disques sont sur la'],
+    [': uno spicchio per disco attivo, riempito in base allo spazio usato. Trascina la ghiera o clicca il cerchio per passare da un disco all\'altro; sotto scegli quali mostrare.', ': one slice per active disk, filled according to the space used. Drag the bezel or click the circle to switch between disks; pick which to show below.', ': un sector por disco activo, relleno según el espacio usado. Arrastra el aro o haz clic en el círculo para cambiar de disco; abajo eliges cuáles mostrar.', ' : une part par disque actif, remplie selon l’espace utilisé. Faites glisser la lunette ou cliquez sur le cercle pour passer d’un disque à l’autre ; choisissez ci-dessous lesquels afficher.'],
+    // ---- impostazioni
+    ['Impostazioni', 'Settings', 'Ajustes', 'Réglages'],
+    ['Impostazioni di Glyphling', 'Glyphling settings', 'Ajustes de Glyphling', 'Réglages de Glyphling'],
+    ['Chiudi impostazioni', 'Close settings', 'Cerrar ajustes', 'Fermer les réglages'],
+    ['Widget', 'Widget', 'Widget', 'Widget'],
+    ['Colori', 'Colours', 'Colores', 'Couleurs'],
+    ['Info', 'About', 'Acerca de', 'À propos'],
+    ['Fai dormire', 'Put to sleep', 'Dormir', 'Endormir'],
+    ['Sveglia', 'Wake up', 'Despertar', 'Réveiller'],
+    ['Sveglia la mascotte', 'Wake the mascot', 'Despertar a la mascota', 'Réveiller la mascotte'],
+    ['Fai dormire la mascotte', 'Put the mascot to sleep', 'Dormir a la mascota', 'Endormir la mascotte'],
+    ['Lancetta dei secondi', 'Seconds hand', 'Segundero', 'Trotteuse'],
+    ['Cerchio', 'Circle', 'Círculo', 'Cercle'],
+    ['Colori del tema sulla copertina', 'Theme colours on the cover art', 'Colores del tema en la carátula', 'Couleurs du thème sur la pochette'],
+    ['Se spento la copertina mantiene i suoi colori originali, qualunque tema usi.', 'When off, the cover art keeps its original colours, whatever the theme.', 'Si está apagado, la carátula conserva sus colores originales, sea cual sea el tema.', 'Désactivé, la pochette garde ses couleurs d’origine, quel que soit le thème.'],
+    ['Risoluzione', 'Resolution', 'Resolución', 'Résolution'],
+    ['Quanti punti accende il cerchio. Con più punti ghiere, lancette, visualizer e copertine diventano più fini; occhi e cifre sono ridisegnati a tratto per ogni risoluzione.', 'How many dots the circle lights. With more dots, bezels, hands, visualizers and cover art get finer; eyes and digits are redrawn as strokes for each resolution.', 'Cuántos puntos enciende el círculo. Con más puntos, aros, agujas, visualizadores y carátulas se vuelven más finos; ojos y cifras se redibujan a trazo para cada resolución.', 'Combien de points le cercle allume. Avec plus de points, lunettes, aiguilles, visualiseurs et pochettes sont plus fins ; yeux et chiffres sont redessinés au trait pour chaque résolution.'],
+    ['Durata del focus', 'Focus length', 'Duración del foco', 'Durée du focus'],
+    ['Minuti di ogni sessione di lavoro.', 'Minutes in each work session.', 'Minutos de cada sesión de trabajo.', 'Minutes de chaque session de travail.'],
+    ['Dopo ogni sessione, tranne la quarta.', 'After every session except the fourth.', 'Tras cada sesión, salvo la cuarta.', 'Après chaque session, sauf la quatrième.'],
+    ['Dopo la quarta sessione.', 'After the fourth session.', 'Tras la cuarta sesión.', 'Après la quatrième session.'],
+    ['App musicali', 'Music apps', 'Apps de música', 'Applis musicales'],
+    ['Solo queste app vengono mostrate e controllate. Se la lista è vuota vale qualsiasi app che sta riproducendo. Con l\'interruttore "Volume" scegli quali abbassa il cursore del volume.', 'Only these apps are shown and controlled. If the list is empty, any app that is playing counts. The "Volume" switch chooses which ones the volume slider turns down.', 'Solo se muestran y controlan estas apps. Si la lista está vacía vale cualquier app que esté sonando. Con el interruptor "Volumen" eliges cuáles baja el control de volumen.', 'Seules ces applis sont affichées et contrôlées. Si la liste est vide, toute appli en lecture compte. L’interrupteur « Volume » choisit celles que le curseur de volume baisse.'],
+    ['in ascolto', 'listening', 'escuchando', 'à l’écoute'],
+    ['suona', 'playing', 'sonando', 'en lecture'],
+    ['ferma', 'stopped', 'parada', 'à l’arrêt'],
+    ['Volume', 'Volume', 'Volumen', 'Volume'],
+    ['Il cursore del volume abbassa quest\'app', 'The volume slider turns this app down', 'El control de volumen baja esta app', 'Le curseur de volume baisse cette appli'],
+    ['Rimuovi', 'Remove', 'Quitar', 'Retirer'],
+    ['In esecuzione ora', 'Running now', 'En ejecución ahora', 'En cours maintenant'],
+    ['Aggiorna', 'Refresh', 'Actualizar', 'Actualiser'],
+    ['Aggiorna l\'elenco delle app', 'Refresh the app list', 'Actualizar la lista de apps', 'Actualiser la liste des applis'],
+    ['App musicali', 'Music apps', 'Apps de música', 'Applis musicales'],
+    ['App con audio in esecuzione', 'Apps with audio running', 'Apps con audio en ejecución', 'Applis avec audio en cours'],
+    ['Sta riproducendo', 'Playing', 'Reproduciendo', 'En lecture'],
+    ['Audio aperto', 'Audio open', 'Audio abierto', 'Audio ouvert'],
+    ['Scegli un programma…', 'Choose a program…', 'Elegir un programa…', 'Choisir un programme…'],
+    ['In ascolto ora', 'Listening now', 'Escuchando ahora', 'À l’écoute maintenant'],
+    ['Lista vuota: vale qualsiasi app che sta riproducendo', 'Empty list: any app that is playing counts', 'Lista vacía: vale cualquier app que esté sonando', 'Liste vide : toute appli en lecture compte'],
+    ['Nessun\'altra app con audio in questo momento.', 'No other app with audio right now.', 'Ninguna otra app con audio en este momento.', 'Aucune autre appli avec audio pour le moment.'],
+    ['Nessuna app sta riproducendo.', 'No app is playing.', 'Ninguna app está sonando.', 'Aucune appli en lecture.'],
+    ['Nessuna app', 'No app', 'Ninguna app', 'Aucune appli'],
+    ['Nessuna app da abbassare', 'No app to turn down', 'Ninguna app que bajar', 'Aucune appli à baisser'],
+    ['nessuna app (accendi "Volume" su una riga)', 'no app (turn on "Volume" on a row)', 'ninguna app (activa "Volumen" en una fila)', 'aucune appli (activez « Volume » sur une ligne)'],
+    ['Formato', 'Format', 'Formato', 'Format'],
+    ['Orologio, alba e tramonto, impegni, timer e previsioni del meteo.', 'Clock, sunrise and sunset, entries, timers and weather forecasts.', 'Reloj, amanecer y atardecer, entradas, temporizadores y previsión del tiempo.', 'Horloge, lever et coucher du soleil, entrées, minuteurs et prévisions météo.'],
+    ['24 ore', '24-hour', '24 horas', '24 heures'],
+    ['12 ore', '12-hour', '12 horas', '12 heures'],
+    ['Temperatura', 'Temperature', 'Temperatura', 'Température'],
+    ['Meteo e temperature di CPU e GPU.', 'Weather and CPU and GPU temperatures.', 'Tiempo y temperaturas de CPU y GPU.', 'Météo et températures du CPU et du GPU.'],
+    ['Lingua', 'Language', 'Idioma', 'Langue'],
+    ['Lingua dell\'interfaccia. Il cambio ricarica l\'app.', 'Interface language. Changing it reloads the app.', 'Idioma de la interfaz. Al cambiarlo se recarga la app.', 'Langue de l’interface. Le changement recharge l’appli.'],
+    ['Posizione', 'Position', 'Posición', 'Position'],
+    ['Apertura del riquadro', 'Panel opening side', 'Lado de apertura del panel', 'Côté d’ouverture du panneau'],
+    ['Da che lato si apre il riquadro. Automatica sceglie il lato con più spazio, in base a dove sta il widget.', 'Which side the panel opens on. Auto picks the side with more room, based on where the widget is.', 'Por qué lado se abre el panel. Automático elige el lado con más espacio, según dónde esté el widget.', 'De quel côté s’ouvre le panneau. Auto choisit le côté avec le plus de place, selon la position du widget.'],
+    ['Destra', 'Right', 'Derecha', 'Droite'],
+    ['Sinistra', 'Left', 'Izquierda', 'Gauche'],
+    ['Auto', 'Auto', 'Auto', 'Auto'],
+    ['Sposta il widget', 'Move the widget', 'Mover el widget', 'Déplacer le widget'],
+    ['Trascinalo dove vuoi sul desktop. Lo trovi anche nel menù dell\'icona.', 'Drag it anywhere on the desktop. It is also in the icon menu.', 'Arrástralo donde quieras en el escritorio. También está en el menú del icono.', 'Faites-le glisser où vous voulez sur le bureau. Il est aussi dans le menu de l’icône.'],
+    ['Aggancia alla griglia', 'Snap to grid', 'Ajustar a la cuadrícula', 'Aimanter à la grille'],
+    ['Si allinea a una griglia da 24 px. Tieni premuto', 'Aligns to a 24 px grid. Hold', 'Se alinea a una cuadrícula de 24 px. Mantén pulsado', 'S’aligne sur une grille de 24 px. Maintenez'],
+    ['Alt', 'Alt', 'Alt', 'Alt'],
+    ['mentre trascini per muoverlo libero.', 'while dragging to move it freely.', 'mientras arrastras para moverlo libremente.', 'pendant le glissement pour le déplacer librement.'],
+    ['Posizioni rapide', 'Quick positions', 'Posiciones rápidas', 'Positions rapides'],
+    ['Angoli, metà dei lati e centro, sempre attaccato ai bordi. Col riquadro aperto le posizioni centrali centrano l\'insieme cerchio + riquadro.', 'Corners, side midpoints and centre, always flush with the edges. With the panel open, the central positions centre the circle + panel as a whole.', 'Esquinas, mitad de los lados y centro, siempre pegado a los bordes. Con el panel abierto, las posiciones centrales centran el conjunto círculo + panel.', 'Coins, milieux des côtés et centre, toujours collé aux bords. Panneau ouvert, les positions centrales centrent l’ensemble cercle + panneau.'],
+    ['Posizione libera', 'Free position', 'Posición libre', 'Position libre'],
+    ['libera', 'free', 'libre', 'libre'],
+    ['Riporta al centro', 'Bring back to centre', 'Volver al centro', 'Ramener au centre'],
+    ['Mette il cerchio al centro dello schermo.', 'Puts the circle in the middle of the screen.', 'Pone el círculo en el centro de la pantalla.', 'Place le cercle au milieu de l’écran.'],
+    ['Centra', 'Centre', 'Centrar', 'Centrer'],
+    ['Sposta il widget', 'Move the widget', 'Mover el widget', 'Déplacer le widget'],
+    ['Aggancia alla griglia', 'Snap to grid', 'Ajustar a la cuadrícula', 'Aimanter à la grille'],
+    ['In alto a sinistra', 'Top left', 'Arriba a la izquierda', 'En haut à gauche'],
+    ['In alto al centro', 'Top centre', 'Arriba al centro', 'En haut au centre'],
+    ['In alto a destra', 'Top right', 'Arriba a la derecha', 'En haut à droite'],
+    ['Al centro a sinistra', 'Middle left', 'Centro izquierda', 'Au centre à gauche'],
+    ['Al centro dello schermo', 'Middle of the screen', 'Centro de la pantalla', 'Au centre de l’écran'],
+    ['Al centro a destra', 'Middle right', 'Centro derecha', 'Au centre à droite'],
+    ['In basso a sinistra', 'Bottom left', 'Abajo a la izquierda', 'En bas à gauche'],
+    ['In basso al centro', 'Bottom centre', 'Abajo al centro', 'En bas au centre'],
+    ['In basso a destra', 'Bottom right', 'Abajo a la derecha', 'En bas à droite'],
+    ['Scegli un tema, duplicalo o creane uno tuo', 'Pick a theme, duplicate it or make your own', 'Elige un tema, duplícalo o crea el tuyo', 'Choisissez un thème, dupliquez-le ou créez le vôtre'],
+    ['Ambra', 'Amber', 'Ámbar', 'Ambre'],
+    ['Menta', 'Mint', 'Menta', 'Menthe'],
+    ['Ghiaccio', 'Ice', 'Hielo', 'Glace'],
+    ['Rosa', 'Pink', 'Rosa', 'Rose'],
+    ['Viola', 'Violet', 'Violeta', 'Violet'],
+    ['Nuovo', 'New', 'Nuevo', 'Nouveau'],
+    ['Fatto', 'Done', 'Hecho', 'Terminé'],
+    ['Duplica', 'Duplicate', 'Duplicar', 'Dupliquer'],
+    ['Modifica', 'Edit', 'Editar', 'Modifier'],
+    ['Elimina', 'Delete', 'Eliminar', 'Supprimer'],
+    ['Elimina?', 'Delete?', '¿Eliminar?', 'Supprimer ?'],
+    ['Conferma eliminazione', 'Confirm delete', 'Confirmar eliminación', 'Confirmer la suppression'],
+    ['Nome del tema', 'Theme name', 'Nombre del tema', 'Nom du thème'],
+    ['Pixel', 'Pixel', 'Píxel', 'Pixel'],
+    ['Accento', 'Accent', 'Acento', 'Accent'],
+    ['LED spenti', 'Unlit LEDs', 'LED apagados', 'LED éteintes'],
+    ['Pannello', 'Panel', 'Panel', 'Panneau'],
+    ['mascotte, lancette, grafica', 'mascot, hands, graphics', 'mascota, agujas, gráficos', 'mascotte, aiguilles, graphismes'],
+    ['punte, oggi, secondi', 'tips, today, seconds', 'puntas, hoy, segundos', 'pointes, aujourd’hui, secondes'],
+    ['griglia di fondo', 'background grid', 'cuadrícula de fondo', 'grille de fond'],
+    ['tinta del vetro tondo', 'round glass tint', 'tinte del cristal redondo', 'teinte du verre rond'],
+    ['tinta del vetro laterale', 'side glass tint', 'tinte del cristal lateral', 'teinte du verre latéral'],
+    ['Recenti', 'Recent', 'Recientes', 'Récents'],
+    ['Selettore colore', 'Colour picker', 'Selector de color', 'Sélecteur de couleur'],
+    ['Preleva un colore dallo schermo', 'Pick a colour from the screen', 'Tomar un color de la pantalla', 'Prélever une couleur à l’écran'],
+    ['Luminosità', 'Brightness', 'Brillo', 'Luminosité'],
+    ['Tutorial', 'Tutorial', 'Tutorial', 'Tutoriel'],
+    // ---- info
+    ['Una piccola mascotte a LED che vive sul desktop. Orologio, calendario, musica, timer, meteo e stato del PC in un cerchio.', 'A tiny LED mascot that lives on your desktop. Clock, calendar, music, timer, weather and PC stats in one circle.', 'Una pequeña mascota de LED que vive en el escritorio. Reloj, calendario, música, temporizador, tiempo y estado del PC en un círculo.', 'Une petite mascotte à LED qui vit sur le bureau. Horloge, calendrier, musique, minuteur, météo et état du PC dans un cercle.'],
+    ['Versione', 'Version', 'Versión', 'Version'],
+    ['0.18 prototipo', '0.18 prototype', '0.18 prototipo', '0.18 prototype'],
+    ['Canale', 'Channel', 'Canal', 'Canal'],
+    ['anteprima', 'preview', 'vista previa', 'aperçu'],
+    ['Aggiornamenti', 'Updates', 'Actualizaciones', 'Mises à jour'],
+    ['controlla', 'check', 'comprobar', 'vérifier'],
+    ['sei aggiornato', 'you are up to date', 'estás al día', 'vous êtes à jour'],
+    ['Rivedi il tutorial', 'Watch the tutorial again', 'Ver el tutorial otra vez', 'Revoir le tutoriel'],
+    ['Ultimo avvio', 'Last start', 'Último inicio', 'Dernier démarrage'],
+    ['al centro', 'centred', 'centrada', 'au centre'],
+    ['Tema', 'Theme', 'Tema', 'Thème'],
+    ['Novità', 'What’s new', 'Novedades', 'Nouveautés'],
+    ['· lingua dell\'app (inglese, italiano, spagnolo, francese), coccole col tasto destro, solletico, sbadigli, bolla del sonno e giramento di testa col mouse.', '· app language (English, Italian, Spanish, French), petting with the right button, tickling, yawns, the sleep bubble and dizziness when you circle the mouse.', '· idioma de la app (inglés, italiano, español, francés), caricias con el botón derecho, cosquillas, bostezos, la burbuja del sueño y mareo al girar el ratón.', '· langue de l’appli (anglais, italien, espagnol, français), caresses avec le clic droit, chatouilles, bâillements, bulle de sommeil et vertige quand on tourne la souris.'],
+    ['· tasto destro sui giorni del calendario per aggiungere eventi, promemoria e attività; il Pomodoro diventa Focus con durate regolabili; app musicali filtrabili.', '· right-click calendar days to add events, reminders and tasks; the Pomodoro becomes Focus with adjustable lengths; filterable music apps.', '· clic derecho en los días del calendario para añadir eventos, recordatorios y tareas; el Pomodoro pasa a ser Foco con duraciones ajustables; apps de música filtrables.', '· clic droit sur les jours du calendrier pour ajouter événements, rappels et tâches ; le Pomodoro devient Focus avec des durées réglables ; applis musicales filtrables.'],
+    ['· risoluzione del cerchio a 512, 1024 o 2048 punti, copertine disegnate, volume all\'1% (5% con Shift), ore 12/24 e °C/°F, dischi come selettore, vomito più breve. Disegni rifatti per ogni risoluzione e cambio brano morbido.', '· circle resolution of 512, 1024 or 2048 dots, drawn cover art, volume in 1% steps (5% with Shift), 12/24 hours and °C/°F, disks as a selector, shorter vomit. Drawings redone for each resolution and a smooth track change.', '· resolución del círculo de 512, 1024 o 2048 puntos, carátulas dibujadas, volumen de 1 en 1 % (5 % con Mayús), horas 12/24 y °C/°F, discos como selector, vómito más corto. Dibujos rehechos para cada resolución y cambio de pista suave.', '· résolution du cercle de 512, 1024 ou 2048 points, pochettes dessinées, volume par pas de 1 % (5 % avec Maj), 12/24 heures et °C/°F, disques en sélecteur, vomi plus court. Dessins refaits pour chaque résolution et changement de piste en douceur.'],
+    ['· il cerchio è il centro del widget, comportamento ai bordi, posizioni rapide, nuove animazioni del riquadro e due sorprese.', '· the circle is the heart of the widget, behaviour at the edges, quick positions, new panel animations and two surprises.', '· el círculo es el centro del widget, comportamiento en los bordes, posiciones rápidas, nuevas animaciones del panel y dos sorpresas.', '· le cercle est le cœur du widget, comportement aux bords, positions rapides, nouvelles animations du panneau et deux surprises.'],
+    ['· tutorial al primo avvio, ghiera piatta.', '· tutorial on first start, flat bezel.', '· tutorial en el primer inicio, aro plano.', '· tutoriel au premier lancement, lunette plate.'],
+    ['· icone vettoriali vere al posto delle bitmap a pixel.', '· real vector icons instead of pixel bitmaps.', '· iconos vectoriales reales en lugar de mapas de bits de píxeles.', '· vraies icônes vectorielles à la place des bitmaps en pixels.'],
+    ['· impostazioni con barra laterale, pulsanti più reattivi, cerchio che resta fermo, riquadro specchiato a sinistra.', '· settings with a sidebar, more responsive buttons, a circle that stays put, panel mirrored on the left.', '· ajustes con barra lateral, botones más reactivos, círculo que se queda quieto, panel reflejado a la izquierda.', '· réglages avec barre latérale, boutons plus réactifs, cercle qui reste en place, panneau en miroir à gauche.'],
+    ['· modalità scelte ruotando la ghiera, clic destro per tornare alla mascotte, lato di apertura del riquadro.', '· modes picked by turning the bezel, right-click to go back to the mascot, panel opening side.', '· modos elegidos girando el aro, clic derecho para volver a la mascota, lado de apertura del panel.', '· modes choisis en tournant la lunette, clic droit pour revenir à la mascotte, côté d’ouverture du panneau.'],
+    ['· timer classico, volume dal numero, orari meteo con AM e PM.', '· classic timer, volume from the number, weather hours with AM and PM.', '· temporizador clásico, volumen desde el número, horas del tiempo con AM y PM.', '· minuteur classique, volume depuis le nombre, heures météo avec AM et PM.'],
+    ['· impostazioni ripulite, nuovi interruttori, ora dell\'orologio sempre dentro il riquadro.', '· tidier settings, new switches, the clock time always inside the panel.', '· ajustes más limpios, nuevos interruptores, la hora del reloj siempre dentro del panel.', '· réglages épurés, nouveaux interrupteurs, heure de l’horloge toujours dans le panneau.'],
+    ['· spostamento con aggancio alla griglia e questa schermata.', '· moving with grid snapping and this screen.', '· movimiento con ajuste a la cuadrícula y esta pantalla.', '· déplacement avec aimantation à la grille et cet écran.'],
+    ['· icona nell\'area di notifica con menù contestuale.', '· notification area icon with a context menu.', '· icono en el área de notificaciones con menú contextual.', '· icône dans la zone de notification avec menu contextuel.'],
+    ['· cronometro, copertina sui LED, ruota colori a pixel.', '· stopwatch, cover art on the LEDs, pixel colour wheel.', '· cronómetro, carátula en los LED, rueda de color de píxeles.', '· chronomètre, pochette sur les LED, roue de couleurs en pixels.'],
+    ['Crediti', 'Credits', 'Créditos', 'Crédits'],
+    ['Testi in', 'Text in', 'Textos en', 'Textes en'],
+    [', SIL Open Font License.', ', SIL Open Font License.', ', SIL Open Font License.', ', SIL Open Font License.'],
+    ['Icone', 'Icons', 'Iconos', 'Icônes'],
+    [', licenza ISC.', ', ISC licence.', ', licencia ISC.', ', licence ISC.'],
+    ['Ispirato allo stile di', 'Inspired by the style of', 'Inspirado en el estilo de', 'Inspiré du style de'],
+    ['.', '. Weather and tracks in this prototype are fake.', '. El tiempo y las pistas de este prototipo son falsos.', '. La météo et les morceaux de ce prototype sont faux.'],
+    ['Spostamento attivo', 'Move mode on', 'Movimiento activo', 'Déplacement actif'],
+    ['· trascina il widget ·', '· drag the widget ·', '· arrastra el widget ·', '· faites glisser le widget ·'],
+    ['Alt per muoverlo libero', 'Alt to move it freely', 'Alt para moverlo libremente', 'Alt pour le déplacer librement'],
+    ['griglia spenta', 'grid off', 'cuadrícula apagada', 'grille désactivée'],
+    ['Clic destro sull\'icona per le impostazioni', 'Right-click the icon for settings', 'Clic derecho en el icono para los ajustes', 'Clic droit sur l’icône pour les réglages'],
+    ['Brani, meteo e dischi sono inventati. Ora, calendario, fase lunare, alba e tramonto sono calcolati davvero, per Milano. Il font Nothing 5×7 allegato ha una licenza che vieta l\'uso come webfont, quindi qui i testi usano Doto (dot-matrix, Google Fonts) e il cerchio disegna i suoi pixel da solo.', 'Tracks, weather and disks are made up. Time, calendar, moon phase, sunrise and sunset are really calculated, for Milan. The attached Nothing 5×7 font has a licence that forbids web-font use, so here the text uses Doto (dot-matrix, Google Fonts) and the circle draws its own pixels.', 'Las pistas, el tiempo y los discos son inventados. La hora, el calendario, la fase lunar, el amanecer y el atardecer se calculan de verdad, para Milán. La fuente Nothing 5×7 adjunta tiene una licencia que prohíbe usarla como webfont, así que aquí los textos usan Doto (dot-matrix, Google Fonts) y el círculo dibuja sus propios píxeles.', 'Les morceaux, la météo et les disques sont inventés. L’heure, le calendrier, la phase de lune, le lever et le coucher du soleil sont vraiment calculés, pour Milan. La police Nothing 5×7 jointe a une licence qui interdit l’usage en webfont ; ici les textes utilisent donc Doto (dot-matrix, Google Fonts) et le cercle dessine ses propres pixels.'],
+    // ---- menu tray, barra
+    ['Nascondi il widget', 'Hide the widget', 'Ocultar el widget', 'Masquer le widget'],
+    ['Mostra il widget', 'Show the widget', 'Mostrar el widget', 'Afficher le widget'],
+    ['Impostazioni…', 'Settings…', 'Ajustes…', 'Réglages…'],
+    ['Info su Glyphling', 'About Glyphling', 'Acerca de Glyphling', 'À propos de Glyphling'],
+    ['Esci', 'Quit', 'Salir', 'Quitter'],
+    ['Barra delle applicazioni (simulata)', 'Taskbar (simulated)', 'Barra de tareas (simulada)', 'Barre des tâches (simulée)'],
+    ['Glyphling: clic per mostrare o nascondere, clic destro per il menù', 'Glyphling: click to show or hide, right-click for the menu', 'Glyphling: clic para mostrar u ocultar, clic derecho para el menú', 'Glyphling : clic pour afficher ou masquer, clic droit pour le menu'],
+    // ---- tutorial
+    ['Ciao!', 'Hi!', '¡Hola!', 'Salut !'],
+    ['Questa è la tua mascotte. Vive nel cerchio, segue il puntatore e', 'This is your mascot. It lives in the circle, follows the pointer and', 'Esta es tu mascota. Vive en el círculo, sigue el puntero y', 'Voici votre mascotte. Elle vit dans le cercle, suit le pointeur et'],
+    ['sorride se la clicchi', 'smiles if you click it', 'sonríe si haces clic', 'sourit si vous cliquez'],
+    ['. Se la lasci stare per un po\' si addormenta.', '. Leave it alone for a while and it falls asleep.', '. Si la dejas un rato, se duerme.', '. Si vous la laissez tranquille un moment, elle s’endort.'],
+    ['sulla ghiera, oppure usa la', 'on the bezel, or use the', 'sobre el aro, o usa la', 'sur la lunette, ou utilisez la'],
+    ['rotellina', 'wheel', 'rueda', 'molette'],
+    [', per scegliere una modalità: orologio, calendario, musica, timer, meteo, sistema. Lascia e si apre.', ', to pick a mode: clock, calendar, music, timer, weather, system. Let go and it opens.', ', para elegir un modo: reloj, calendario, música, temporizador, tiempo, sistema. Suelta y se abre.', ', pour choisir un mode : horloge, calendrier, musique, minuteur, météo, système. Relâchez et il s’ouvre.'],
+    ['Il riquadro', 'The panel', 'El panel', 'Le panneau'],
+    ['Ogni modalità apre un riquadro con i suoi comandi. La ghiera continua a lavorare: qui per esempio', 'Each mode opens a panel with its controls. The bezel keeps working: here, for example,', 'Cada modo abre un panel con sus controles. El aro sigue funcionando: aquí, por ejemplo,', 'Chaque mode ouvre un panneau avec ses commandes. La lunette continue de travailler : ici, par exemple,'],
+    ['girarla cambia il volume', 'turning it changes the volume', 'girarlo cambia el volumen', 'la tourner change le volume'],
+    [', e lo fa anche la rotellina.', ', and so does the wheel.', ', y también lo hace la rueda.', ', et la molette aussi.'],
+    ['Torna a casa', 'Back home', 'Volver a casa', 'Retour à la maison'],
+    ['Da qualsiasi modalità, il', 'From any mode, a', 'Desde cualquier modo, el', 'Depuis n’importe quel mode, un'],
+    ['clic destro sul cerchio', 'right-click on the circle', 'clic derecho en el círculo', 'clic droit sur le cercle'],
+    ['ti riporta alla mascotte. Anche', 'takes you back to the mascot.', 'te devuelve a la mascota. También', 'vous ramène à la mascotte.'],
+    ['Esc', 'Esc', 'Esc', 'Échap'],
+    ['funziona.', 'works too.', 'funciona.', 'fonctionne aussi.'],
+    ['L\'icona', 'The icon', 'El icono', 'L’icône'],
+    ['Nell\'area di notifica trovi l\'icona di Glyphling.', 'In the notification area you will find the Glyphling icon.', 'En el área de notificaciones encuentras el icono de Glyphling.', 'Dans la zone de notification, vous trouvez l’icône de Glyphling.'],
+    ['Clic destro', 'Right-click', 'Clic derecho', 'Clic droit'],
+    ['per il menù: spostare il widget, nasconderlo, aprire le impostazioni.', 'for the menu: move the widget, hide it, open settings.', 'para el menú: mover el widget, ocultarlo, abrir los ajustes.', 'pour le menu : déplacer le widget, le masquer, ouvrir les réglages.'],
+    ['Fatto su misura', 'Made to measure', 'A tu medida', 'Sur mesure'],
+    ['Nelle', 'In the', 'En los', 'Dans les'],
+    ['Ora', 'Time', 'Hora', 'Heure'],
+    ['breve', 'short', 'corto', 'courte'],
+    ['lunga', 'long', 'largo', 'longue'],
+    ['impostazioni', 'settings', 'ajustes', 'réglages'],
+    ['scegli i colori, i dischi da mostrare, il lato in cui si apre il riquadro e le', 'pick the colours, the disks to show, the side the panel opens on and the', 'elige los colores, los discos que mostrar, el lado por el que se abre el panel y las', 'choisissez les couleurs, les disques à afficher, le côté d’ouverture du panneau et les'],
+    ['posizioni rapide', 'quick positions', 'posiciones rápidas', 'positions rapides'],
+    [': angoli, metà dei lati e centro dello schermo.', ': corners, side midpoints and screen centre.', ': esquinas, mitad de los lados y centro de la pantalla.', ' : coins, milieux des côtés et centre de l’écran.'],
+    ['Tutto pronto', 'All set', 'Todo listo', 'Tout est prêt'],
+    ['Puoi rivedere questo tutorial quando vuoi da', 'You can watch this tutorial again any time from', 'Puedes volver a ver este tutorial cuando quieras desde', 'Vous pouvez revoir ce tutoriel quand vous voulez depuis'],
+    ['Impostazioni › Info', 'Settings › About', 'Ajustes › Acerca de', 'Réglages › À propos'],
+    ['Indietro', 'Back', 'Atrás', 'Retour'],
+    ['Salta', 'Skip', 'Saltar', 'Passer'],
+    ['Avanti', 'Next', 'Siguiente', 'Suivant'],
+    ['Inizia', 'Start', 'Empezar', 'Commencer'],
+    // ---- nodi spezzati da markup (clic destro + ...)
+    ['sul cerchio torna qui.', 'on the circle brings you back here.', 'en el círculo te trae de vuelta.', 'sur le cercle vous ramène ici.'],
+  ].concat(window.__hostRows || []);
+  const D = {};
+  if (X) for (const r of ROWS) D[r[0]] = r[X];
+
+  // frasi con numeri o parti variabili: [regex, [en, es, fr]]. $1.. sono le parti catturate (tradotte se parole note)
+  const RX = [
+    [/^(\d+) di (\d+)$/, ['$1 of $2', '$1 de $2', '$1 sur $2']],
+    [/^a seguire: (.+)$/, ['up next: $1', 'a continuación: $1', 'à suivre : $1']],
+    [/^oggi (\d+h \d+m) di focus$/, ['$1 of focus today', '$1 de foco hoy', '$1 de focus aujourd’hui']],
+    [/^· poi pausa (breve|lunga) da (\d+) minuti$/, ['· then a $1 break of $2 minutes', '· luego descanso $1 de $2 minutos', '· puis pause $1 de $2 minutes']],
+    [/^(oggi|domani) alle (.+)$/, ['$1 at $2', '$1 a las $2', '$1 à $2']],
+    [/^Umidità (\d+)% · vento (\d+) km\/h$/, ['Humidity $1% · wind $2 km/h', 'Humedad $1 % · viento $2 km/h', 'Humidité $1 % · vent $2 km/h']],
+    [/^Min (\S+) · Max (\S+) · vento (\d+) km\/h$/, ['Min $1 · Max $2 · wind $3 km/h', 'Mín $1 · Máx $2 · viento $3 km/h', 'Min $1 · Max $2 · vent $3 km/h']],
+    [/^(oggi|domani|ieri) · sett\. (\d+)$/, ['$1 · wk $2', '$1 · sem. $2', '$1 · sem. $2']],
+    [/^sett\. (\d+)$/, ['wk $1', 'sem. $1', 'sem. $1']],
+    [/^\+(\d+) altri$/, ['+$1 more', '+$1 más', '+$1 de plus']],
+    [/^Nessun impegno · giorno (\d+) dell'anno$/, ['Nothing planned · day $1 of the year', 'Nada previsto · día $1 del año', 'Rien de prévu · jour $1 de l’année']],
+    [/^GIRO (\d+)$/, ['LAP $1', 'VUELTA $1', 'TOUR $1']],
+    [/^(Duplica|Modifica|Elimina|Rimuovi|Colore|Usa|Volume di) (.+)$/, ['$1 $2', '$1 $2', '$1 $2']],
+    [/^([^:]+): ([\d.,]+ (?:GB|TB)) di ([\d.,]+ (?:GB|TB))$/, ['$1: $2 of $3', '$1: $2 de $3', '$1 : $2 sur $3']],
+    [/^acceso da (\d+h \d+m) · ([\d.,]+) di (\d+) GB$/, ['up for $1 · $2 of $3 GB', 'encendido $1 · $2 de $3 GB', 'allumé depuis $1 · $2 sur $3 Go']],
+    [/^(.+)\. Il volume del cerchio abbassa: (.+)\.$/, ['$1. The circle’s volume turns down: $2.', '$1. El volumen del círculo baja: $2.', '$1. Le volume du cercle baisse : $2.']],
+    [/^Cambia formato: (.+)$/, ['Change format: $1', 'Cambiar formato: $1', 'Changer de format : $1']],
+    [/^([A-Z]): (.+)$/, ['$1: $2', '$1: $2', '$1 : $2']],
+  ];
+  RX.push(...(window.__hostRx || []));
+  const WORDS = ['oggi', 'domani', 'ieri', 'breve', 'lunga', 'Duplica', 'Modifica', 'Elimina', 'Rimuovi', 'Colore', 'Usa', 'Volume di'];
+
+  function tx(s) {
+    if (!X || !s) return s;
+    const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s), k = m[2];
+    if (!k) return s;
+    let r = D[k];
+    if (r === undefined) {
+      for (const [re, tpl] of RX) {
+        const mm = re.exec(k);
+        if (!mm) continue;
+        r = tpl[X - 1].replace(/\$(\d)/g, (_, i) => {
+          const v = mm[+i];
+          if (v === undefined) return '';
+          if (D[v] !== undefined && (WORDS.includes(v) || D[v] !== v)) return D[v];
+          // nomi di temi/dischi dentro frasi (es. "Duplica Ambra")
+          return D[v] !== undefined ? D[v] : v;
+        });
+        if (re.source.startsWith('^(Duplica')) r = r.replace(/^Duplicate\b/, 'Duplicate').replace(/^Volume di\b/, X === 1 ? 'Volume of' : X === 2 ? 'Volumen de' : 'Volume de');
+        if (/\d,\d/.test(r) && dec === '.') r = r.replace(/(\d),(\d)/g, '$1.$2');
+        break;
+      }
+    }
+    return r === undefined ? s : m[1] + r + m[3];
+  }
+  // verbi delle frasi "Duplica X" ecc. nelle altre lingue
+  const VERB = { Duplica: ['Duplicate', 'Duplicar', 'Dupliquer'], Modifica: ['Edit', 'Editar', 'Modifier'], Elimina: ['Delete', 'Eliminar', 'Supprimer'], Rimuovi: ['Remove', 'Quitar', 'Retirer'], Colore: ['Colour', 'Color', 'Couleur'], Usa: ['Use', 'Usar', 'Utiliser'], 'Volume di': ['Volume of', 'Volumen de', 'Volume de'] };
+  const tx2 = s => {
+    if (!X) return s;
+    const m = /^(Duplica|Modifica|Elimina|Rimuovi|Colore|Usa|Volume di) (.+)$/.exec(s);
+    if (m) return VERB[m[1]][X - 1] + ' ' + (D[m[2]] ?? m[2]);
+    return tx(s);
+  };
+
+  const ATTRS = ['aria-label', 'title', 'placeholder'];
+  const own = new WeakMap();
+  function fixText(n) {
+    const v = n.data;
+    if (own.get(n) === v) return;
+    const r = tx2(v);
+    if (r !== v) { n.data = r; }
+    own.set(n, n.data);
+  }
+  function fixEl(el) {
+    for (const a of ATTRS) {
+      if (!el.hasAttribute || !el.hasAttribute(a)) continue;
+      const v = el.getAttribute(a), key = '__t_' + a;
+      if (el[key] === v) continue;
+      const r = tx2(v);
+      if (r !== v) el.setAttribute(a, r);
+      el[key] = el.getAttribute(a);
+    }
+  }
+  function walk(root) {
+    if (root.nodeType === 3) { fixText(root); return; }
+    if (root.nodeType !== 1) return;
+    if (root.tagName === 'SCRIPT' || root.tagName === 'STYLE') return;
+    fixEl(root);
+    for (let c = root.firstChild; c; c = c.nextSibling) walk(c);
+  }
+  function start() {
+    document.documentElement.lang = lang;
+    if (!X) return;
+    walk(document.body);
+    new MutationObserver(list => {
+      for (const m of list) {
+        if (m.type === 'childList') m.addedNodes.forEach(walk);
+        else if (m.type === 'characterData') fixText(m.target);
+        else if (m.type === 'attributes') fixEl(m.target);
+      }
+    }).observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATTRS });
+  }
+  function set(l) { if (window.__hostLang) { window.__hostLang(l); return; } try { localStorage.setItem('companion-lang', l); } catch (e) {} try { sessionStorage.setItem('companion-reopen', 'set'); } catch (e) {} location.reload(); }
+  return { lang, LANGS, LOC, months, days, dshort, wd, dec, tx: tx2, start, set };
+})();
+
+I18N.start();
+</script>
 <script>
 (() => {
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1347,7 +1835,8 @@ svg.lu { display: block; flex: none; }
   }
 
   // ---------- mascotte ----------
-  const eye = { gx: 0, gy: 0, tx: 0, ty: 0, blink: 0, nextBlink: 1.5, nextLook: 2, happy: 0, surprise: 0, mouse: null, rec: 0 };
+  const eye = { gx: 0, gy: 0, tx: 0, ty: 0, blink: 0, nextBlink: 1.5, nextLook: 2, happy: 0, surprise: 0, mouse: null, rec: 0, dance: 0 };
+  const bub = { on: false, age: 0, pop: -1, fate: 'pop', popAt: 6, nextT: 6 + Math.random() * 6 };
   const EYE_W = 3, EYE_H = 5, EYE_GAP = 6;
   const SLEEP_AFTER = 12;              // secondi di inattività prima di dormire
   const Z_BIG = ['11111','00010','00100','01000','11111'];
@@ -1358,7 +1847,8 @@ svg.lu { display: block; flex: none; }
   function drawEyes(t) {
     // sleepy: 0 sveglia, 1 addormentata. Prima le palpebre calano piano, poi gli occhi diventano archetti chiusi.
     const s = sleepy;
-    const gx = Math.round(eye.gx * (1 - s)), gy = Math.round(eye.gy * (1 - s) + s);
+    const dn = eye.dance, beat = Math.pow(Math.max(0, Math.sin(t * 7.6)), 2);
+    const gx = Math.round(eye.gx * (1 - s) + Math.sin(t * 3.8) * 1.3 * dn), gy = Math.round(eye.gy * (1 - s) + s - beat * dn);
     const cy = C + gy;
     const lidPhase = Math.min(1, s / 0.7);
     const closedPhase = Math.max(0, (s - 0.7) / 0.3);
@@ -1386,6 +1876,18 @@ svg.lu { display: block; flex: none; }
         const yb = Math.round(C + 2);
         if (NH > N) strokes([[[-1.4, -0.2], [-0.7, 0.7], [0, 1], [0.7, 0.7], [1.4, -0.2]]], cx, yb, v);
         else { set(cx - 1, yb, v); set(cx, yb + 1, v); set(cx + 1, yb, v); }
+      }
+    }
+    if (bub.on) {
+      const g = bub.pop >= 0 ? 1 : bub.fate === 'fade' && bub.age > 6 ? Math.max(0, 1 - (bub.age - 6) / 3) : Math.min(1, bub.age / 3.5);
+      const bx = C + 2.2, by = C + 4.2;
+      if (bub.pop >= 0) {
+        const rr = 3.4 + bub.pop * 9, v = Math.max(0, 1 - bub.pop / 0.3);
+        field((x, y) => Math.abs(Math.hypot(x - bx, y - by) - rr) < 0.5 ? 0.7 * v : 0);
+      } else {
+        const r = (0.8 + 2.6 * g) * (1 + 0.1 * Math.sin(bub.age * 2.1));
+        field((x, y) => { const d = Math.hypot(x - bx, y - by); return Math.abs(d - r) < 0.55 ? 0.85 : 0; });
+        if (g > 0.5) dot(bx - r * 0.45, by - r * 0.45, 0.4, 0.9);
       }
     }
     for (const z of zs) {
@@ -1421,6 +1923,23 @@ svg.lu { display: block; flex: none; }
     if (eye.happy > 0) eye.happy -= dt;
     if (eye.surprise > 0) eye.surprise -= dt;
     if (eye.rec > 0) eye.rec = Math.max(0, eye.rec - dt / 1.3);
+    // balla a tempo quando c'è musica e lei è sveglia
+    eye.dance += ((playing && !asleep && mode === 'idle' && !egg.kind && !pet.on ? 1 : 0) - eye.dance) * Math.min(1, dt * 3);
+    // la bollicina dal naso, mentre dorme: a volte scoppia e la sveglia di botto
+    if (asleep && sleepy >= 1 && !egg.kind) {
+      if (!bub.on) {
+        bub.nextT -= dt;
+        if (bub.nextT <= 0) { Object.assign(bub, { on: true, age: 0, pop: -1, fate: bub.pendingFate || (Math.random() < 0.6 ? 'pop' : 'fade'), popAt: bub.pendingFate ? 3 : 5 + Math.random() * 4, nextT: 10 + Math.random() * 14 }); }
+      }
+    } else if (bub.on && bub.pop < 0) bub.on = false;
+    if (bub.on) {
+      bub.age += dt;
+      if (bub.pop >= 0) { bub.pop += dt; if (bub.pop > 0.3) bub.on = false; }
+      else if (bub.fate === 'pop' && bub.age > bub.popAt) {
+        bub.pop = 0;
+        asleep = false; sleepy = 0.4; eye.surprise = 1.3; eye.tx = 0; eye.ty = 0; idleFor = 0; zs = []; syncCtx();
+      } else if (bub.fate === 'fade' && bub.age > 9) bub.on = false;
+    }
 
     if (mode === 'idle' && !asleep) {
       idleFor += dt;
@@ -1837,8 +2356,8 @@ svg.lu { display: block; flex: none; }
     rain:  { cond: 'Pioggia leggera', ic: 'rain' },
     moon:  { cond: 'Sereno', ic: 'moon' },
   };
-  const DSHORT = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab'];
-  const DAYS = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+  const DSHORT = I18N.dshort;
+  const DAYS = I18N.days;
   // previsioni finte ma coerenti: ore da adesso, giorni da oggi
   function buildForecast() {
     const now = new Date(), h0 = now.getHours();
@@ -1961,9 +2480,9 @@ svg.lu { display: block; flex: none; }
       c.fillRect(x, y, 1, 1);
     }
   }
-  const tf = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: TZ });
+  const tf = new Intl.DateTimeFormat(I18N.LOC, { hour: '2-digit', minute: '2-digit', timeZone: TZ });
   const tf12 = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', timeZone: TZ });
-  const MONTHS = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+  const MONTHS = I18N.months;
   function isoWeek(d) {
     const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
@@ -2064,7 +2583,7 @@ svg.lu { display: block; flex: none; }
     const lead = (ref.getDay() + 6) % 7;
     const cells = Math.ceil((lead + daysIn) / 7) * 7;
     let h = `<div class="mh"><button data-m="-1" aria-label="Mese precedente">‹</button><span><b>${MONTHS[ref.getMonth()]}</b> ${ref.getFullYear()}</span><button data-m="1" aria-label="Mese successivo">›</button></div><div class="grid">`;
-    h += ['L','M','M','G','V','S','D'].map(d => `<span class="wd">${d}</span>`).join('');
+    h += I18N.wd.map(d => `<span class="wd">${d}</span>`).join('');
     for (let i = 0; i < cells; i++) {
       const d = i - lead + 1;
       if (d < 1 || d > daysIn) { h += '<span class="out">·</span>'; continue; }
@@ -2200,7 +2719,7 @@ svg.lu { display: block; flex: none; }
     { lt: 'G', name: 'Chiavetta USB', used: 12, size: 64 },
   ];
   let dkShown = ['C', 'D', 'E', 'F'], dkSel = 'C';
-  const gb = v => v >= 1000 ? (v / 1000).toFixed(2).replace('.', ',') + ' TB' : v + ' GB';
+  const gb = v => v >= 1000 ? (v / 1000).toFixed(2).replace('.', I18N.dec) + ' TB' : v + ' GB';
   // i bottoni si ricostruiscono solo quando cambia l'elenco dei dischi; scorrere sposta solo l'indicatore
   let dkKey = '';
   function dkUi() {
@@ -2395,52 +2914,156 @@ svg.lu { display: block; flex: none; }
     const g = PICK[mpk.i][2];
     g.forEach((row, yy) => [...row].forEach((b, xx) => { if (b === '1') set(5 + xx, 5 + yy, 1); }));
   }
-  $('ring').addEventListener('contextmenu', e => {
-    e.preventDefault();
+  $('ring').addEventListener('contextmenu', e => e.preventDefault());
+  function goHome() {
     mpk.on = 0; $('pickLbl').classList.remove('on');
     if (mode !== 'idle') setMode('idle'); else eye.happy = 1.2;
-  });
+  }
 
 
-  // ---------- easter egg: scuotila e vomita, girale intorno e le gira la testa ----------
-  const egg = { kind: null, t: 0, cool: 0, last: null, rev: [], ang: 0, angAcc: 0, angT: 0, dir: 0 };
+  // ---------- easter egg: girale intorno e le gira la testa, a lungo e vomita; tasto destro premuto e coccole ----------
+  const egg = { kind: null, t: 0, cool: 0, last: null, cum: 0, ang: null, samples: [], spinT: 0, still: 0 };
+  const pet = { down: null, on: false, keep: 0, age: 0, hearts: [], nextHeart: 0 };
+  const ringCenter = () => { const r = $('ring').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width }; };
+  // quanto ha girato il puntatore intorno al cerchio nell'ultima finestra di tempo, in radianti (con segno)
+  function spinNet(win, now = performance.now()) {
+    egg.samples = egg.samples.filter(s => now - s.t < 1600);
+    const rec = egg.samples.filter(s => now - s.t < win);
+    return rec.length ? egg.cum - rec[0].c : 0;
+  }
   window.addEventListener('pointermove', e => {
-    const now = performance.now(), l = egg.last;
-    egg.last = { x: e.clientX, y: e.clientY, t: now };
-    if (!l || mode !== 'idle' || asleep || egg.kind || egg.cool > 0 || moving) return;
-    const dt = Math.max(1, now - l.t), vx = (e.clientX - l.x) / dt;
-    // scossone: tante inversioni rapide a destra e sinistra
-    if (Math.abs(vx) > 2.2) {
-      const sg = Math.sign(vx);
-      if (egg.dir && sg !== egg.dir) egg.rev.push(now);
-      egg.dir = sg;
+    const now = performance.now(), c = ringCenter();
+    // coccole: tasto destro premuto sulla mascotte, e il puntatore che la strofina
+    if (pet.down && (e.buttons & 2)) {
+      const pd = pet.down, step = Math.hypot(e.clientX - pd.x, e.clientY - pd.y);
+      pd.x = e.clientX; pd.y = e.clientY;
+      const near = Math.hypot(e.clientX - c.x, e.clientY - c.y) < c.w * 0.75;
+      if (near && step > 0) {
+        pd.len += step;
+        const sgn = Math.sign(e.movementX || 0);
+        if (sgn && pd.dir && sgn !== pd.dir && step > 1) pd.rev++;
+        if (sgn) pd.dir = sgn;
+        if (!pet.on && mode === 'idle' && !egg.kind && !moving && pd.len > 60 && pd.rev >= 2) { pet.on = true; pet.age = 0; pet.hearts = []; if (asleep) wake(); idleFor = 0; }
+        if (pet.on) { pet.keep = 0.55; idleFor = 0; }
+      }
     }
-    egg.rev = egg.rev.filter(t => now - t < 1400);
-    if (egg.rev.length >= 10) { startEgg('vomit'); return; }
+    const l = egg.last;
+    egg.last = { x: e.clientX, y: e.clientY, t: now };
     // giri intorno al cerchio
-    const r = ring.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    const d = Math.hypot(e.clientX - cx, e.clientY - cy);
-    const a = Math.atan2(e.clientY - cy, e.clientX - cx);
-    if (d > r.width * 0.35 && d < 420) {
-      let da = a - egg.ang; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
-      const w = Math.abs(da) / dt * 1000;            // rad/s
-      if (w > 5 && Math.sign(da) === Math.sign(egg.angAcc || da) && now - egg.angT < 250) egg.angAcc += da;
-      else if (now - egg.angT > 250 || Math.sign(da) !== Math.sign(egg.angAcc)) egg.angAcc = w > 5 ? da : 0;
-      egg.angT = now;
-      if (Math.abs(egg.angAcc) > Math.PI * 4) { startEgg('dizzy'); return; }
-    } else egg.angAcc = 0;
-    egg.ang = a;
+    const dx = e.clientX - c.x, dy = e.clientY - c.y, d = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+    if (d > c.w * 0.3 && d < 520 && l) {
+      if (egg.ang !== null) {
+        let da = a - egg.ang; if (da > Math.PI) da -= 2 * Math.PI; if (da < -Math.PI) da += 2 * Math.PI;
+        if (now - l.t < 120) egg.cum += da;
+      }
+      egg.ang = a;
+      egg.samples.push({ t: now, c: egg.cum });
+    } else egg.ang = null;
+    if (!l || mode !== 'idle' || asleep || egg.kind || egg.cool > 0 || moving || pet.on || (e.buttons & 3)) return;
+    // abbastanza sensibile: tre quarti di giro in poco più di un secondo bastano
+    if (Math.abs(spinNet(1300, now)) > Math.PI * 1.5) startEgg('dizzy');
   });
-  function startEgg(k) { egg.kind = k; egg.kind0 = k; egg.t = 0; egg.rev = []; egg.angAcc = 0; egg.drops = []; idleFor = 0; }
+  window.addEventListener('pointerup', e => {
+    if (e.button !== 2 || !pet.down) return;
+    const was = pet.on, moved = pet.down.len > 12;
+    pet.down = null;
+    // un clic destro senza strofinare riporta alla mascotte, come prima
+    if (!was && !moved) goHome();
+  });
+  $('ring').addEventListener('pointerdown', e => {
+    if (e.button !== 2) return;
+    pet.down = { x: e.clientX, y: e.clientY, len: 0, rev: 0, dir: 0 };
+    $('ring').setPointerCapture(e.pointerId);
+  });
+  function startEgg(k) { egg.kind = k; egg.kind0 = k; egg.t = 0; egg.drops = []; egg.spinT = 0; egg.still = 0; idleFor = 0; }
   function eggTick(dt) {
     if (egg.cool > 0) egg.cool -= dt;
+    if (pet.on) {
+      pet.age += dt; pet.keep -= dt;
+      if (mode !== 'idle' || pet.keep <= 0) { pet.on = false; eye.rec = mode === 'idle' ? 0.5 : 0; eye.happy = 0; }
+      return;
+    }
     if (!egg.kind) return;
     egg.t += dt;
-    if (mode !== 'idle' || egg.t > (egg.kind === 'vomit' ? 2.3 : 3.6)) { egg.kind = null; egg.cool = egg.kind0 === 'vomit' ? 25 : 2.5; eye.happy = 0; eye.rec = mode === 'idle' ? 1 : 0; eye.tx = 0; eye.ty = 1; eye.nextLook = 1.6; }
+    const end = () => { egg.kind = null; egg.cool = egg.kind0 === 'vomit' ? 6 : 1.5; egg.samples = []; eye.happy = 0; eye.rec = mode === 'idle' ? 1 : 0; eye.tx = 0; eye.ty = 1; eye.nextLook = 1.6; };
+    if (mode !== 'idle') { end(); return; }
+    if (egg.kind === 'dizzy') {
+      // gira la testa finché il puntatore continua a girare; dopo 3 secondi di fila vomita
+      const spinning = Math.abs(spinNet(650)) > Math.PI * 0.55;
+      if (spinning) { egg.spinT += dt; egg.still = 0; } else { egg.still += dt; egg.spinT = Math.max(0, egg.spinT - dt * 2); }
+      if (egg.spinT >= 3) { startEgg('vomit'); return; }
+      if (egg.still > 0.6 || egg.t > 30) end();
+    } else {
+      const len = { vomit: 2.3, tickle: 2.1, yawn: 1.9, hello: 2.6 }[egg.kind] || 2.3;
+      if (egg.t > len) {
+        const k0 = egg.kind;
+        end();
+        if (k0 === 'yawn' && asleep) { asleep = false; sleepy = 0.6; idleFor = 0; eye.surprise = 0; syncCtx(); }
+      }
+    }
   }
   const X_EYE = ['10001', '01010', '00100', '01010', '10001'];
+  // occhio felice ^ a tratto (alte risoluzioni) o a pixel
+  function happyEye(cx, cy, v) {
+    if (NH > N) strokes([[[-2, 2], [-1.2, 0.6], [0, 0], [1.2, 0.6], [2, 2]]], cx, cy - 2, v);
+    else for (const [x, y] of [[-1, 1], [0, 0], [1, 1], [-2, 2], [2, 2]]) set(Math.round(cx) + x, Math.round(cy) - 3 + y, v);
+  }
+  function drawEgg2(k, e) {
+    if (k === 'tickle') {
+      // ride a crepapelle: occhi ^ ^, bocca aperta, trema tutta e le scappa una lacrimuccia
+      const sh = Math.sin(e * 32) * 0.9;
+      for (const side of [-1, 1]) {
+        happyEye(C + side * 3.4 + sh, C - 1, 1);
+        dot(C + side * 6.6 + sh, C + 1 + ((e * 5 + (side > 0 ? 0.5 : 0)) % 1) * 3, 0.45, 0.8, true);
+      }
+      const cx = C + sh, top = C + 3.6;
+      field((x, y) => { const dx = (x - cx) / 3.5, dy = (y - top) / 3; return y >= top && dx * dx + dy * dy <= 1 ? 0.95 : 0; });
+    } else if (k === 'yawn') {
+      // sbadiglio: occhi chiusi, bocca che si spalanca e si richiude
+      const open = e < 0.5 ? e / 0.5 : e > 1.4 ? Math.max(0, (1.9 - e) / 0.5) : 1;
+      for (const side of [-1, 1]) {
+        if (NH > N) strokes([[[-2, 0], [2, 0]]], C + side * 3.4, C - 1.2, 1);
+        else for (let x = -1; x <= 1; x++) set(Math.round(C + side * 3.4) + x, C - 1, 1);
+      }
+      const rx = 1.2 + 1.6 * open, ry = 0.6 + 2.8 * open, cyy = C + 4.4;
+      field((x, y) => { const dx = (x - C) / rx, dy = (y - cyy) / ry; return dx * dx + dy * dy <= 1 ? 0.95 : 0; });
+      if (open > 0.6) { dot(C + 6.5, C - 3.6 - (e % 0.8) * 2, 0.4, 0.8, true); }
+    } else {
+      // saluto: occhi felici, sorriso e una manina che saluta
+      for (const side of [-1, 1]) happyEye(C + side * 3.2, C - 1, Math.min(1, e / 0.2));
+      if (NH > N) strokes([[[-2.4, 0], [-1.2, 1.1], [0, 1.5], [1.2, 1.1], [2.4, 0]]], C, C + 4.4, 1);
+      else { for (let x = -1; x <= 1; x++) set(C + x, C + 6, 1); set(C - 2, C + 5, 1); set(C + 2, C + 5, 1); }
+      const a = Math.sin(e * 9) * 0.55, bx = C + 6.2, by = C + 6.4;
+      for (let i = 0; i <= 4; i += NH === N ? 1 : 0.5) dot(bx + Math.sin(a) * i, by - Math.cos(a) * i, 0.7, 0.95);
+      dot(bx + Math.sin(a) * 4.6 - 0.9, by - Math.cos(a) * 4.6 + 0.3, 0.5, 0.9); dot(bx + Math.sin(a) * 4.6 + 0.9, by - Math.cos(a) * 4.6 + 0.3, 0.5, 0.9);
+    }
+  }
+  const HEART = ['01010', '11111', '01110', '00100'];
+  function drawPet(t, dt) {
+    // occhi felici ^ ^, guance rosse, un lieve dondolio e cuoricini che salgono mentre la si coccola
+    const sway = Math.sin(pet.age * 7) * 0.9, k = Math.min(1, pet.age / 0.25);
+    for (const side of [-1, 1]) {
+      const cx = C + side * 3 + sway;
+      if (NH > N) strokes([[[-2, 2], [-1.2, 0.6], [0, 0], [1.2, 0.6], [2, 2]]], cx, C - 2, k);
+      else for (const [x, y] of [[-1, 1], [0, 0], [1, 1], [-2, 2], [2, 2]]) set(Math.round(cx) + x, C - 3 + y, k);
+      dot(C + side * 6.5 + sway, C + 3, 0.7, 0.95 * k, true);
+      if (NH === N) set(C + side * 6 + sway + 0.6 * side, C + 3, 0.95 * k, true);
+    }
+    // sorriso
+    if (NH > N) strokes([[[-2, 0], [-1, 1], [0, 1.4], [1, 1], [2, 0]]], C + sway, C + 5, k);
+    else { for (let x = -1; x <= 1; x++) set(Math.round(C + sway) + x, C + 6, k); set(Math.round(C + sway) - 2, C + 5, k); set(Math.round(C + sway) + 2, C + 5, k); }
+    pet.nextHeart -= dt;
+    if (pet.nextHeart <= 0 && pet.keep > 0.1) { pet.nextHeart = 0.85; pet.side = -(pet.side || 1); pet.hearts.push({ x: C + pet.side * (2 + Math.random() * 3), y: C - 3, a: 0 }); }
+    for (const h of pet.hearts) { h.a += dt; h.y -= dt * 4; h.x += Math.sin(h.a * 4) * dt * 1.2; }
+    pet.hearts = pet.hearts.filter(h => h.a < 1.6);
+    for (const h of pet.hearts) {
+      const v = Math.min(1, h.a * 4) * Math.max(0, 1 - h.a / 1.6);
+      HEART.forEach((row, yy) => [...row].forEach((b, xx) => { if (b === '1') set(Math.round(h.x) - 2 + xx, Math.round(h.y) + yy, v, true); }));
+    }
+  }
   function drawEgg(t) {
     const k = egg.kind, e = egg.t;
+    if (k === 'tickle' || k === 'yawn' || k === 'hello') { drawEgg2(k, e); return; }
     if (k === 'vomit') {
       // occhi stretti a >  <, bocca spalancata e un fiotto che cade fuori dal cerchio
       const sh = e < 0.6 ? Math.round(Math.sin(e * 40)) : 0;
@@ -2478,6 +3101,23 @@ svg.lu { display: block; flex: none; }
     }
   }
 
+  // saluto alla prima apertura della giornata; di notte sbadiglia
+  setTimeout(() => {
+    try {
+      const day = new Date().toDateString();
+      if (localStorage.getItem('companion-greet') === day) return;
+      localStorage.setItem('companion-greet', day);
+    } catch (e) {}
+    if (mode === 'idle' && !asleep && !egg.kind) startEgg(new Date().getHours() < 6 ? 'yawn' : 'hello');
+  }, 2200);
+  // per provare le animazioni a mano: window.__egg('dizzy' | 'vomit' | 'tickle' | 'yawn' | 'hello' | 'pet' | 'bubble' | 'bubble-pop')
+  window.__egg = k => {
+    if (mode !== 'idle') setMode('idle');
+    if (k === 'pet') { pet.on = true; pet.keep = 3; pet.age = 0; pet.hearts = []; return; }
+    if (k === 'bubble' || k === 'bubble-pop') { fallAsleep(); sleepy = 1; bub.nextT = 0; bub.pendingFate = k === 'bubble-pop' ? 'pop' : 'fade'; return; }
+    if (['dizzy', 'vomit', 'tickle', 'yawn', 'hello'].includes(k)) { if (k !== 'yawn' && asleep) wake(); startEgg(k); }
+  };
+
   // ---------- il cerchio come comando ----------
   const ring = $('ring');
   function ringAngle(e) {
@@ -2487,6 +3127,7 @@ svg.lu { display: block; flex: none; }
   }
   let drag = null;
   ring.addEventListener('pointerdown', e => {
+    if (e.button === 2) return;      // il tasto destro serve per le coccole e per tornare alla mascotte
     ring.classList.add('press');
     drag = { x: e.clientX, y: e.clientY, moved: false, a: ringAngle(e), v: vol };
     ring.setPointerCapture(e.pointerId);
@@ -2514,6 +3155,7 @@ svg.lu { display: block; flex: none; }
     function step(d) { if (mode === 'weather') wxStep(d); else if (mode === 'calendar') calStep(d); else if (mode === 'timer') tmStep(d); else dkCycle(d); }
   });
   ring.addEventListener('pointerup', e => {
+    if (e.button === 2) return;
     ring.classList.remove('press');
     const d = drag; drag = null;
     if (d && d.moved && mode === 'idle' && mpk.on) { pickCommit(0.55); return; }
@@ -2548,8 +3190,16 @@ svg.lu { display: block; flex: none; }
     else if (mode === 'disks') dkCycle(d);
     else if (mode === 'timer' && (tmTab === 'cd' || focusDial())) tmStep(d);
   });
+  let tk = [];
   function poke(side) {
-    if (mode === 'idle') { if (asleep) wake(); else eye.happy = 1.4; }
+    if (mode === 'idle') {
+      if (asleep) { if (!egg.kind) startEgg('yawn'); }
+      else {
+        // tanti clic veloci: solletico
+        const now = performance.now(); tk = tk.filter(t => now - t < 1600); tk.push(now);
+        if (tk.length >= 6 && !egg.kind && !pet.on) { tk = []; startEgg('tickle'); } else eye.happy = 1.4;
+      }
+    }
     else if (mode === 'clock') { showSec = !showSec; syncCtx(); }
     else if (mode === 'music') { showDisc = !showDisc; syncDisc(); }
     else if (mode === 'timer') { if (tmTab === 'sw') swToggle(); else if (tmTab === 'cd') cdToggle(); else { tm.speed = tm.speed === 1 ? 60 : 1; tmUi(); } }
@@ -2946,7 +3596,7 @@ svg.lu { display: block; flex: none; }
     clear();
     pickTick(real);
     eggTick(real);
-    if (scene === 'idle') { if (mpk.on && mode === 'idle') drawPick(t); else if (egg.kind) drawEgg(t); else drawEyes(t); }
+    if (scene === 'idle') { if (mpk.on && mode === 'idle') drawPick(t); else if (egg.kind) drawEgg(t); else if (pet.on) drawPet(t, dt); else drawEyes(t); }
     else if (scene === 'clock') drawClock(now);
     else if (scene === 'calendar') drawCalendar(t);
     else if (scene === 'music') { if (volShow > 0) drawVolume(); else if (shownDisc) drawCoverLed(); else drawBands(); }
@@ -3196,6 +3846,10 @@ svg.lu { display: block; flex: none; }
     document.body.classList.toggle('h12', units.h12);
     $('swCov').setAttribute('aria-checked', units.cover);
   }
+  // ---------- lingua ----------
+  $('langSeg').innerHTML = I18N.LANGS.map(([c, n]) => `<button data-l="${c}" title="${n}" aria-label="${n}" aria-pressed="${c === I18N.lang}">${c}</button>`).join('');
+  $('langSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b && b.dataset.l !== I18N.lang) I18N.set(b.dataset.l); });
+  try { if (sessionStorage.getItem('companion-reopen') === 'set') { sessionStorage.removeItem('companion-reopen'); setTimeout(() => { setAway(false); openSettings(); setPage('gen'); }, 0); } } catch (e) {}
   // ---------- durate del focus ----------
   function phUi() { document.querySelectorAll('.stepper[data-ph] output').forEach(o => { o.textContent = `${PH[o.parentElement.dataset.ph].len / 60} min`; }); }
   document.querySelectorAll('.stepper[data-ph]').forEach(el => el.addEventListener('click', e => {

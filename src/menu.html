@@ -38,7 +38,24 @@ hr { border: 0; height: 1px; background: rgba(255,255,255,.08); margin: 5px 6px;
 (() => {
   const { invoke } = window.__TAURI__.core, { listen } = window.__TAURI__.event;
   const m = document.getElementById('m');
-  const LEVELS = [['desktop', 'Desktop'], ['normal', 'Normale'], ['top', 'In alto']];
+  // the language is the one chosen in Settings (localStorage is shared by the app's windows)
+  const lang = () => { try { return localStorage.getItem('companion-lang') || 'en'; } catch (e) { return 'en'; } };
+  const TR = {
+    'Fai dormire / sveglia': ['Put to sleep / wake', 'Dormir / despertar', 'Endormir / réveiller'],
+    'Sposta il widget': ['Move the widget', 'Mover el widget', 'Déplacer le widget'],
+    'Aggancio alla griglia': ['Snap to grid', 'Ajustar a la cuadrícula', 'Aimanter à la grille'],
+    'Nascondi il widget': ['Hide the widget', 'Ocultar el widget', 'Masquer le widget'],
+    'Mostra il widget': ['Show the widget', 'Mostrar el widget', 'Afficher le widget'],
+    'Livello': ['Level', 'Nivel', 'Niveau'],
+    'Desktop': ['Desktop', 'Escritorio', 'Bureau'],
+    'Normale': ['Normal', 'Normal', 'Normal'],
+    'In alto': ['On top', 'Encima', 'Au premier plan'],
+    'Impostazioni…': ['Settings…', 'Ajustes…', 'Réglages…'],
+    'Info su Glyphling': ['About Glyphling', 'Acerca de Glyphling', 'À propos de Glyphling'],
+    'Esci': ['Quit', 'Salir', 'Quitter'],
+  };
+  const t = k => { const i = { en: 0, es: 1, fr: 2 }[lang()]; return i === undefined ? k : TR[k][i]; };
+  const levels = () => [['desktop', t('Desktop')], ['normal', t('Normale')], ['top', t('In alto')]];
   // Lucide icons (ISC license, lucide.dev)
   const ICONS = {
     "sleep": "<path d=\"M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z\" />",
@@ -61,15 +78,15 @@ hr { border: 0; height: 1px; background: rgba(255,255,255,.08); margin: 5px 6px;
   function render({ cfg, version }) {
     colors();
     m.innerHTML = `<div class="mh"><b>Glyphling</b>v${version}</div>`
-      + (cfg.mode === 'idle' ? item('sleep', 'Fai dormire / sveglia') : '')
-      + item('move', 'Sposta il widget', !!cfg.move_enabled)
-      + item('snap', 'Aggancio alla griglia', !!cfg.snap)
-      + item('show', cfg.visible ? 'Nascondi il widget' : 'Mostra il widget', null, cfg.visible ? 'hide' : 'show')
-      + '<div class="sec">Livello</div><div class="lv">'
-      + LEVELS.map(([id, n]) => `<button role="menuitemradio" aria-checked="${cfg.level === id}" data-id="level:${id}">${n}</button>`).join('')
+      + (cfg.mode === 'idle' ? item('sleep', t('Fai dormire / sveglia')) : '')
+      + item('move', t('Sposta il widget'), !!cfg.move_enabled)
+      + item('snap', t('Aggancio alla griglia'), !!cfg.snap)
+      + item('show', cfg.visible ? t('Nascondi il widget') : t('Mostra il widget'), null, cfg.visible ? 'hide' : 'show')
+      + '<div class="sec">' + t('Livello') + '</div><div class="lv">'
+      + levels().map(([id, n]) => `<button role="menuitemradio" aria-checked="${cfg.level === id}" data-id="level:${id}">${n}</button>`).join('')
       + '</div><hr>'
-      + item('settings', 'Impostazioni…') + item('info', 'Info su Glyphling')
-      + '<hr>' + item('quit', 'Esci');
+      + item('settings', t('Impostazioni…')) + item('info', t('Info su Glyphling'))
+      + '<hr>' + item('quit', t('Esci'));
     // measure without the animation (which scales the menu), then start it
     invoke('menu_place', { w: m.offsetWidth, h: m.offsetHeight });
     m.classList.remove('opening'); void m.offsetWidth; m.classList.add('opening');

@@ -26,6 +26,12 @@
     get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   };
+  // language: stored for every window (they share localStorage), which then reload
+  window.__hostLang = l => { store.set('companion-lang', l); emit('lang-changed', l); };
+  listen('lang-changed', () => {
+    if (host === 'settings') { try { sessionStorage.setItem('glyphling-lang', '1'); } catch (e) {} }
+    location.reload();
+  });
   // cover LEDs in the theme colors (default) or neutral white
   let volTimer = 0, volNext = null;
   function sendVolume(v) {
@@ -316,7 +322,11 @@
     close.addEventListener('click', e => { e.stopImmediatePropagation(); win.close(); }, true);
     addEventListener('keydown', e => { if (e.key === 'Escape' && document.activeElement === document.body) win.close(); });
     listen('settings-page', e => C.setPage(e.payload));
-    invoke('take_settings_page').then(p => { if (p) C.setPage(p); });
+    invoke('take_settings_page').then(p => {
+      let after = false;
+      try { after = sessionStorage.getItem('glyphling-lang') === '1'; sessionStorage.removeItem('glyphling-lang'); } catch (e) {}
+      if (p) C.setPage(p); else if (after) C.setPage('gen');   // the language change reloads Settings on the same page
+    });
     const upd = $('infoUpd'), fresh = upd.cloneNode(true);   // removes the fake update check
     upd.replaceWith(fresh);
     fresh.style.cursor = 'default';
@@ -578,10 +588,10 @@
       <div class="srow"><div><b>Città del meteo</b><small id="cityNow"></small></div>
         <div class="dfield"><input id="cityQ" placeholder="Cerca una città" aria-label="Cerca una città"><button class="ghost" id="cityGo">Cerca</button></div></div>
       <div class="dres" id="cityRes" hidden></div>
-      <div class="srow col"><div><b>Calendario Google</b><small>In Google Calendar apri Impostazioni, scegli il calendario e copia l'<b>indirizzo segreto in formato iCal</b> da "Integra calendario". Uno per riga se sono più di uno. Resta salvato solo su questo PC.</small></div>
+      <div class="srow col"><div><b>Calendario Google</b><small>In Google Calendar apri Impostazioni, scegli il calendario e copia l'indirizzo segreto in formato iCal da "Integra calendario". Uno per riga se sono più di uno. Resta salvato solo su questo PC.</small></div>
         <textarea id="icsIn" rows="2" spellcheck="false" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" aria-label="Indirizzi iCal"></textarea>
         <div class="drow"><small id="icsMsg"></small><button class="ghost" id="icsSave">Salva</button></div></div>
-      <div class="srow"><div><b>Temperatura della CPU</b><small>Senza programmi esterni Glyphling usa la zona termica di Windows, che su molti PC fissi non è la CPU. Per il valore preciso apri <b>HWiNFO</b> con Impostazioni › Shared Memory Support attivo, oppure <b>LibreHardwareMonitor</b> con Opzioni › Remote Web Server (porta 8085). La GPU NVIDIA si legge da sola.</small></div><span class="dstat" id="cpuTemp">Si aggiorna con la modalità Sistema</span></div>
+      <div class="srow"><div><b>Temperatura della CPU</b><small>Senza programmi esterni Glyphling usa la zona termica di Windows, che su molti PC fissi non è la CPU. Per il valore preciso apri HWiNFO con Impostazioni › Shared Memory Support attivo, oppure LibreHardwareMonitor con Opzioni › Remote Web Server (porta 8085). La GPU NVIDIA si legge da sola.</small></div><span class="dstat" id="cpuTemp">Si aggiorna con la modalità Sistema</span></div>
     </div>`);
     cpuTempEl = $('cpuTemp');
     // the real disks for the dial picker, even if the widget is not in System mode
@@ -640,10 +650,10 @@
     if (!newsAdded) {
       newsAdded = true;
       const lists = document.querySelectorAll('.spage[data-p="info"] .news');
-      if (lists[0]) lists[0].insertAdjacentHTML('afterbegin', `<li><span><b>${i.version}</b> · ghiera per scegliere la modalità, riquadro a destra o a sinistra, menu dell'icona e impostazioni su misura, il widget resta visibile con Mostra desktop.</span></li><li><span><b>0.2</b> · dati veri: musica, meteo, calendario Google, CPU, GPU, RAM, temperature e dischi. Font a punti.</span></li>`);
-      if (lists[1]) lists[1].insertAdjacentHTML('afterbegin', `<li><span>Font a punti <b>Glyphling Dot</b>, disegnato per Glyphling (SIL Open Font License). Se sul PC è installato il font 5x7 di Nothing, si usa quello.</span></li>`);
-      if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Meteo da <b>Open-Meteo</b> (CC BY 4.0). Temperatura della CPU da <b>HWiNFO</b> o <b>LibreHardwareMonitor</b> se sono aperti, altrimenti dalla zona termica di Windows.</span></li>`);
-      if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Costruito con <b>Tauri</b> (licenza MIT/Apache 2.0). Impostazioni salvate in <b>${i.config_dir}</b>.</span></li>`);
+      if (lists[0]) lists[0].insertAdjacentHTML('afterbegin', `<li><span><b>${i.version}</b> · <i>lingue (English, Italiano, Español, Français) e nuove interazioni: giramenti di testa se giri il mouse intorno al cerchio, coccole con il tasto destro, solletico, sbadigli, un saluto al giorno e il palloncino mentre dorme.</i></span></li><li><span><b>1.0</b> · <i>ghiera per scegliere la modalità, riquadro a destra o a sinistra, menu dell'icona e impostazioni su misura, il widget resta visibile con Mostra desktop.</i></span></li><li><span><b>0.2</b> · <i>dati veri: musica, meteo, calendario Google, CPU, GPU, RAM, temperature e dischi. Font a punti.</i></span></li>`);
+      if (lists[1]) lists[1].insertAdjacentHTML('afterbegin', `<li><span>Font a punti Glyphling Dot, disegnato per Glyphling (SIL Open Font License). Se sul PC è installato il font 5x7 di Nothing, si usa quello.</span></li>`);
+      if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Meteo da Open-Meteo (CC BY 4.0). Temperatura della CPU da HWiNFO o LibreHardwareMonitor se sono aperti, altrimenti dalla zona termica di Windows.</span></li>`);
+      if (lists[1]) lists[1].insertAdjacentHTML('beforeend', `<li><span>Costruito con Tauri (licenza MIT/Apache 2.0).</span> <span>Impostazioni salvate in</span> <b>${i.config_dir}</b></li>`);
     }
   }
 })();

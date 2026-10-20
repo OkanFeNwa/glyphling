@@ -263,6 +263,13 @@ sub("  window.__srcRefresh = srcUi;\n", "  window.__srcRefresh = srcUi;\n  windo
 html = html.replace("Companion", "Glyphling")
 html = html.replace(" Meteo e brani in questo prototipo sono finti.", "")
 
+# 6b. app-only texts (src/host-i18n.js) join the prototype's translation table; the language
+# change is handled by the host, which tells every window
+sub('<script src="host-pre.js"></script>', '<script src="host-pre.js"></script>\n<script src="host-i18n.js"></script>')
+sub("  ];\n  const D = {};", "  ].concat(window.__hostRows || []);\n  const D = {};")
+sub("  const WORDS = ['oggi'", "  RX.push(...(window.__hostRx || []));\n  const WORDS = ['oggi'")
+sub("  function set(l) { try {", "  function set(l) { if (window.__hostLang) { window.__hostLang(l); return; } try {")
+
 # 7. host.css and host.js at the end of the page
 sub("</body></html>", '<link rel="stylesheet" href="host.css">\n<script src="host.js"></script>\n</body></html>')
 

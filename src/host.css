@@ -105,3 +105,5 @@ html.h-widget .evpop { background: rgba(26,26,26,.97) !important; }
 /* updates row in Info: the check button sits apart from the divider below */
 .upd-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 22px; }
 .upd-line small { color: var(--mute); font-size: 11px; }
+
+.news li i { font-style: normal; }
